@@ -9,10 +9,12 @@
 
 #include <Eigen/Core>
 #include <unsupported/Eigen/NonLinearOptimization>
+#include <string>
+#include <utility>
 #include <vector>
 #include <map>
 
-#include "basesolver.hpp"
+#include <basesolver.hpp>
 #include "material.hpp"
 
 
@@ -73,16 +75,37 @@ struct ResFunctorNumericalDiff : Eigen::NumericalDiff<ResFunctor>{};
 class Fitting : public BaseSolver {
 
   public:
+    Fitting(const std::string& fittingFilePath,
+            const std::vector<Layer>& layers,
+            const double dipolePosition,
+            const double wavelength,
+            const double sweepStart,
+            const double sweepStop);
 
-    Fitting(const std::vector<Material>& materials,
-      const std::vector<double>& thickness,
-      const size_t dipoleLayer,
-      const double dipolePosition,
-      const double wavelength,
-      const std::string& fittingFilePath);
-      /*!< Fitting class constructor, the constructor takes a (std) vector of class Material containing the materials of the stack to be simulated, 
-      a (std) vector of layer thicknesses with matching indices, the index of the dipole layer, the dipole position within the stack, the chosen wavelength
-      and the experimental data to be used for fitting. */
+    Fitting(const std::string& fittingFilePath,
+            const std::vector<Layer>& layers,
+            const double dipolePosition,
+            const std::string& spectrumFile,
+            const double sweepStart,
+            const double sweepStop);
+
+    Fitting(const std::string& fittingFilePath,
+            const std::vector<Layer>& layers,
+            const double dipolePosition,
+            const GaussianSpectrum& spectrum,
+            const double sweepStart,
+            const double sweepStop);
+
+    Fitting(const std::string& fittingFilePath,
+            const std::vector<Layer>& layers,
+            const DipoleDistribution& dipoleDist,
+            const GaussianSpectrum& spectrum,
+            const double sweepStart,
+            const double sweepStop);
+
+    /*!< Fitting class constructor, the constructor takes a (std) vector of class Material containing the materials of the stack to be simulated, 
+    a (std) vector of layer thicknesses with matching indices, the index of the dipole layer, the dipole position within the stack, the chosen wavelength
+    and the experimental data to be used for fitting. */
 
     ~Fitting() = default;
 
@@ -95,15 +118,15 @@ class Fitting : public BaseSolver {
     calculateEmissionSubstrate() and the experimentally obtained intensities in order to compute the residuals for fitting. It uses the Levenberg-Marquadt algorithm to 
     optimize the fittinng parameters and returns a (std) pair containing an Eigen vector of optimized parameters and the Eigen array of emitted power as a function of angle.*/
 
-    // Make these methods accessible only from Simulation objects. This way we are sured MatStack is properly initialized.
-    using BaseSolver::calculate;
-
   // void plot() override;
     Matrix mIntensityData;
 
     ResFunctorNumericalDiff mResidual;
 
   private:
+    const std::string _fittingFile;
+
+    void init();
 
     void genInPlaneWavevector() override; 
     void genOutofPlaneWavevector() override;

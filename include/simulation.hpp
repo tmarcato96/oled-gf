@@ -8,10 +8,13 @@
 #pragma once
 
 #include <Eigen/Core>
+#include <string>
 #include <vector>
 
 #include "basesolver.hpp"
+#include <layer.hpp>
 #include "material.hpp"
+
 
 /*! \class Simulation
     \brief A class for energy emission simulation which inherits from baseSolver.
@@ -24,26 +27,46 @@
 */
 class Simulation : public BaseSolver
 {
+  protected:
 
-  void genInPlaneWavevector() override;
-  void genOutofPlaneWavevector() override;
-  void discretize() override;
+    void genInPlaneWavevector() override;
+    void genOutofPlaneWavevector() override;
+    void discretize() override;
+
+    void init();
+
 
   public:
-    Simulation(const std::vector<Material>& materials,
-      const std::vector<double>& thickness,
-      const size_t dipoleLayer,
+    Simulation(SimulationMode mode, 
+      const std::vector<Layer>& materials,
       const double dipolePosition,
-      const double wavelength);
+      const double wavelength,
+      const double sweepStart,
+      const double sweepStop);
       /*!< Simulation class constructor, the constructor takes a (std) vector of class Material containing the materials of the stack to be simulated, 
       a (std) vector of layer thicknesses with matching indices, the index of the dipole layer, the dipole position within the stack and the chosen wavelength 
       to be used for the simulation */
+    Simulation(SimulationMode mode,
+      const std::vector<Layer>& layers,
+      const double dipolePosition,
+      const std::string& spectrumFile,
+      const double sweepStart,
+      const double sweepStop);
+
+    Simulation(SimulationMode mode,
+      const std::vector<Layer>& layers,
+      const double dipolePosition,
+      const GaussianSpectrum& spectrum,
+      const double sweepStart,
+      const double sweepStop);
+
+    Simulation(SimulationMode mode,
+      const std::vector<Layer>& layers,
+      const DipoleDistribution& dipoleDist,
+      const GaussianSpectrum& spectrum,
+      const double sweepStart,
+      const double sweepStop);
 
     ~Simulation() = default;
 
-
-    // Make these methods accessible only from Simulation objects. This way we are sure MatStack is properly initialized.
-    using BaseSolver::calculate;
-    using BaseSolver::calculateEmissionSubstrate;
-    // void plot() override;
 };

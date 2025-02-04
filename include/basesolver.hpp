@@ -10,9 +10,28 @@
 
 #include <vector>
 
-#include "material.hpp"
+#include <layer.hpp>
+#include <material.hpp>
 #include <Eigen/Core>
 #include <forwardDecl.hpp>
+
+enum class DipoleDistributionType {Uniform};
+
+enum class SimulationMode {AngleSweep, ModeDissipation};
+
+struct DipoleDistribution {
+  Vector dipolePositions;
+
+  DipoleDistribution() = default;
+  DipoleDistribution(double zmin, double zmax, DipoleDistributionType);
+};
+
+struct GaussianSpectrum {
+  Matrix spectrum;
+
+  GaussianSpectrum() = default;
+  GaussianSpectrum(double xmin, double xmax, double x0, double sigma);
+};
 
 //! A Struct to contain all the Green's Function coefficients. 
 struct SolverCoefficients {
@@ -42,11 +61,46 @@ struct SolverCoefficients {
 class BaseSolver
 {
 protected:
-  const std::vector<Material>& mMaterials;
-  const std::vector<double>& mThickness;
+  BaseSolver(SimulationMode mode, 
+      const std::vector<Layer>& layers,
+      const double dipolePosition,
+      const double wavelength,
+      const double sweepStart,
+      const double sweepStop);
+    /*!< BaseSolver class constructor, the constructor takes a (std) vector of class Material containing the materials of the stack to be simulated, 
+    a (std) vector of layer thicknesses with matching indices, the index of the dipole layer, the dipole position within the stack and the chosen wavelength 
+    to be used for the essential calculations needed for both Simulation and Fitting.*/
+  BaseSolver(SimulationMode mode,
+      const std::vector<Layer>& layers,
+      const double dipolePosition,
+      const std::string& spectrumFile,
+      const double sweepStart,
+      const double sweepStop);
+  
+  BaseSolver(SimulationMode mode,
+      const std::vector<Layer>& Layer,
+      const double dipolePosition,
+      const GaussianSpectrum& spectrum,
+      const double sweepStart,
+      const double sweepStop);
+
+  BaseSolver(SimulationMode mode,
+      const std::vector<Layer>& layers,
+      const DipoleDistribution& dipoleDist,
+      const GaussianSpectrum& spectrum,
+      const double sweepStart,
+      const double sweepStop);
+
+  const std::vector<Layer> mLayers;
   Eigen::Index mDipoleLayer;
-  const double mDipolePosition;
-  const double mWvl;
+  double mDipolePosition;
+  double mWvl;
+
+  Matrix _spectrum;
+  Vector _dipolePositions;
+  SimulationMode _mode;
+  double _sweepStart;
+  double _sweepStop;
   
   //! A struct to represent a stack of materials and its discretization.
   /*! The MatStack struct contains essential information about the stack, such as the distinct points of its discretization, 
@@ -61,7 +115,7 @@ protected:
     Eigen::Index numLayersTop;
     Eigen::Index numLayersBottom;
     Eigen::Index numKVectors;
- 
+
 
     CVector epsilon;
     Vector z0;
@@ -96,23 +150,20 @@ protected:
   /*!< Function to calculate the lifetime of the dipole*/
   void calculateDissPower(const double bPerpSum);
   /*!< Function to calculate dissipated power at the output. The power is decomposed in its parallel and perpendicular components.*/
+  
+  void calculateWithSpectrum();
+  void calculateWithDipoleDistribution();
   void calculate();
   /*!< Function that initializes that properly initializes all coefficients and call the other member functions sequentially, as needed to 
   obtain the base results needed for both Fitting and Simulation. In particular, the power emitted at the output as given by the real part of 
   the Poynting vector's area integral.*/
+  public:
+    void run();
 
   void calculateEmissionSubstrate(Vector& thetaGlass, Vector& powerPerpGlass, Vector& powerParapPolGlass, Vector& powerParasPolGlass) const;
 public:
   using CMPLX = std::complex<double>;
 
-  BaseSolver(const std::vector<Material>& materials,
-    const std::vector<double>& thickness,
-    const size_t dipoleLayer,
-    const double dipolePosition,
-    const double wavelength);
-    /*!< BaseSolver class constructor, the constructor takes a (std) vector of class Material containing the materials of the stack to be simulated, 
-    a (std) vector of layer thicknesses with matching indices, the index of the dipole layer, the dipole position within the stack and the chosen wavelength 
-    to be used for the essential calculations needed for both Simulation and Fitting.*/
 
   virtual ~BaseSolver() = default;
 
@@ -122,5 +173,7 @@ public:
   CMatrix mPowerParaUpPol;
   CMatrix mPowerParaUsPol;
 
-  Matrix mFracPowerPerpU;
+  Matrix mFracPowerPerpUpPol;
+  Matrix mFracPowerParaUpPol;
+  Matrix mFracPowerParaUsPol;
 };

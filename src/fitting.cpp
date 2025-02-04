@@ -11,14 +11,98 @@
 #include "fitting.hpp"
 #include "linalg.hpp"
 #include "material.hpp"
-#include "simulation.hpp"
+#include "basesolver.hpp"
 
+
+Fitting::Fitting(const std::string& fittingFilePath,
+                 const std::vector<Layer>& layers,
+                 const double dipolePosition,
+                 const double wavelength,
+                 const double sweepStart,
+                 const double sweepStop):
+                 BaseSolver(SimulationMode::AngleSweep,
+                 layers,
+                 dipolePosition,
+                 wavelength,
+                 sweepStart,
+                 sweepStop),
+                 _fittingFile(std::move(fittingFilePath))
+                  {
+                    init();
+}
+
+Fitting::Fitting(const std::string& fittingFilePath,
+                 const std::vector<Layer>& layers,
+                 const double dipolePosition,
+                 const std::string& spectrumFile,
+                 const double sweepStart,
+                 const double sweepStop):
+                 BaseSolver(SimulationMode::AngleSweep,
+                            layers,
+                            dipolePosition,
+                            spectrumFile,
+                            sweepStart,
+                            sweepStop),
+                 _fittingFile(std::move(fittingFilePath)) {
+                  init();
+}
+
+Fitting::Fitting(const std::string& fittingFilePath,
+                 const std::vector<Layer>& layers,
+                 const double dipolePosition,
+                 const GaussianSpectrum& spectrum,
+                 const double sweepStart,
+                 const double sweepStop):
+                 BaseSolver(SimulationMode::AngleSweep,
+                            layers,
+                            dipolePosition,
+                            spectrum,
+                            sweepStart,
+                            sweepStop),
+                 _fittingFile(std::move(fittingFilePath)) {
+                  init();
+}
+
+Fitting::Fitting(const std::string& fittingFilePath,
+                 const std::vector<Layer>& layers,
+                 const DipoleDistribution& dipoleDist,
+                 const GaussianSpectrum& spectrum,
+                 const double sweepStart,
+                 const double sweepStop):
+                 BaseSolver(SimulationMode::AngleSweep,
+                            layers,
+                            dipoleDist,
+                            spectrum,
+                            sweepStart,
+                            sweepStop),
+                 _fittingFile(std::move(fittingFilePath)) {
+                  init();
+}
+
+void Fitting::init() {
+  // Log initialization of Simulation
+  std::cout << "\n\n\n"
+            << "-----------------------------------------------------------------\n";
+  std::cout << "              Initializing Fitting             \n";
+  std::cout << "-----------------------------------------------------------------\n"
+            << "\n\n";
+  mIntensityData = Data::loadFromFile(_fittingFile, 2);
+  this->discretize();
+  run();
+  //setting up functor for fitting
+  mResidual.intensities = mIntensityData.col(1);
+  mResidual.powerGlass = calculateEmissionSubstrate();
+}
 
 void Fitting::genInPlaneWavevector() {
   // Cumulative sum of thicknesses
   matstack.z0.resize(matstack.numLayers - 1);
   matstack.z0(0) = 0.0;
-  std::partial_sum(mThickness.begin(), mThickness.end(), std::next(matstack.z0.begin()), std::plus<double>());
+  std::vector<double> thicknesses;
+  for (size_t i=1; i < mLayers.size()-1; ++i) {
+    thicknesses.push_back(mLayers[i].getThickness());
+  }
+  std::partial_sum(thicknesses.begin(), thicknesses.end(), std::next(matstack.z0.begin()), std::plus<double>());
   matstack.z0 -= (matstack.z0(mDipoleLayer - 1) + mDipolePosition);
 
   //getting sim data
@@ -48,47 +132,17 @@ void Fitting::discretize() {
   genOutofPlaneWavevector();
 }
 
-Fitting::Fitting(const std::vector<Material>& materials,
-  const std::vector<double>& thickness,
-  const size_t dipoleLayer,
-  const double dipolePosition,
-  const double wavelength,
-  const std::string& fittingFilePath) :
-  BaseSolver(materials,
-    thickness,
-    dipoleLayer,
-    dipolePosition,
-    wavelength) // initialization must be performed this way due to const members 
-  {
-  if (materials.size() != thickness.size() + 2) {
-    throw std::runtime_error("Invalid Input! Number of materials different than number of layers.");
-  }
-  if (dipoleLayer >= materials.size()) { throw std::runtime_error("Invalid Input! Dipole position is out of bounds."); }
-  // Log initialization of Simulation
-  std::cout << "\n\n\n"
-            << "-----------------------------------------------------------------\n";
-  std::cout << "              Initializing Fitting             \n";
-  std::cout << "-----------------------------------------------------------------\n"
-            << "\n\n";
-  mIntensityData = Data::loadFromFile(fittingFilePath, 2);
-  discretize();
-  calculate();
-  //setting up functor for fitting
-  mResidual.intensities = mIntensityData.col(1);
-  mResidual.powerGlass = calculateEmissionSubstrate();
-  }
-
 Matrix Fitting::calculateEmissionSubstrate() {
   Vector powerPerppPolGlass;
   Vector powerParapPolGlass;
 
   powerPerppPolGlass = ((Eigen::real(mPowerPerpUpPol(matstack.numLayers - 2, Eigen::all))) *
                     std::sqrt(std::real(matstack.epsilon(matstack.numLayers - 1) / matstack.epsilon(mDipoleLayer))));
-  powerPerppPolGlass /= Eigen::sin(mIntensityData.col(0));
+  powerPerppPolGlass /= Eigen::tan(mIntensityData.col(0));
 
   powerParapPolGlass = ((Eigen::real(mPowerParaUpPol(matstack.numLayers - 2, Eigen::all))) *
                     std::sqrt(std::real(matstack.epsilon(matstack.numLayers - 1) / matstack.epsilon(mDipoleLayer))));
-  powerParapPolGlass /= Eigen::sin(mIntensityData.col(0));
+  powerParapPolGlass /= Eigen::tan(mIntensityData.col(0));
 
 
   Matrix powerGlass(2, powerPerppPolGlass.size());
@@ -114,6 +168,7 @@ std::pair<Eigen::VectorXd, Eigen::ArrayXd> Fitting::fitEmissionSubstrate() {
 
   std::vector<double> theta(matstack.x.rows()), yFit(matstack.x.rows()), yExp(mResidual.intensities.rows());
 
+
   Eigen::ArrayXd::Map(&theta[0], mIntensityData.rows()) = mIntensityData.col(0);
   Eigen::ArrayXd::Map(&yExp[0], mIntensityData.rows()) = mResidual.intensities;
 
@@ -121,7 +176,7 @@ std::pair<Eigen::VectorXd, Eigen::ArrayXd> Fitting::fitEmissionSubstrate() {
   Eigen::VectorXd x(2);
   // Initial guess
   x(0) = 1.0;
-  x(1) = 0.0;
+  x(1) = 0.19;
 
   Eigen::LevenbergMarquardt<ResFunctorNumericalDiff> lm(mResidual);
   lm.parameters.maxfev = 2000;

@@ -30,9 +30,9 @@ private:
 
 
 public:
-  Material(double realRefIndex, double imagRefIndex = 0.0);
+  Material(double realRefIndex, double imagRefIndex);
   /*!< Constructor for the case that the refractive index is not given as a function of the wavelength but just a singular value.*/
-  Material(double wavelength, double realRefIndex, double imagRefIndex = 0.0);
+  Material(double wavelength, double realRefIndex, double imagRefIndex);
   /*!< Constructor for the case that the refractive index is given for only one specified wavelength.*/
   Material(const std::string& path, const char delimiter = '\t');
   /*!< Constructor for the case of a three column file with wavelength as the first column, followed by the real and imaginary parts of the refractive index, respectively.*/

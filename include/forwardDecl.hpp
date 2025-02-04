@@ -5,7 +5,6 @@
 
 #include <Eigen/Core>
 
-// Forward declarations
 
 // Global typedefs
 typedef Eigen::ArrayXXcd CMatrix;

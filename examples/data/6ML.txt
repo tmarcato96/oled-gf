@@ -1,0 +1,68 @@
+### ----------------------------------------------------------------------
+### PAIOS: Platform for All-In-One Characterization of Solar Cells and OLED
+### Fluxim AG, www.fluxim.com
+### ----------------------------------------------------------------------
+#
+# Paios 4.1.2
+# Export date: 08/04/2021 15:51
+
+#
+### Comment:
+# 6ML_1: Irradiance vs Angle [1. PL Spectrum Angle and Polarization Sweep]
+# 
+#
+### Measurement-Information:
+# Measured between
+# 13:55:30.291 23/03/2021 and
+# 14:02:47.834 23/03/2021
+# ----
+# Spectrum (Constant Voltage)
+# Sweep Angle: From: 0 � to: 80 �  |  Steps: 35  |  Transition: Linear
+# : 0.00 �
+# Voltage: 3.00 V
+# Disable Voltage Control: 0
+# Delay Time: 100 ms
+# Max Integration Time: 3.00 s
+# Averaging: 1
+# Setup-Type: Phelos
+#
+### Scale-Information:
+# Column 01: Polarization=0 rad, Sweep 2: Angle (�)
+# Column 02: Polarization=0 rad, Irradiance (W/m2)
+#
+### Data:
+0E+0	640.518E-6
+2.35294E+0	660.055E-6
+4.70588E+0	630.612E-6
+7.05882E+0	642.867E-6
+9.41177E+0	615.186E-6
+11.7647E+0	599.734E-6
+14.1176E+0	585.122E-6
+16.4706E+0	565.495E-6
+18.8235E+0	548.585E-6
+21.1765E+0	512.358E-6
+23.5294E+0	514.722E-6
+25.8824E+0	481.494E-6
+28.2353E+0	451.685E-6
+30.5882E+0	433.441E-6
+32.9412E+0	400.195E-6
+35.2941E+0	378.615E-6
+37.6471E+0	353.35E-6
+40E+0	342.26E-6
+42.3529E+0	522.458E-6
+44.7059E+0	612.867E-6
+47.0588E+0	635.909E-6
+49.4118E+0	641.131E-6
+51.7647E+0	610.045E-6
+54.1176E+0	591.498E-6
+56.4706E+0	540.972E-6
+58.8235E+0	498.734E-6
+61.1765E+0	444.773E-6
+63.5294E+0	403.559E-6
+65.8824E+0	359.616E-6
+68.2353E+0	308.735E-6
+70.5882E+0	257.276E-6
+72.9412E+0	208.451E-6
+75.2941E+0	162.584E-6
+77.6471E+0	118.607E-6
+80E+0	78.7642E-6

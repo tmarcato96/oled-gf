@@ -1,0 +1,29 @@
+{
+    "mode": "Simulation",
+    "stack": [
+        {"Environment": {
+            "material": 1.0
+            }
+        },
+        {"Layer": {
+            "material": 2.0,
+            "thickness": 30
+            }
+        },
+        {"Emitter": {
+            "material": 1.8,
+            "thickness": 50,
+            "position": "uniform"
+            }
+        },
+        {"Substrate": {
+            "material": 1.5
+            }
+        }
+    ],
+    "wavelength": {
+        "spectrum": "Gaussian",
+        "peak wavelength": 500,
+        "fwhm": 50 
+    }
+}

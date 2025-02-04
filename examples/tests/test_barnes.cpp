@@ -1,6 +1,7 @@
 #include <iostream>
 
 #include <material.hpp>
+#include <basesolver.hpp>
 #include <simulation.hpp>
 
 #include <Eigen/Core>
@@ -9,28 +10,38 @@
 int main()
 {
   // Set up stack
-  double wavelength = 550;
-  std::vector<Material> materials;
-  std::vector<double> d;
-  size_t dipoleLayer = 1;
+  const double wavelength = 530;
+  std::vector<Layer> layers;
 
-  materials.push_back(Material(wavelength, 1.0, 0.0));
-  materials.push_back(Material(wavelength, 1.578, 0.0));
-  materials.push_back(Material(wavelength, 0.0715, 4.1958));
-  materials.push_back(Material(wavelength, 0.0715, 4.1958));
+  layers.emplace_back(Material("/src/mat/Al_Cent.csv", ','), -1.0);
+  layers.emplace_back(Material(1.9, 0.0), 50e-9);
+  layers.emplace_back(Material("/src/mat/CBP.csv", ','), 20e-9, true);
+  layers.emplace_back(Material("/src/mat/PEDOT_BaytronP_AL4083.csv", ','), 35e-9);
+  layers.emplace_back(Material("/src/mat/ITO.csv", ','), 150e-9);
+  layers.emplace_back(Material(1.52, 0.0), 5000e-9);
+  layers.emplace_back(Material(1.52, 0.0), -1.0);
 
-  d.push_back(141e-9);
-  d.push_back(5000e-10);
+  // Spectrum
+  const double fwhm = 30;
+  GaussianSpectrum spectrum(450, 700, wavelength, fwhm/2.355);
 
   // Create Solver
-  auto simulation = std::make_unique<Simulation>(materials, d, dipoleLayer, 0.0, wavelength);
-
-  simulation->calculate();
+  auto simulation = std::make_unique<Simulation>(SimulationMode::ModeDissipation, layers, 10e-9, spectrum, 0.0, 2.0);
+  simulation->run();
 
   // Mode dissipation figure
   Vector const& u = simulation->getInPlaneWavevector();
-  Vector const& y = simulation->mFracPowerPerpU.row(0);
+  Vector const& y = simulation->mFracPowerPerpUpPol.row(1).head(u.size());
+  Vector const& yParapPol = simulation->mFracPowerParaUpPol.row(1).head(u.size());
+  Vector const& yParasPol = simulation->mFracPowerParaUsPol.row(1).head(u.size());
 
+  // Plot
   matplot::semilogy(u, y)->line_width(2).color("red");
+  matplot::hold(matplot::on);
+  matplot::semilogy(u, yParapPol)->line_width(2).color("blue");
+  matplot::semilogy(u, yParasPol)->line_width(2).color("green");
+  matplot::xlim({0.0, 2.0});
+  matplot::xlabel("Normalized Wavevector");
+  matplot::ylabel("Dissipated Power");
   matplot::show();
 }

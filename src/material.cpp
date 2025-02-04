@@ -5,10 +5,15 @@
 #include <complex>
 #include <iostream>
 #include <stdexcept>
+#include <Eigen/Core>
+
 
 Material::Material(double realRefIndex, double imagRefIndex)
 {
-  mRefIndices.insert(std::pair<double, std::complex<double>>{0.0, std::complex<double>(realRefIndex, imagRefIndex)});
+  Eigen::ArrayXd wavelength = Eigen::ArrayXd::LinSpaced(50, 300, 800);
+  for (auto wvl: wavelength) { 
+    mRefIndices.insert(std::pair<double, std::complex<double>>{wvl, std::complex<double>(realRefIndex, imagRefIndex)});
+  }
 }
 
 Material::Material(double wavelength, double realRefIndex, double imagRefIndex)

@@ -5,6 +5,9 @@
 
 #include <Eigen/Core>
 #include <cmath>
+#include <functional>
+#include <numeric>
+#include "forwardDecl.hpp"
 
 template<typename Derived>
 typename Eigen::DenseBase<Derived>::RandomAccessLinSpacedReturnType arange(typename Derived::Scalar start,
