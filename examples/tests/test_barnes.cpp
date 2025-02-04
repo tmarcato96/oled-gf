@@ -7,43 +7,6 @@
 #include <Eigen/Core>
 #include <matplot/matplot.h>
 
-/*
-int main()
-{
-  // Set up stack
-  double wavelength = 550;
-  std::vector<Material> materials;
-  std::vector<double> d;
-  size_t dipoleLayer = 1;
-
-  materials.push_back(Material(wavelength, 1.0, 0.0));
-  materials.push_back(Material(wavelength, 1.578, 0.0));
-  materials.push_back(Material(wavelength, 0.0715, 4.1958));
-  materials.push_back(Material(wavelength, 0.0715, 4.1958));
-
-  d.push_back(141e-9);
-  d.push_back(5000e-10);
-
-  // Create Solver
-  auto simulation = std::make_unique<Simulation>(materials, d, dipoleLayer, 0.0, wavelength);
-
-  simulation->calculate();
-
-  // Mode dissipation figure
-  Vector const& u = simulation->getInPlaneWavevector();
-  Vector const& y = simulation->mFracPowerPerpUpPol.row(0).head(u.size());
-  Vector const& yParapPol = simulation->mFracPowerParaUpPol.row(0).head(u.size());
-  Vector const& yParasPol = simulation->mFracPowerParaUsPol.row(0).head(u.size());
-  std::cout << u.size() << ", " << y.size() << std::endl;
-  saveToText("barnes_simulation_results.csv", ',', {u, y, yParapPol, yParasPol});
-
-  matplot::semilogy(u, y)->line_width(2).color("red");
-  matplot::hold(matplot::on);
-  matplot::semilogy(u, yParapPol)->line_width(2).color("blue");
-  matplot::semilogy(u, yParasPol)->line_width(2).color("green");
-  matplot::show();
-}
-*/
 int main()
 {
   // Set up stack
@@ -64,7 +27,6 @@ int main()
 
   // Create Solver
   auto simulation = std::make_unique<Simulation>(SimulationMode::ModeDissipation, layers, 10e-9, spectrum, 0.0, 2.0);
-
   simulation->run();
 
   // Mode dissipation figure
@@ -72,13 +34,14 @@ int main()
   Vector const& y = simulation->mFracPowerPerpUpPol.row(1).head(u.size());
   Vector const& yParapPol = simulation->mFracPowerParaUpPol.row(1).head(u.size());
   Vector const& yParasPol = simulation->mFracPowerParaUsPol.row(1).head(u.size());
-  //std::cout << u.size() << ", " << y.size() << std::endl;
-  //saveToText("OLED_simulation_results.csv", ',', {u, y, yParapPol, yParasPol});
 
+  // Plot
   matplot::semilogy(u, y)->line_width(2).color("red");
   matplot::hold(matplot::on);
   matplot::semilogy(u, yParapPol)->line_width(2).color("blue");
   matplot::semilogy(u, yParasPol)->line_width(2).color("green");
   matplot::xlim({0.0, 2.0});
+  matplot::xlabel("Normalized Wavevector");
+  matplot::ylabel("Dissipated Power");
   matplot::show();
 }

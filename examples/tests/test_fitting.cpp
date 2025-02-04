@@ -37,23 +37,5 @@ int main() {
   auto solver = std::make_unique<Fitting>(targetToFit, layers, 17.5e-9, spectrum, 0.0, 90.0);
   // Fit
   auto fitRes = solver->fitEmissionSubstrate();
-  std::cout << fitRes.first << std::endl;
-  
-  auto sim = std::make_unique<Simulation>(SimulationMode::AngleSweep,layers, 17.5e-9, spectrum, 0.0, 90.0);
-  sim->run();
 
-  Eigen::ArrayXd thetaGlass, powerPerpAngleGlass, powerParasPolAngleGlass, powerParapPolAngleGlass;
-  sim->calculateEmissionSubstrate(thetaGlass, powerPerpAngleGlass, powerParapPolAngleGlass, powerParasPolAngleGlass);
-
-  Eigen::ArrayXd res(thetaGlass.size()), angleDeg(thetaGlass.size());
-  double scalingFactor = 0.00833604;
-  double thetaIP = 0.178204;
-  res = scalingFactor * (thetaIP * powerPerpAngleGlass + (1 - thetaIP) * powerParapPolAngleGlass);
-  angleDeg = thetaGlass * 180 / M_PI;
-  //saveToText("3ML_Fit.txt", angleDeg, res, '\t');
-
-
-  matplot::figure();
-  matplot::plot(thetaGlass, res)->line_width(2);
-  matplot::show();
 }

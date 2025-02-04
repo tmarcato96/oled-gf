@@ -199,7 +199,7 @@ std::pair<Eigen::VectorXd, Eigen::ArrayXd> Fitting::fitEmissionSubstrate() {
   matplot::scatter(theta, yExp);
   matplot::hold(matplot::on);
   matplot::plot(theta, yFit)->line_width(2).color("red");
-  //matplot::show();
+  matplot::show();
 
   return std::pair<Eigen::VectorXd, Eigen::ArrayXd>(x, optIntensities);
 };
