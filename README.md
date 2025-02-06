@@ -98,3 +98,11 @@ The project relies on the following dependencies
 - [fmt](https://github.com/fmtlib/fmt): For formatting
 - [Eigen](https://gitlab.com/libeigen/eigen): For Matrices and linear algebra
 - [Matplot++](https://github.com/alandefreitas/matplotplusplus): For plotting (gnuplot backend)
+
+## TO DOs
+
+- Adjust Simulation configuration from JSON input file after refactoring (Tommaso)
+- We should probably support some standard input files as given from our experimental setups
+- Work on a standardized output format for all the important simulation and fitting results
+- Turn application into CLI with [CLI11](https://github.com/CLIUtils/CLI11)
+- Test and build on different platforms. Maybe experiment with Workflows as well
