@@ -1,3 +1,4 @@
+#define _USE_MATH_DEFINES
 #include <Eigen/Core>
 #include <unsupported/Eigen/NonLinearOptimization>
 #include <algorithm>
