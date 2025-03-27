@@ -2,6 +2,7 @@
 #include <Eigen/Core>
 #include <algorithm>
 #include <cmath>
+#include <fstream>
 #include <iostream>
 #include <numeric>
 #include <utility>
@@ -345,10 +346,10 @@ void BaseSolver::calculateLifetime(Vector& bPerp, Vector& bPara)
 void BaseSolver::calculateDissPower(const double bPerpSum)
 {
   // Power calculation
-  mPowerPerpUpPol.resize(matstack.numLayers - 1, matstack.u.size() - 1);
-  mPowerParaUpPol.resize(matstack.numLayers - 1, matstack.u.size() - 1);
-  mPowerParaUsPol.resize(matstack.numLayers - 1, matstack.u.size() - 1);
-  CMatrix powerParaTemp(matstack.numLayers - 1, matstack.u.size() - 1);
+  mPowerPerpUpPol.resize(matstack.numLayers - 1, matstack.u.size());
+  mPowerParaUpPol.resize(matstack.numLayers - 1, matstack.u.size());
+  mPowerParaUsPol.resize(matstack.numLayers - 1, matstack.u.size());
+  CMatrix powerParaTemp(matstack.numLayers - 1, matstack.u.size());
 
   double q = 1.0; // PLQY
   CMPLX I(0.0, 1.0);
@@ -356,13 +357,13 @@ void BaseSolver::calculateDissPower(const double bPerpSum)
   Vector boolValue = Vector::Zero(matstack.numLayers);
   boolValue(mDipoleLayer) = 1.0;
   for (Eigen::Index i = 0; i < matstack.numLayers - 1; ++i) {
-    mPowerPerpUpPol.row(i) = (-3.0 * q / 4.0) *
-                         ((Eigen::pow(matstack.u.segment(0, matstack.u.size() - 1), 3)) /
-                           Eigen::abs(1 - Eigen::pow(matstack.u.segment(0, matstack.u.size() - 1), 2))) *
+    CMatrix temp = (-3.0 * q / 4.0) *
+                         ((Eigen::pow(matstack.u, 3)) /
+                           Eigen::abs(1 - Eigen::pow(matstack.u, 2))) *
                          (Eigen::sqrt(matstack.epsilon(i) / matstack.epsilon(mDipoleLayer) -
-                                      Eigen::pow(matstack.u.segment(0, matstack.u.size() - 1), 2))) *
-                         (std::conj(std::sqrt(matstack.epsilon(i))) / std::sqrt(matstack.epsilon(i)));
-    mPowerPerpUpPol.row(i) *= (coeffs._f_perp(i, Eigen::seqN(0, mPowerPerpUpPol.cols())) *
+                                      Eigen::pow(matstack.u, 2))) *
+                         (std::conj(std::sqrt(matstack.epsilon(i))) / std::sqrt(matstack.epsilon(i)));                  
+    CMatrix temp1 = (coeffs._f_perp(i, Eigen::seqN(0, mPowerPerpUpPol.cols())) *
                             Eigen::exp(-I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i))) -
                           ((coeffs._fd_perp(i, Eigen::seqN(0, mPowerPerpUpPol.cols())) + boolValue(i)) *
                             Eigen::exp(I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i)));
@@ -370,12 +371,11 @@ void BaseSolver::calculateDissPower(const double bPerpSum)
                                          Eigen::exp(-I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i))) +
                                        ((coeffs._fd_perp(i, Eigen::seqN(0, mPowerPerpUpPol.cols())) + boolValue(i)) *
                                          Eigen::exp(I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i)))));
-
     mPowerParaUsPol.row(i) = (-3.0 * q / 8.0) *
-                         (matstack.u.segment(0, matstack.u.size() - 1) *
+                         (matstack.u *
                            Eigen::conj(Eigen::sqrt(matstack.epsilon(i) / matstack.epsilon(mDipoleLayer) -
-                                                   Eigen::pow(matstack.u.segment(0, matstack.u.size() - 1), 2)))) /
-                         (Eigen::abs(1 - Eigen::pow(matstack.u.segment(0, matstack.u.size() - 1), 2)));
+                                                   Eigen::pow(matstack.u, 2)))) /
+                         (Eigen::abs(1 - Eigen::pow(matstack.u, 2)));
     mPowerParaUsPol.row(i) *= (coeffs._c(i, Eigen::seqN(0, mPowerParaUsPol.cols())) *
                             Eigen::exp(-I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i))) +
                           ((coeffs._cd(i, Eigen::seqN(0, mPowerParaUsPol.cols())) + boolValue(i)) *
@@ -386,9 +386,9 @@ void BaseSolver::calculateDissPower(const double bPerpSum)
                                          Eigen::exp(I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i)))));
 
     mPowerParaUpPol.row(i) = (-3.0 * q / 8.0) *
-                           (matstack.u.segment(0, matstack.u.size() - 1) *
+                           (matstack.u *
                              Eigen::sqrt(matstack.epsilon(i) / matstack.epsilon(mDipoleLayer) -
-                                         Eigen::pow(matstack.u.segment(0, matstack.u.size() - 1), 2))) *
+                                         Eigen::pow(matstack.u, 2))) *
                            (std::conj(std::sqrt(matstack.epsilon(i))) / std::sqrt(matstack.epsilon(i)));
     mPowerParaUpPol.row(i) *= (coeffs._f_para(i, Eigen::seqN(0, mPowerParaUpPol.cols())) *
                               Eigen::exp(-I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i))) -
@@ -541,6 +541,8 @@ void BaseSolver::calculateEmissionSubstrate(Vector& thetaGlass, Vector& powerPer
 Vector const& BaseSolver::getInPlaneWavevector() const {
   return matstack.u;
 }
+
+//void BaseSolver::writeToFile(Vector& powerPerpGlass){}
 
 DipoleDistribution::DipoleDistribution(double zmin, double zmax, DipoleDistributionType type) {
   switch (type)

@@ -7,5 +7,4 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID MATCHES ".*Clan
 target_compile_options(${project_name} INTERFACE "$<$<CONFIG:RELEASE>:-march=native>")    
 endif()
 
-    
 endfunction()
