@@ -83,6 +83,14 @@ protected:
       const GaussianSpectrum& spectrum,
       const double sweepStart,
       const double sweepStop);
+    
+  BaseSolver(SimulationMode mode,
+    const std::vector<Layer>& Layer,
+    const DipoleDistribution& dipoleDist,
+    const double wavelength,
+    const double sweepStart,
+    const double sweepStop);
+
 
   BaseSolver(SimulationMode mode,
       const std::vector<Layer>& layers,

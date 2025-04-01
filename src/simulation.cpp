@@ -26,25 +26,34 @@ void Simulation::genInPlaneWavevector()
   // Discretization of in-plane wavevector
   CMPLX I(0.0, 1.0);
   double x_res = 5e-4;
+  CVector x_range;
+
   if (_mode == SimulationMode::AngleSweep) {
-    matstack.x = arange<Vector>(_sweepStart * M_PI / 180 + x_res, _sweepStop * M_PI / 180 - x_res, x_res);
+    x_range = arange<Vector>(_sweepStart * M_PI / 180, _sweepStop * M_PI / 180 + x_res, x_res);
+
+    matstack.x = x_range.head(x_range.size()-1);
     matstack.u = Eigen::real(Eigen::sqrt(matstack.epsilon(matstack.numLayers - 1)/matstack.epsilon(mDipoleLayer)*(1- pow(Eigen::cos(matstack.x), 2))));
   }
+  //x_init is real and x_end is complex
   else if (_mode == SimulationMode::ModeDissipation) {
     Vector x_real = arange<Vector>(-std::acos(_sweepStart), -x_res, x_res);
-    CVector x_imag = I * arange<Vector>(x_res, -std::acos(std::complex<double>(_sweepStop, 0.0)).imag(), x_res);
-    matstack.x.resize(x_real.rows() + x_imag.rows());
-    matstack.x.head(x_real.size()) = x_real.cast<CMPLX>();
-    matstack.x.segment(x_real.size(), x_imag.size()) = x_imag;
+    CVector x_imag = I * arange<Vector>(x_res, -std::acos(std::complex<double>(_sweepStop, 0.0)).imag()+x_res, x_res);
+
+    x_range.resize(x_real.rows() + x_imag.rows());
+    x_range.head(x_real.size()) = x_real;
+    x_range.tail(x_imag.size()) = x_imag;
+
+    matstack.x = x_range.head(x_range.size()-1);
     matstack.u = matstack.x.cos().real();
   }
   else {throw std::runtime_error("Invalid mode!");}
 
   matstack.numKVectors = matstack.u.size();
+  
+  // Differences (last element of head handled by const initialization)
+  matstack.dX = x_range.segment(1, x_range.size()-1) - x_range.segment(0, x_range.size()-1);
+  matstack.dU = x_range.segment(1, x_range.size()-1).cos().real() - x_range.segment(0, x_range.size()-1).cos().real();
 
-  // Differences
-  matstack.dU = matstack.u.segment(1, matstack.u.size() - 1) - matstack.u.segment(0, matstack.u.size() - 1);
-  matstack.dX = matstack.x.segment(1, matstack.x.size() - 1) - matstack.x.segment(0, matstack.x.size() - 1);
 }
 
 void Simulation::genOutofPlaneWavevector()

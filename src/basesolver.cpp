@@ -94,6 +94,22 @@ BaseSolver::BaseSolver(SimulationMode mode,
 }
 
 BaseSolver::BaseSolver(SimulationMode mode,
+  const std::vector<Layer>& layers,
+  const DipoleDistribution& dipoleDist,
+  const double wavelength,
+  const double sweepStart,
+  const double sweepStop) :
+  BaseSolver(mode,
+             layers,
+             0.0,
+             wavelength,
+             sweepStart,
+             sweepStop)
+{
+_dipolePositions = std::move(dipoleDist.dipolePositions);
+}
+
+BaseSolver::BaseSolver(SimulationMode mode,
       const std::vector<Layer>& layers,
       const DipoleDistribution& dipoleDist,
       const GaussianSpectrum& spectrum,
@@ -325,21 +341,21 @@ void BaseSolver::calculateGFCoeffs()
 void BaseSolver::calculateLifetime(Vector& bPerp, Vector& bPara)
 {
 
-  CVector bTmp(matstack.u.size() - 1);
-  CVector bTmp2(matstack.u.size() - 1);
+  CVector bTmp(matstack.u.size());
+  CVector bTmp2(matstack.u.size());
 
-  bTmp = matstack.dX * (3.0 / 2.0) * Eigen::pow(Eigen::cos(matstack.x.head(matstack.x.size() - 1)), 3);
-  bTmp *= (coeffs._f_perp(mDipoleLayer, Eigen::seqN(0, matstack.u.size() - 1)) +
-           coeffs._fd_perp(mDipoleLayer, Eigen::seqN(0, matstack.u.size() - 1)));
+  bTmp = matstack.dX * (3.0 / 2.0) * Eigen::pow(Eigen::cos(matstack.x.head(matstack.x.size())), 3);
+  bTmp *= (coeffs._f_perp(mDipoleLayer, Eigen::seqN(0, matstack.u.size())) +
+           coeffs._fd_perp(mDipoleLayer, Eigen::seqN(0, matstack.u.size())));
   bPerp = bTmp.real();
 
-  bTmp2 = (coeffs._c(mDipoleLayer, Eigen::seqN(0, matstack.u.size() - 1)) +
-           coeffs._cd(mDipoleLayer, Eigen::seqN(0, matstack.u.size() - 1)));
-  bTmp = Eigen::pow(Eigen::sin(matstack.x.head(matstack.x.size() - 1)), 2);
-  bTmp *= (coeffs._f_para(mDipoleLayer, Eigen::seqN(0, matstack.u.size() - 1)) -
-           coeffs._fd_para(mDipoleLayer, Eigen::seqN(0, matstack.u.size() - 1)));
+  bTmp2 = (coeffs._c(mDipoleLayer, Eigen::seqN(0, matstack.u.size())) +
+           coeffs._cd(mDipoleLayer, Eigen::seqN(0, matstack.u.size())));
+  bTmp = Eigen::pow(Eigen::sin(matstack.x.head(matstack.x.size())), 2);
+  bTmp *= (coeffs._f_para(mDipoleLayer, Eigen::seqN(0, matstack.u.size())) -
+           coeffs._fd_para(mDipoleLayer, Eigen::seqN(0, matstack.u.size())));
   bTmp += bTmp2;
-  bTmp *= matstack.dX * (3.0 / 4.0) * Eigen::cos(matstack.x.head(matstack.x.size() - 1));
+  bTmp *= matstack.dX * (3.0 / 4.0) * Eigen::cos(matstack.x.head(matstack.x.size()));
   bPara = bTmp.real();
 }
 
@@ -452,9 +468,9 @@ void BaseSolver::calculate()
 }
 
 void BaseSolver::calculateWithSpectrum() {
-  CMatrix pPerpUpPol = CMatrix::Zero(matstack.numLayers - 1, matstack.u.size() - 1);
-  CMatrix pParaUpPol = CMatrix::Zero(matstack.numLayers - 1, matstack.u.size() - 1);
-  CMatrix pParaUsPol = CMatrix::Zero(matstack.numLayers - 1, matstack.u.size() - 1);
+  CMatrix pPerpUpPol = CMatrix::Zero(matstack.numLayers - 1, matstack.u.size());
+  CMatrix pParaUpPol = CMatrix::Zero(matstack.numLayers - 1, matstack.u.size());
+  CMatrix pParaUsPol = CMatrix::Zero(matstack.numLayers - 1, matstack.u.size());
   double dX = _spectrum(1, 0) - _spectrum(0, 0);
   for (Eigen::Index i=0; i < _spectrum.rows(); ++i) {
     mWvl = _spectrum(i, 0);
@@ -476,9 +492,9 @@ void BaseSolver::calculateWithSpectrum() {
 }
 
 void BaseSolver::calculateWithDipoleDistribution() {
-  CMatrix pPerpUpPol = CMatrix::Zero(matstack.numLayers - 1, matstack.u.size() - 1);
-  CMatrix pParaUpPol = CMatrix::Zero(matstack.numLayers - 1, matstack.u.size() - 1);
-  CMatrix pParaUsPol = CMatrix::Zero(matstack.numLayers - 1, matstack.u.size() - 1);
+  CMatrix pPerpUpPol = CMatrix::Zero(matstack.numLayers - 1, matstack.u.size());
+  CMatrix pParaUpPol = CMatrix::Zero(matstack.numLayers - 1, matstack.u.size());
+  CMatrix pParaUsPol = CMatrix::Zero(matstack.numLayers - 1, matstack.u.size());
   double dX = _dipolePositions(1) - _dipolePositions(0);
   double thickness = mLayers[mDipoleLayer].getThickness();
   for (Eigen::Index i=0; i < _dipolePositions.size(); ++i) {
