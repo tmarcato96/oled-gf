@@ -13,15 +13,15 @@ int main()
   std::vector<Layer> layers;
 
   layers.emplace_back(Material("/src/mat/air.csv", ','), -1.0);
-  layers.emplace_back(Material("/src//mat/ag.csv", ','), 1000e-10);
-  layers.emplace_back(Material("/src//mat/mg_palik.csv", ','), 500e-10);
+  layers.emplace_back(Material("/src/mat/ag.csv", ','), 1000e-10);
+  layers.emplace_back(Material("/src/mat/mg_palik.csv", ','), 500e-10);
   layers.emplace_back(Material("/src//mat/tpd.csv", ','), 200e-10);
-  layers.emplace_back(Material("/src//mat/alq3_literature.csv", ','), 500e-10, true);
-  layers.emplace_back(Material("/src//mat/tpd.csv", ','), 200e-10);
-  layers.emplace_back(Material("/src//mat/pedot.csv", ','), 300e-10);
-  layers.emplace_back(Material("/src//mat/test_ito.csv", ','), 1600e-10);
-  layers.emplace_back(Material("/src//mat/glass_no_loss.csv", ','), 5000e-10);
-  layers.emplace_back(Material("/src//mat/glass_no_loss.csv", ','), -1.0);
+  layers.emplace_back(Material("/src/mat/alq3_literature.csv", ','), 500e-10, true);
+  layers.emplace_back(Material("/src/mat/tpd.csv", ','), 200e-10);
+  layers.emplace_back(Material("/src/mat/pedot.csv", ','), 300e-10);
+  layers.emplace_back(Material("/src/mat/test_ito.csv", ','), 1600e-10);
+  layers.emplace_back(Material("/src/mat/glass_no_loss.csv", ','), 5000e-10);
+  layers.emplace_back(Material("/src/mat/glass_no_loss.csv", ','), -1.0);
 
   // Spectrum
   //THINGS TO DO: MOVE SIMULATION CONSTRUCTORS, CREATE NEW UNIFORM SPECTRUM MODE
