@@ -12,16 +12,16 @@ int main()
   // Set up stack
   std::vector<Layer> layers;
 
-  layers.emplace_back(Material("/src/mat/air.csv", ','), -1.0);
-  layers.emplace_back(Material("/src/mat/ag.csv", ','), 1000e-10);
-  layers.emplace_back(Material("/src/mat/mg_palik.csv", ','), 500e-10);
-  layers.emplace_back(Material("/src//mat/tpd.csv", ','), 200e-10);
-  layers.emplace_back(Material("/src/mat/alq3_literature.csv", ','), 500e-10, true);
-  layers.emplace_back(Material("/src/mat/tpd.csv", ','), 200e-10);
-  layers.emplace_back(Material("/src/mat/pedot.csv", ','), 300e-10);
-  layers.emplace_back(Material("/src/mat/test_ito.csv", ','), 1600e-10);
-  layers.emplace_back(Material("/src/mat/glass_no_loss.csv", ','), 5000e-10);
-  layers.emplace_back(Material("/src/mat/glass_no_loss.csv", ','), -1.0);
+  layers.emplace_back(Material("C:\\Users\\mnouman\\oled-gf\\mat\\air.csv", ','), -1.0);
+  layers.emplace_back(Material("C:\\Users\\mnouman\\oled-gf\\mat\\ag.csv", ','), 200e-10);
+  layers.emplace_back(Material("C:\\Users\\mnouman\\oled-gf\\mat\\mg_palik.csv", ','), 1000e-10);
+  layers.emplace_back(Material("C:\\Users\\mnouman\\oled-gf\\mat\\tpd.csv", ','), 500e-10);
+  layers.emplace_back(Material("C:\\Users\\mnouman\\oled-gf\\mat\\alq3_literature.csv", ','), 200e-10, true);
+  layers.emplace_back(Material("C:\\Users\\mnouman\\oled-gf\\mat\\tpd.csv", ','), 500e-10);
+  layers.emplace_back(Material("C:\\Users\\mnouman\\oled-gf\\mat\\pedot.csv", ','), 300e-10);
+  layers.emplace_back(Material("C:\\Users\\mnouman\\oled-gf\\mat\\test_ito.csv", ','), 1600e-10);
+  layers.emplace_back(Material("C:\\Users\\mnouman\\oled-gf\\mat\\glass_no_loss.csv", ','), 5000e-10);
+  layers.emplace_back(Material("C:\\Users\\mnouman\\oled-gf\\mat\\glass_no_loss.csv", ','), -1.0);
 
   // Spectrum
   //THINGS TO DO: MOVE SIMULATION CONSTRUCTORS, CREATE NEW UNIFORM SPECTRUM MODE
@@ -38,6 +38,8 @@ int main()
   Vector const& y = simulation->mFracPowerPerpUpPol.row(1).head(u.size());
   Vector const& yParapPol = simulation->mFracPowerParaUpPol.row(1).head(u.size());
   Vector const& yParasPol = simulation->mFracPowerParaUsPol.row(1).head(u.size());
+  std::cout << yParapPol.size() << ' ' << yParapPol.head(1) << ' ' << yParapPol.tail(1) << std::endl;
+  std::cout << yParasPol.size() << ' ' << yParasPol.head(1) << ' ' << yParasPol.tail(1) << std::endl;
 
   // Plot
   matplot::semilogy(u, y)->line_width(2).color("red");
