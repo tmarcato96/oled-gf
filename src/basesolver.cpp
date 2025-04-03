@@ -148,6 +148,8 @@ void BaseSolver::calculateFresnelCoeffs()
   // Move into SolverCoefficients
 coeffs._Rperp = std::move(R_perp);
 coeffs._Rpara = std::move(R_para);
+//std::cout << coeffs._Rperp.block(0, 0, 9, 10) << std::endl;
+//std::cout << coeffs._Rpara.block(0, 0, 9, 10)  << std::endl;
 }
 
 void BaseSolver::calculateGFCoeffRatios()
@@ -336,6 +338,11 @@ void BaseSolver::calculateGFCoeffs()
   coeffs._fd_perp = std::move(fd_perp);
   coeffs._f_para = std::move(f_para);
   coeffs._fd_para = std::move(fd_para);
+
+  //std::cout << coeffs._c.leftCols(10) << std::endl;
+  //std::cout << coeffs._cd.leftCols(10) << std::endl;
+  //std::cout << coeffs._f_perp.leftCols(10) << std::endl;
+  //std::cout << coeffs._fd_perp.leftCols(10) << std::endl;
 }
 
 void BaseSolver::calculateLifetime(Vector& bPerp, Vector& bPara)
@@ -344,7 +351,7 @@ void BaseSolver::calculateLifetime(Vector& bPerp, Vector& bPara)
   CVector bTmp(matstack.u.size());
   CVector bTmp2(matstack.u.size());
 
-  bTmp = matstack.dX * (3.0 / 2.0) * Eigen::pow(Eigen::cos(matstack.x.head(matstack.x.size())), 3);
+  bTmp = matstack.dX * (3.0 / 2.0) * Eigen::pow(Eigen::cos(matstack.x), 3);
   bTmp *= (coeffs._f_perp(mDipoleLayer, Eigen::seqN(0, matstack.u.size())) +
            coeffs._fd_perp(mDipoleLayer, Eigen::seqN(0, matstack.u.size())));
   bPerp = bTmp.real();
@@ -355,11 +362,11 @@ void BaseSolver::calculateLifetime(Vector& bPerp, Vector& bPara)
   bTmp *= (coeffs._f_para(mDipoleLayer, Eigen::seqN(0, matstack.u.size())) -
            coeffs._fd_para(mDipoleLayer, Eigen::seqN(0, matstack.u.size())));
   bTmp += bTmp2;
-  bTmp *= matstack.dX * (3.0 / 4.0) * Eigen::cos(matstack.x.head(matstack.x.size()));
+  bTmp *= matstack.dX * (3.0 / 4.0) * Eigen::cos(matstack.x);
   bPara = bTmp.real();
 }
 
-void BaseSolver::calculateDissPower(const double bPerpSum)
+void BaseSolver::calculateDissPower(const double bPerpSum, const double bParaSum)
 {
   // Power calculation
   mPowerPerpUpPol.resize(matstack.numLayers - 1, matstack.u.size());
@@ -373,13 +380,13 @@ void BaseSolver::calculateDissPower(const double bPerpSum)
   Vector boolValue = Vector::Zero(matstack.numLayers);
   boolValue(mDipoleLayer) = 1.0;
   for (Eigen::Index i = 0; i < matstack.numLayers - 1; ++i) {
-    CMatrix temp = (-3.0 * q / 4.0) *
+    mPowerPerpUpPol.row(i) = (-3.0 * q / 4.0) *
                          ((Eigen::pow(matstack.u, 3)) /
                            Eigen::abs(1 - Eigen::pow(matstack.u, 2))) *
                          (Eigen::sqrt(matstack.epsilon(i) / matstack.epsilon(mDipoleLayer) -
                                       Eigen::pow(matstack.u, 2))) *
                          (std::conj(std::sqrt(matstack.epsilon(i))) / std::sqrt(matstack.epsilon(i)));                  
-    CMatrix temp1 = (coeffs._f_perp(i, Eigen::seqN(0, mPowerPerpUpPol.cols())) *
+    mPowerPerpUpPol.row(i) *= (coeffs._f_perp(i, Eigen::seqN(0, mPowerPerpUpPol.cols())) *
                             Eigen::exp(-I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i))) -
                           ((coeffs._fd_perp(i, Eigen::seqN(0, mPowerPerpUpPol.cols())) + boolValue(i)) *
                             Eigen::exp(I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i)));
@@ -400,7 +407,6 @@ void BaseSolver::calculateDissPower(const double bPerpSum)
                                          Eigen::exp(-I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i))) -
                                        ((coeffs._cd(i, Eigen::seqN(0, mPowerParaUsPol.cols())) + boolValue(i)) *
                                          Eigen::exp(I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i)))));
-
     mPowerParaUpPol.row(i) = (-3.0 * q / 8.0) *
                            (matstack.u *
                              Eigen::sqrt(matstack.epsilon(i) / matstack.epsilon(mDipoleLayer) -
@@ -416,6 +422,10 @@ void BaseSolver::calculateDissPower(const double bPerpSum)
                                            Eigen::exp(I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i)))));
   }
 
+  //std::cout << mPowerPerpUpPol.block(0, 1186, 1, 10) << std::endl;
+  std::cout << mPowerPerpUpPol.real().leftCols(10) << std::endl;
+  std::cout << mPowerParaUpPol.real().leftCols(10) << std::endl;
+
   // Fraction power calculation
   Matrix m1 = Eigen::real(mPowerPerpUpPol.block(0, 0, mPowerPerpUpPol.rows() - 1, mPowerPerpUpPol.cols()));
   Matrix m2 = Eigen::real(mPowerPerpUpPol.block(1, 0, mPowerPerpUpPol.rows() - 1, mPowerPerpUpPol.cols()));
@@ -425,12 +435,12 @@ void BaseSolver::calculateDissPower(const double bPerpSum)
   Matrix m3 = Eigen::real(mPowerParaUpPol.block(0, 0, mPowerParaUpPol.rows() - 1, mPowerParaUpPol.cols()));
   Matrix m4 = Eigen::real(mPowerParaUpPol.block(1, 0, mPowerParaUpPol.rows() - 1, mPowerParaUpPol.cols()));
   mFracPowerParaUpPol = Eigen::abs(m4 - m3);
-  mFracPowerParaUpPol /= std::abs(bPerpSum);
+  mFracPowerParaUpPol /= std::abs(bParaSum);
 
   Matrix m5 = Eigen::real(mPowerParaUsPol.block(0, 0, mPowerParaUsPol.rows() - 1, mPowerParaUsPol.cols()));
   Matrix m6 = Eigen::real(mPowerParaUsPol.block(1, 0, mPowerParaUsPol.rows() - 1, mPowerParaUsPol.cols()));
   mFracPowerParaUsPol = Eigen::abs(m6 - m5);
-  mFracPowerParaUsPol /= std::abs(bPerpSum);
+  mFracPowerParaUsPol /= std::abs(bParaSum);
 }
 
 void BaseSolver::calculate()
@@ -454,10 +464,11 @@ void BaseSolver::calculate()
   calculateGFCoeffs();
 
   calculateLifetime(bPerp, bPara);
+
   double bPerpSum = 1.0 - q + q * (1 + bPerp.sum());
   double bParaSum = 1.0 - q + q * (1 + bPara.sum());
 
-  calculateDissPower(bPerpSum);
+  calculateDissPower(bPerpSum, bParaSum);
 
   // Loggin
   std::cout << "\n\n\n"
@@ -474,6 +485,7 @@ void BaseSolver::calculateWithSpectrum() {
   double dX = _spectrum(1, 0) - _spectrum(0, 0);
   for (Eigen::Index i=0; i < _spectrum.rows(); ++i) {
     mWvl = _spectrum(i, 0);
+    
     this->discretize();
     calculate();
     // Integration
@@ -482,7 +494,7 @@ void BaseSolver::calculateWithSpectrum() {
       mPowerParaUpPol *= 0.5;
       mPowerParaUsPol *= 0.5;
     }
-    pPerpUpPol += (mPowerPerpUpPol * _spectrum(i, 1)) ;
+    pPerpUpPol += (mPowerPerpUpPol * _spectrum(i, 1));
     pParaUpPol += (mPowerParaUpPol * _spectrum(i, 1));
     pParaUsPol += (mPowerParaUsPol * _spectrum(i, 1));
   }
@@ -577,8 +589,8 @@ GaussianSpectrum::GaussianSpectrum(double xmin,
                                    double x0,
                                    double sigma)
 {
-  spectrum.resize(50 , 2);
-  Eigen::ArrayXd x = Eigen::ArrayXd::LinSpaced(50, xmin, xmax);
+  spectrum.resize(5 , 2);
+  Eigen::ArrayXd x = Eigen::ArrayXd::LinSpaced(5, xmin, xmax);
   spectrum.col(0) = x;
   spectrum.col(1) = (1.0/sqrt(2 * M_PI * pow(sigma, 2))) * (-0.5 * ((x - x0) / sigma).pow(2)).exp();
 }
