@@ -16,7 +16,7 @@ int main()
   layers.emplace_back(Material("C:\\Users\\mnouman\\oled-gf\\mat\\ag.csv", ','), 200e-10);
   layers.emplace_back(Material("C:\\Users\\mnouman\\oled-gf\\mat\\mg_palik.csv", ','), 1000e-10);
   layers.emplace_back(Material("C:\\Users\\mnouman\\oled-gf\\mat\\tpd.csv", ','), 500e-10);
-  layers.emplace_back(Material("C:\\Users\\mnouman\\oled-gf\\mat\\alq3_literature.csv", ','), 200e-10, true);
+  layers.emplace_back(Material("C:\\Users\\mnouman\\oled-gf\\mat\\alq3_literature2.csv", ','), 200e-10, true);
   layers.emplace_back(Material("C:\\Users\\mnouman\\oled-gf\\mat\\tpd.csv", ','), 500e-10);
   layers.emplace_back(Material("C:\\Users\\mnouman\\oled-gf\\mat\\pedot.csv", ','), 300e-10);
   layers.emplace_back(Material("C:\\Users\\mnouman\\oled-gf\\mat\\test_ito.csv", ','), 1600e-10);
@@ -38,8 +38,8 @@ int main()
   Vector const& y = simulation->mFracPowerPerpUpPol.row(1).head(u.size());
   Vector const& yParapPol = simulation->mFracPowerParaUpPol.row(1).head(u.size());
   Vector const& yParasPol = simulation->mFracPowerParaUsPol.row(1).head(u.size());
-  std::cout << yParapPol.size() << ' ' << yParapPol.head(1) << ' ' << yParapPol.tail(1) << std::endl;
-  std::cout << yParasPol.size() << ' ' << yParasPol.head(1) << ' ' << yParasPol.tail(1) << std::endl;
+  std::cout << yParapPol.size() << ' ' << yParapPol.head(5) << ' ' << yParapPol.tail(5) << std::endl;
+  std::cout << yParasPol.size() << ' ' << yParasPol.head(5) << ' ' << yParasPol.tail(5) << std::endl;
 
   // Plot
   matplot::semilogy(u, y)->line_width(2).color("red");

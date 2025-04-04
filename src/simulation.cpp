@@ -39,10 +39,10 @@ void Simulation::genInPlaneWavevector()
     Vector x_real = arange<Vector>(-std::acos(_sweepStart), -x_res, x_res);
     CVector x_imag = I * arange<Vector>(x_res, -std::acos(std::complex<double>(_sweepStop, 0.0)).imag()+x_res, x_res);
 
+    
     x_range.resize(x_real.rows() + x_imag.rows());
     x_range.head(x_real.size()) = x_real;
-    x_range.tail(x_imag.size()) = x_imag;
-
+    x_range.tail(x_imag.size()) = -x_imag;
     matstack.x = x_range.head(x_range.size()-1);
     matstack.u = matstack.x.cos().real();
   }

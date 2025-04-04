@@ -344,7 +344,7 @@ void BaseSolver::calculateLifetime(Vector& bPerp, Vector& bPara)
   CVector bTmp(matstack.u.size());
   CVector bTmp2(matstack.u.size());
 
-  bTmp = matstack.dX * (3.0 / 2.0) * Eigen::pow(Eigen::cos(matstack.x.head(matstack.x.size())), 3);
+  bTmp = matstack.dX * (3.0 / 2.0) * Eigen::pow(Eigen::cos(matstack.x), 3);
   bTmp *= (coeffs._f_perp(mDipoleLayer, Eigen::seqN(0, matstack.u.size())) +
            coeffs._fd_perp(mDipoleLayer, Eigen::seqN(0, matstack.u.size())));
   bPerp = bTmp.real();
@@ -454,9 +454,8 @@ void BaseSolver::calculate()
   calculateGFCoeffs();
 
   calculateLifetime(bPerp, bPara);
-  double bPerpSum = 1.0 - q + q * (1 + bPerp.sum());
-  double bParaSum = 1.0 - q + q * (1 + bPara.sum());
-
+  double bPerpSum = 1.0 - q + q * (1.0 + bPerp.sum());
+  double bParaSum = 1.0 - q + q * (1.0 + bPara.sum());
   calculateDissPower(bPerpSum);
 
   // Loggin
