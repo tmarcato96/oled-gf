@@ -373,13 +373,13 @@ void BaseSolver::calculateDissPower(const double bPerpSum)
   Vector boolValue = Vector::Zero(matstack.numLayers);
   boolValue(mDipoleLayer) = 1.0;
   for (Eigen::Index i = 0; i < matstack.numLayers - 1; ++i) {
-    CMatrix temp = (-3.0 * q / 4.0) *
+    mPowerPerpUpPol.row(i) = (-3.0 * q / 4.0) *
                          ((Eigen::pow(matstack.u, 3)) /
                            Eigen::abs(1 - Eigen::pow(matstack.u, 2))) *
                          (Eigen::sqrt(matstack.epsilon(i) / matstack.epsilon(mDipoleLayer) -
                                       Eigen::pow(matstack.u, 2))) *
                          (std::conj(std::sqrt(matstack.epsilon(i))) / std::sqrt(matstack.epsilon(i)));                  
-    CMatrix temp1 = (coeffs._f_perp(i, Eigen::seqN(0, mPowerPerpUpPol.cols())) *
+    mPowerPerpUpPol.row(i) *= (coeffs._f_perp(i, Eigen::seqN(0, mPowerPerpUpPol.cols())) *
                             Eigen::exp(-I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i))) -
                           ((coeffs._fd_perp(i, Eigen::seqN(0, mPowerPerpUpPol.cols())) + boolValue(i)) *
                             Eigen::exp(I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i)));
