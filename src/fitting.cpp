@@ -91,7 +91,7 @@ void Fitting::init() {
   this->discretize();
   run();
   //setting up functor for fitting
-  mResidual.intensities = mIntensityData.col(1);
+  mResidual.intensities = mIntensityData.col(1).segment(0, matstack.u.size());
   mResidual.powerGlass = calculateEmissionSubstrate();
 }
 
@@ -106,7 +106,7 @@ void Fitting::genInPlaneWavevector() {
   std::partial_sum(thicknesses.begin(), thicknesses.end(), std::next(matstack.z0.begin()), std::plus<double>());
   matstack.z0 -= (matstack.z0(mDipoleLayer - 1) + mDipolePosition);
 
-  //getting sim data
+//getting sim data
 //QUADRUPLE CHECK THIS!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
   Vector u_range = Eigen::real(Eigen::sqrt(matstack.epsilon(matstack.numLayers - 1)/matstack.epsilon(mDipoleLayer)*(1- pow(Eigen::cos(mIntensityData.col(0)), 2))));
   matstack.u = u_range.head(u_range.size()-1);
@@ -114,8 +114,8 @@ void Fitting::genInPlaneWavevector() {
   matstack.numKVectors = matstack.u.size();
   
   // Differences
-  matstack.dU = u_range.segment(1, u_range.size() - 1) - u_range.segment(0, u_range.size() - 1);
-  matstack.dX = u_range.segment(1, u_range.size() - 1).acos() - u_range.segment(0, u_range.size() - 1).acos();
+  matstack.dU = u_range.segment(1, u_range.size()-1) - u_range.segment(0, u_range.size()-1);
+  matstack.dX = u_range.segment(1, u_range.size()-1).acos() - u_range.segment(0, u_range.size()-1).acos();
 }
 
 void Fitting::genOutofPlaneWavevector() {
@@ -136,14 +136,15 @@ void Fitting::discretize() {
 Matrix Fitting::calculateEmissionSubstrate() {
   Vector powerPerppPolGlass;
   Vector powerParapPolGlass;
+  Eigen::Index substrateIndex = matstack.numLayers-2; //glass
 
-  powerPerppPolGlass = ((Eigen::real(mPowerPerpUpPol(matstack.numLayers - 2, Eigen::all))) *
-                    std::sqrt(std::real(matstack.epsilon(matstack.numLayers - 1) / matstack.epsilon(mDipoleLayer))));
-  powerPerppPolGlass /= Eigen::tan(mIntensityData.col(0));
+  powerPerppPolGlass = mPowerPerpUpPol.row(substrateIndex).real() *
+                    std::sqrt(std::real(matstack.epsilon(matstack.numLayers-1) / matstack.epsilon(mDipoleLayer)));
+  powerPerppPolGlass /= Eigen::tan(mIntensityData.col(0).segment(0, matstack.u.size()));
 
-  powerParapPolGlass = ((Eigen::real(mPowerParaUpPol(matstack.numLayers - 2, Eigen::all))) *
-                    std::sqrt(std::real(matstack.epsilon(matstack.numLayers - 1) / matstack.epsilon(mDipoleLayer))));
-  powerParapPolGlass /= Eigen::tan(mIntensityData.col(0));
+  powerParapPolGlass = mPowerParaUpPol.row(substrateIndex).real() *
+                    std::sqrt(std::real(matstack.epsilon(matstack.numLayers-1) / matstack.epsilon(mDipoleLayer)));
+  powerParapPolGlass /= Eigen::tan(mIntensityData.col(0).segment(0, matstack.u.size()));
 
 
   Matrix powerGlass(2, powerPerppPolGlass.size());
@@ -152,10 +153,10 @@ Matrix Fitting::calculateEmissionSubstrate() {
   return powerGlass;
 }
 
-int ResFunctor::operator()(const Eigen::VectorXd& x, Eigen::VectorXd& fvec) const {
-  // x here is vector of fitting params
+int ResFunctor::operator()(const Eigen::VectorXd& params, Eigen::VectorXd& fvec) const {
+  // x here is vector of fitting params 
   for (size_t i = 0; i < intensities.size(); ++i) {
-    fvec(i) = intensities(i) - x(0) * (x(1)*powerGlass(0, i) + (1 - x(1))*powerGlass(1, i)); // residual of each sample
+    fvec(i) = intensities(i) - params(0) * (params(1)*powerGlass(0, i) + (1 - params(1))*powerGlass(1, i)); // residual of each sample
   }
   return 0;
 } 
@@ -170,28 +171,28 @@ std::pair<Eigen::VectorXd, Eigen::ArrayXd> Fitting::fitEmissionSubstrate() {
   std::vector<double> theta(matstack.x.rows()), yFit(matstack.x.rows()), yExp(mResidual.intensities.rows());
 
 
-  Eigen::ArrayXd::Map(&theta[0], mIntensityData.rows()) = mIntensityData.col(0);
-  Eigen::ArrayXd::Map(&yExp[0], mIntensityData.rows()) = mResidual.intensities;
+  Eigen::ArrayXd::Map(&theta[0], mIntensityData.rows()-1) = mIntensityData.col(0).segment(0, matstack.u.size());
+  Eigen::ArrayXd::Map(&yExp[0], mIntensityData.rows()-1) = mResidual.intensities;
 
   // Setup
-  Eigen::VectorXd x(2);
+  Eigen::VectorXd fitParams(2);
   // Initial guess
-  x(0) = 1.0;
-  x(1) = 0.19;
+  fitParams(0) = 1.0;
+  fitParams(1) = 0.19;
 
   Eigen::LevenbergMarquardt<ResFunctorNumericalDiff> lm(mResidual);
   lm.parameters.maxfev = 2000;
   lm.parameters.xtol = 1e-10;
   lm.parameters.ftol = 1e-10;
 
-  int status = lm.minimize(x);
+  int status = lm.minimize(fitParams);
   std::cout << "Number of iterations: " << lm.iter << '\n';
   std::cout << "Status: " << status << '\n';
-  std::cout << "Fitting result: " << x << '\n' << '\n';
+  std::cout << "Fitting result: " << fitParams << '\n' << '\n';
 
   // simulation results
   Eigen::ArrayXd optIntensities(matstack.x.rows());
-  optIntensities = x(0) * (x(1)*mResidual.powerGlass.row(0) + (1 - x(1))*mResidual.powerGlass.row(1));
+  optIntensities = fitParams(0) * (fitParams(1)*mResidual.powerGlass.row(0) + (1 - fitParams(1))*mResidual.powerGlass.row(1));
   Eigen::ArrayXd::Map(&yFit[0], matstack.x.rows()) = optIntensities;
 
   //plotting the results
@@ -202,5 +203,5 @@ std::pair<Eigen::VectorXd, Eigen::ArrayXd> Fitting::fitEmissionSubstrate() {
   matplot::plot(theta, yFit)->line_width(2).color("red");
   matplot::show();
 
-  return std::pair<Eigen::VectorXd, Eigen::ArrayXd>(x, optIntensities);
+  return std::pair<Eigen::VectorXd, Eigen::ArrayXd>(fitParams, optIntensities);
 };
