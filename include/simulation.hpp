@@ -25,6 +25,9 @@
     with the Fitting class and includes additional ones especially intented for emissions
     simulation. 
 */
+
+enum class SimulationMode { AngleSweep, ModeDissipation };
+
 class Simulation : public BaseSolver
 {
   protected:
@@ -35,6 +38,7 @@ class Simulation : public BaseSolver
 
     void init();
 
+    SimulationMode _mode;
 
   public:
     Simulation(SimulationMode mode, 
