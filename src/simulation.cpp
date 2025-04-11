@@ -7,7 +7,6 @@
 #include <vector>
 
 #include "linalg.hpp"
-#include "data.hpp"
 #include "material.hpp"
 #include "simulation.hpp"
 
@@ -83,6 +82,9 @@ void Simulation::init() {
             << "\n\n";
   this->discretize();
 }
+
+void Simulation::writeToFile(const std::string& filepath, char delimiter) {
+};
 
 Simulation::Simulation(SimulationMode mode,
   const std::vector<Layer>& layers,

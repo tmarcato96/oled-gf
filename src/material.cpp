@@ -1,5 +1,5 @@
 #include "material.hpp"
-#include "data.hpp"
+#include "indata.hpp"
 #include <algorithm>
 #include <cmath>
 #include <complex>

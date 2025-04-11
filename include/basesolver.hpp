@@ -9,6 +9,7 @@
 #pragma once
 
 #include <vector>
+#include <string>
 
 #include <Eigen/Core>
 #include <forwardDecl.hpp>
@@ -170,11 +171,11 @@ public:
     Vector& powerParapPolGlass,
     Vector& powerParasPolGlass) const;
 
-public:
   using CMPLX = std::complex<double>;
 
   virtual ~BaseSolver() = default;
-
+  
+  virtual void writeToFile(const std::string& filepath, char delimiter='\t') = 0;
   Vector const& getInPlaneWavevector() const;
   Eigen::Index getDipoleIndex() const;
 

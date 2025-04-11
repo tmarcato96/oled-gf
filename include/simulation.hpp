@@ -73,4 +73,5 @@ class Simulation : public BaseSolver
 
     ~Simulation() = default;
 
+    void writeToFile(const std::string& filepath, char delimiter='\t');
 };
