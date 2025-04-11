@@ -4,7 +4,7 @@
 #include <iostream>
 #include <sstream>
 
-#include <data.hpp>
+#include "indata.hpp"
 
 Matrix Data::loadFromFile(const std::string& filepath, size_t ncols, char delimiter) {
   
@@ -57,8 +57,4 @@ Matrix Data::loadFromFile(const std::string& filepath, size_t ncols, char delimi
                                                                        ncols, 
                                                                        Eigen::Stride<1, Eigen::Dynamic>(1, ncols));
   return ret;
-}
-
-int Data::writeToFile(const std::string& filepath, const Output& out, bool verbose, char delimiter) {
-  
 }

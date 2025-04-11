@@ -2,6 +2,7 @@
 
 #include <string>
 #include <Eigen/core>
+#include "jsonsimplecpp/node.hpp"
 #include <forwardDecl.hpp>
 
 namespace Data {

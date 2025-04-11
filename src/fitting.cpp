@@ -8,7 +8,7 @@
 #include <vector>
 #include <matplot/matplot.h>
 
-#include "data.hpp"
+#include "indata.hpp"
 #include "fitting.hpp"
 #include "linalg.hpp"
 #include "material.hpp"

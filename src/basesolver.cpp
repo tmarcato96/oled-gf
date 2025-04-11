@@ -10,7 +10,7 @@
 
 #include "basesolver.hpp"
 #include "linalg.hpp"
-#include "data.hpp"
+#include "indata.hpp"
 #include <forwardDecl.hpp>
 
 void BaseSolver::loadMaterialData()

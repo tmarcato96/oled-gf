@@ -3,16 +3,36 @@
 #include <string>
 #include <Eigen/core>
 #include <forwardDecl.hpp>
+#include <jsonsimplecpp/node.hpp>
+#include "BaseSolver.hpp"
 
 namespace Data {
         
-        struct Output{
-                double alpha;
+        struct Results{
+
+                Results(const BaseSolver& solver);
+
+                std::string vecToString(const Vector vec);
+                std::string layerToString(const CMatrix mat, Eigen::Index layerNum);
+
                 Vector u;
-                Matrix PowerUpperp;
-                Matrix PowerUppara;
-                Matrix PowerUspara;
+                CMatrix powerUpPerp;
+                CMatrix powerUpPara;
+                CMatrix powerUsPara;
+
         };
 
-        int writeToFile(const std::string& filepath, const Output& out, bool verbose, char delimiter='\t');
+        class Export{
+
+                Json::JsonNode Export::makeTree();
+                
+                struct Results results;
+
+                public:
+
+                Export(const BaseSolver& solver);
+                ~Export() = default;
+
+                Json::JsonNode root;
+        };
 }

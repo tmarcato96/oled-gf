@@ -15,6 +15,7 @@
 #include <forwardDecl.hpp>
 #include <layer.hpp>
 #include <material.hpp>
+#include <sstream>
 
 enum class DipoleDistributionType { Uniform };
 
@@ -177,7 +178,11 @@ public:
   
   virtual void writeToFile(const std::string& filepath, char delimiter='\t') = 0;
   Vector const& getInPlaneWavevector() const;
+  Matrix const& getPowerUpPerp() const;
+  Matrix const& getPowerUpPara() const;
+  Matrix const& getPowerUsPara() const;
   Eigen::Index getDipoleIndex() const;
+  
 
   CMatrix mPowerPerpUpPol;
   CMatrix mPowerParaUpPol;
