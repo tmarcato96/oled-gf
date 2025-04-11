@@ -1,6 +1,24 @@
-### oledgf Installation
+### Build prokect
 
-## Creating Development environment
+## Mac
+
+- Install `gcc-14` via ([Homebrew](https://formulae.brew.sh/formula/gcc))
+
+- Make sure your conda environment is deactivate with `conda deactivate`
+
+- Build the project
+
+```
+cmake -S . -B ./build -DCMAKE_CXX_COMPILER=/usr/local/bin/g++-14  && cd ./build
+```
+
+and compile it
+
+```
+make
+```
+
+## Docker Development environment
 
 To ensure a standardized environment for development the project has to be built within a Docker container.
 

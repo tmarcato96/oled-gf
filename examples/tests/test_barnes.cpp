@@ -36,6 +36,8 @@ int main()
   Vector const& yParapPol = simulation->mFracPowerParaUpPol.row(dipoleIndex - 1).head(u.size());
   Vector const& yParasPol = simulation->mFracPowerParaUsPol.row(dipoleIndex - 1).head(u.size());
 
+  std::cout << y.head(20) << '\n';
+
   // Plot
   matplot::semilogy(u, y)->line_width(2).color("red");
   matplot::hold(matplot::on);
