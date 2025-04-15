@@ -176,7 +176,6 @@ public:
 
   virtual ~BaseSolver() = default;
   
-  virtual void writeToFile(const std::string& filepath, char delimiter='\t') = 0;
   Vector const& getInPlaneWavevector() const;
   Matrix const& getPowerUpPerp() const;
   Matrix const& getPowerUpPara() const;

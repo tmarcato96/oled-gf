@@ -9,7 +9,6 @@
 
 #include <Eigen/Core>
 #include <material.hpp>
-#include <data.hpp>
 #include <fitting.hpp>
 #include <simulation.hpp>
 

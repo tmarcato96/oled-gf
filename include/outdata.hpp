@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <ostream>
 #include <Eigen/core>
 #include <forwardDecl.hpp>
 #include <jsonsimplecpp/node.hpp>
@@ -12,27 +13,29 @@ namespace Data {
 
                 Results(const BaseSolver& solver);
 
-                std::string vecToString(const Vector vec);
-                std::string layerToString(const CMatrix mat, Eigen::Index layerNum);
+                std::string vecToString(const Vector& vec);
+                std::string layerToString(const Matrix& mat, Eigen::Index layerNum);
 
                 Vector u;
-                CMatrix powerUpPerp;
-                CMatrix powerUpPara;
-                CMatrix powerUsPara;
+                Matrix powerUpPerp;
+                Matrix powerUpPara;
+                Matrix powerUsPara;
 
         };
 
-        class Export{
+        class Exporter{
 
-                Json::JsonNode Export::makeTree();
-                
-                struct Results results;
+                void makeTree();
+        
+                struct Results _results;
+                Json::JsonNode _root;
 
                 public:
 
-                Export(const BaseSolver& solver);
-                ~Export() = default;
+                Exporter(const BaseSolver& solver);
+                ~Exporter() = default;
 
-                Json::JsonNode root;
+                void print(std::ostream& sout);
+                void print();
         };
 }

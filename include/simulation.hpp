@@ -72,6 +72,4 @@ class Simulation : public BaseSolver
       const double sweepStop);
 
     ~Simulation() = default;
-
-    void writeToFile(const std::string& filepath, char delimiter='\t');
 };

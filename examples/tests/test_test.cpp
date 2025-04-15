@@ -1,8 +1,10 @@
 #include <iostream>
+#include <fstream>
 
 #include <basesolver.hpp>
 #include <material.hpp>
 #include <simulation.hpp>
+#include <outdata.hpp>
 
 #include <Eigen/Core>
 #include <matplot/matplot.h>
@@ -12,16 +14,16 @@ int main()
   // Set up stack
   std::vector<Layer> layers;
 
-  layers.emplace_back(Material("../mat/air.csv", ','), -1.0);
-  layers.emplace_back(Material("../mat/ag.csv", ','), 200e-10);
-  layers.emplace_back(Material("../mat/mg_palik.csv", ','), 1000e-10);
-  layers.emplace_back(Material("../mat/tpd.csv", ','), 500e-10);
-  layers.emplace_back(Material("../mat/alq3_literature2.csv", ','), 200e-10, true);
-  layers.emplace_back(Material("../mat/tpd.csv", ','), 500e-10);
-  layers.emplace_back(Material("../mat/pedot.csv", ','), 300e-10);
-  layers.emplace_back(Material("../mat/test_ito.csv", ','), 1600e-10);
-  layers.emplace_back(Material("../mat/glass_no_loss.csv", ','), 5000e-10);
-  layers.emplace_back(Material("../mat/glass_no_loss.csv", ','), -1.0);
+  layers.emplace_back(Material("C:\\Users\\mnouman\\oled-gf\\mat\\air.csv", ','), -1.0);
+  layers.emplace_back(Material("C:\\Users\\mnouman\\oled-gf\\mat\\ag.csv", ','), 200e-10);
+  layers.emplace_back(Material("C:\\Users\\mnouman\\oled-gf\\mat\\mg_palik.csv", ','), 1000e-10);
+  layers.emplace_back(Material("C:\\Users\\mnouman\\oled-gf\\mat\\tpd.csv", ','), 500e-10);
+  layers.emplace_back(Material("C:\\Users\\mnouman\\oled-gf\\mat\\alq3_literature2.csv", ','), 200e-10, true);
+  layers.emplace_back(Material("C:\\Users\\mnouman\\oled-gf\\mat\\tpd.csv", ','), 500e-10);
+  layers.emplace_back(Material("C:\\Users\\mnouman\\oled-gf\\mat\\pedot.csv", ','), 300e-10);
+  layers.emplace_back(Material("C:\\Users\\mnouman\\oled-gf\\mat\\test_ito.csv", ','), 1600e-10);
+  layers.emplace_back(Material("C:\\Users\\mnouman\\oled-gf\\mat\\glass_no_loss.csv", ','), 5000e-10);
+  layers.emplace_back(Material("C:\\Users\\mnouman\\oled-gf\\mat\\glass_no_loss.csv", ','), -1.0);
 
   // Spectrum
   // THINGS TO DO: MOVE SIMULATION CONSTRUCTORS, CREATE NEW UNIFORM SPECTRUM MODE
@@ -41,13 +43,17 @@ int main()
   Vector const& yParapPol = simulation->mFracPowerParaUpPol.row(dipoleIndex - 1).head(u.size());
   Vector const& yParasPol = simulation->mFracPowerParaUsPol.row(dipoleIndex - 1).head(u.size());
 
+  Data::Exporter exporter(*simulation);
+  std::ofstream output("C:\\Users\\mnouman\\oled-gf\\mat\\segfault.json");
+  exporter.print(output);
+
   // Plot
-  matplot::semilogy(u, y)->line_width(2).color("red");
-  matplot::hold(matplot::on);
-  matplot::semilogy(u, yParapPol)->line_width(2).color("blue");
-  matplot::semilogy(u, yParasPol)->line_width(2).color("green");
-  matplot::xlim({0.0, 2.0});
-  matplot::xlabel("Normalized Wavevector");
-  matplot::ylabel("Dissipated Power");
-  matplot::show();
+  //matplot::semilogy(u, y)->line_width(2).color("red");
+  //matplot::hold(matplot::on);
+  //matplot::semilogy(u, yParapPol)->line_width(2).color("blue");
+  //matplot::semilogy(u, yParasPol)->line_width(2).color("green");
+  //matplot::xlim({0.0, 2.0});
+  //matplot::xlabel("Normalized Wavevector");
+  //matplot::ylabel("Dissipated Power");
+  //matplot::show();
 }

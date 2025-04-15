@@ -83,15 +83,13 @@ void Simulation::init() {
   this->discretize();
 }
 
-void Simulation::writeToFile(const std::string& filepath, char delimiter) {
-};
-
 Simulation::Simulation(SimulationMode mode,
   const std::vector<Layer>& layers,
   const double dipolePosition,
   const double wavelength,
   const double sweepStart,
   const double sweepStop) :
+  _mode{mode},
   BaseSolver(layers,
     dipolePosition,
     wavelength,
@@ -107,6 +105,7 @@ Simulation::Simulation(SimulationMode mode,
       const std::string& spectrumFile,
       const double sweepStart,
       const double sweepStop) :
+      _mode{mode},
       BaseSolver(layers,
                  dipolePosition,
                  spectrumFile,
@@ -122,6 +121,7 @@ Simulation::Simulation(SimulationMode mode,
       const GaussianSpectrum& spectrum,
       const double sweepStart,
       const double sweepStop) :
+      _mode{mode},
       BaseSolver(layers,
                  dipolePosition,
                  spectrum,
@@ -137,6 +137,7 @@ Simulation::Simulation(SimulationMode mode,
       const GaussianSpectrum& spectrum,
       const double sweepStart,
       const double sweepStop) :
+      _mode{mode},
       BaseSolver(layers,
                  dipoleDist,
                  spectrum,

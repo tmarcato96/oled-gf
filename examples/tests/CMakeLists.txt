@@ -23,13 +23,3 @@ target_link_libraries(test_test PUBLIC
                      oledgf_warnings
                      matplot
                      PRIVATE Eigen)
-
-
-add_executable(test_config test_config.cpp)
-target_include_directories(test_config PUBLIC "${PROJECT_SOURCE_DIR}/include")
-target_link_libraries(test_config PUBLIC 
-                      OLEDFunctions 
-                      oledgf_options 
-                      oledgf_warnings
-                      matplot
-                      PRIVATE Eigen)
