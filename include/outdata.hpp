@@ -2,10 +2,10 @@
 
 #include <string>
 #include <ostream>
-#include <Eigen/core>
+#include <Eigen/Core>
 #include <forwardDecl.hpp>
 #include <jsonsimplecpp/node.hpp>
-#include "BaseSolver.hpp"
+#include "basesolver.hpp"
 
 namespace Data {
         
