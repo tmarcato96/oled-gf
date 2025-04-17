@@ -159,7 +159,7 @@ protected:
    * calculateGFcoeffRatios.*/
   void calculateLifetime(Vector& bPerp, Vector& bPara);
   /*!< Function to calculate the lifetime of the dipole*/
-  void calculateDissPower(const double bPerpSum);
+  void calculateDissPower(const double bPerpSum, const double bParaSum);
   /*!< Function to calculate dissipated power at the output. The power is decomposed in its parallel and perpendicular
    * components.*/
 

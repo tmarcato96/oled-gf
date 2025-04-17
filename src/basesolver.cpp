@@ -333,7 +333,7 @@ void BaseSolver::calculateLifetime(Vector& bPerp, Vector& bPara)
   bPara = bTmp.real();
 }
 
-void BaseSolver::calculateDissPower(const double bPerpSum)
+void BaseSolver::calculateDissPower(const double bPerpSum, const double bParaSum)
 {
   // Power calculation
   mPowerPerpUpPol.resize(matstack.numLayers - 1, matstack.u.size());
@@ -398,12 +398,12 @@ void BaseSolver::calculateDissPower(const double bPerpSum)
   Matrix m3 = Eigen::real(mPowerParaUpPol.block(0, 0, mPowerParaUpPol.rows() - 1, mPowerParaUpPol.cols()));
   Matrix m4 = Eigen::real(mPowerParaUpPol.block(1, 0, mPowerParaUpPol.rows() - 1, mPowerParaUpPol.cols()));
   mFracPowerParaUpPol = Eigen::abs(m4 - m3);
-  mFracPowerParaUpPol /= std::abs(bPerpSum);
+  mFracPowerParaUpPol /= std::abs(bParaSum);
 
   Matrix m5 = Eigen::real(mPowerParaUsPol.block(0, 0, mPowerParaUsPol.rows() - 1, mPowerParaUsPol.cols()));
   Matrix m6 = Eigen::real(mPowerParaUsPol.block(1, 0, mPowerParaUsPol.rows() - 1, mPowerParaUsPol.cols()));
   mFracPowerParaUsPol = Eigen::abs(m6 - m5);
-  mFracPowerParaUsPol /= std::abs(bPerpSum);
+  mFracPowerParaUsPol /= std::abs(bParaSum);
 }
 
 void BaseSolver::calculate()
@@ -429,7 +429,7 @@ void BaseSolver::calculate()
   calculateLifetime(bPerp, bPara);
   double bPerpSum = 1.0 - q + q * (1.0 + bPerp.sum());
   double bParaSum = 1.0 - q + q * (1.0 + bPara.sum());
-  calculateDissPower(bPerpSum);
+  calculateDissPower(bPerpSum, bParaSum);
 
   //normalizing dissipated power by alpha to get efficiency
   mFracPowerPerpUpPol *= alpha;
