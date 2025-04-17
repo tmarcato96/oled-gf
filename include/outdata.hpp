@@ -27,7 +27,7 @@ namespace Data {
 
                 void makeTree();
         
-                struct Results _results;
+                Results _results;
                 Json::JsonNode _root;
 
                 public:

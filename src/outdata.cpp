@@ -66,7 +66,7 @@ void Data::Exporter::makeTree() {
 
     std::unique_ptr<Json::JsonNode> childptr = std::make_unique<Json::JsonNode>();
     childptr->value = std::move(child);
-    rootObj->insert(std::pair(layer, std::move(childptr)));
+    rootObj->insert(std::pair<std::string, std::unique_ptr<Json::JsonNode>>(layer, std::move(childptr)));
   }
   _root.value = std::move(rootObj);
 }

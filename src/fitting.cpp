@@ -103,9 +103,8 @@ void Fitting::genInPlaneWavevector() {
   matstack.z0 -= (matstack.z0(mDipoleLayer - 1) + mDipolePosition);
 
 //getting sim data
-//QUADRUPLE CHECK THIS!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
   Vector u_range = Eigen::real(Eigen::sqrt(matstack.epsilon(matstack.numLayers - 1)/matstack.epsilon(mDipoleLayer)*(1- pow(Eigen::cos(mIntensityData.col(0)), 2))));
-  matstack.u = u_range.head(u_range.size()-1);
+  matstack.u = u_range.head(u_range.size() - 1);
   matstack.x = matstack.u.acos();
   matstack.numKVectors = matstack.u.size();
   
