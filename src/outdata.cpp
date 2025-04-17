@@ -6,6 +6,7 @@
 
 #include <forwardDecl.hpp>
 #include <jsonsimplecpp/node.hpp>
+#include <basesolver.hpp>
 #include "outdata.hpp"
 
 

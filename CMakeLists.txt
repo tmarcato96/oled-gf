@@ -24,5 +24,12 @@ target_compile_features(oledgf_options INTERFACE cxx_std_${CMAKE_CXX_STANDARD})
 
 add_subdirectory(src)
 
-add_subdirectory(examples/main)
-add_subdirectory(examples/tests)
+#add_subdirectory(examples/main)
+#add_subdirectory(examples/tests)
+
+# Adding tests:
+include(CTest)
+
+if(BUILD_TESTING)
+  add_subdirectory(test)
+endif()

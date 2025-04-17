@@ -1,7 +1,7 @@
 #pragma once
 
 #include <string>
-#include <Eigen/core>
+#include <Eigen/Core>
 #include "jsonsimplecpp/node.hpp"
 #include <forwardDecl.hpp>
 

@@ -9,8 +9,8 @@
 #include <vector>
 
 #include "basesolver.hpp"
-#include "linalg.hpp"
 #include "indata.hpp"
+#include "linalg.hpp"
 #include <forwardDecl.hpp>
 
 void BaseSolver::loadMaterialData()
@@ -506,23 +506,22 @@ void BaseSolver::calculateEmissionSubstrate(Vector& thetaGlass,
     std::find_if(matstack.u.begin(), matstack.u.end(), [uCriticalGlass](auto a) { return a > uCriticalGlass; });
   auto uGlassIndex = uGlassIt - matstack.u.begin();
 
-  thetaGlass =
-    Eigen::real(Eigen::acos(Eigen::sqrt(1 - matstack.epsilon(mDipoleLayer) / matstack.epsilon(matstack.numLayers - 1) *
-                                              Eigen::pow(matstack.u(Eigen::seq(1, uGlassIndex)), 2))));
+  thetaGlass = Eigen::real(Eigen::acos(Eigen::sqrt(
+    1 - matstack.epsilon(mDipoleLayer) / matstack.epsilon(matstack.numLayers - 1) * Eigen::pow(matstack.u, 2))));
 
-  powerPerpGlass = ((Eigen::real(mPowerPerpUpPol(matstack.numLayers - 2, Eigen::seq(1, uGlassIndex)))) *
+  powerPerpGlass = ((Eigen::real(mPowerPerpUpPol.row(matstack.numLayers - 2))) *
                     std::sqrt(std::real(matstack.epsilon(matstack.numLayers - 1) / matstack.epsilon(mDipoleLayer))));
   powerPerpGlass /= Eigen::tan(thetaGlass);
 
   // CMatrix powerParaUTot = mPowerParaUpPol + mPowerParaUsPol;
 
   powerParapPolGlass =
-    ((Eigen::real(mPowerParaUpPol(matstack.numLayers - 2, Eigen::seq(1, uGlassIndex)))) *
+    ((Eigen::real(mPowerParaUpPol.row(matstack.numLayers - 2))) *
       std::sqrt(std::real(matstack.epsilon(matstack.numLayers - 1) / matstack.epsilon(mDipoleLayer))));
   powerParapPolGlass /= Eigen::tan(thetaGlass);
 
   powerParasPolGlass =
-    ((Eigen::real(mPowerParaUsPol(matstack.numLayers - 2, Eigen::seq(1, uGlassIndex)))) *
+    ((Eigen::real(mPowerParaUsPol.row(matstack.numLayers - 2))) *
       std::sqrt(std::real(matstack.epsilon(matstack.numLayers - 1) / matstack.epsilon(mDipoleLayer))));
   powerParasPolGlass /= Eigen::tan(thetaGlass);
 }
@@ -530,8 +529,6 @@ void BaseSolver::calculateEmissionSubstrate(Vector& thetaGlass,
 Vector const& BaseSolver::getInPlaneWavevector() const { return matstack.u; }
 
 Eigen::Index BaseSolver::getDipoleIndex() const { return mDipoleLayer; }
-
-// void BaseSolver::writeToFile(Vector& powerPerpGlass){}
 
 DipoleDistribution::DipoleDistribution(double zmin, double zmax, DipoleDistributionType type)
 {
