@@ -4,10 +4,6 @@ function(oledgf_setup_dependencies)
 
 #option(CPM_USE_LOCAL_PACKAGES "Try `find_package` before downloading dependencies" ON)
 
-if(NOT TARGET fmtlib::fmtlib)
-    CPMAddPackage("gh:fmtlib/fmt#9.1.0")
-endif()
-
 CPMAddPackage(
   NAME Eigen
   VERSION 3.4
