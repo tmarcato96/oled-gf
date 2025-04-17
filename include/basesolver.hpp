@@ -68,7 +68,8 @@ protected:
     const double dipolePosition,
     const double wavelength,
     const double sweepStart,
-    const double sweepStop);
+    const double sweepStop,
+    const double alpha=1.0/3.0);
   /*!< BaseSolver class constructor, the constructor takes a (std) vector of class Material containing the materials of
   the stack to be simulated, a (std) vector of layer thicknesses with matching indices, the index of the dipole layer,
   the dipole position within the stack and the chosen wavelength to be used for the essential calculations needed for
@@ -77,25 +78,29 @@ protected:
     const double dipolePosition,
     const std::string& spectrumFile,
     const double sweepStart,
-    const double sweepStop);
+    const double sweepStop,
+    const double alpha=1.0/3.0);
 
   BaseSolver(const std::vector<Layer>& Layer,
     const double dipolePosition,
     const GaussianSpectrum& spectrum,
     const double sweepStart,
-    const double sweepStop);
+    const double sweepStop,
+    const double alpha=1.0/3.0);
 
   BaseSolver(const std::vector<Layer>& Layer,
     const DipoleDistribution& dipoleDist,
     const double wavelength,
     const double sweepStart,
-    const double sweepStop);
+    const double sweepStop,
+    const double alpha=1.0/3.0);
 
   BaseSolver(const std::vector<Layer>& layers,
     const DipoleDistribution& dipoleDist,
     const GaussianSpectrum& spectrum,
     const double sweepStart,
-    const double sweepStop);
+    const double sweepStop,
+    const double alpha=1.0/3.0);
 
   const std::vector<Layer> mLayers;
   Eigen::Index mDipoleLayer;
@@ -182,6 +187,7 @@ public:
   Matrix const& getPowerUsPara() const;
   Eigen::Index getDipoleIndex() const;
   
+  double alpha;
 
   CMatrix mPowerPerpUpPol;
   CMatrix mPowerParaUpPol;

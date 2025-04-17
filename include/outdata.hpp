@@ -16,6 +16,7 @@ namespace Data {
                 std::string vecToString(const Vector& vec);
                 std::string layerToString(const Matrix& mat, Eigen::Index layerNum);
 
+                double alpha;
                 Vector u;
                 Matrix powerUpPerp;
                 Matrix powerUpPara;

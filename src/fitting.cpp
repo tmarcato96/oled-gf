@@ -186,6 +186,7 @@ std::pair<Eigen::VectorXd, Eigen::ArrayXd> Fitting::fitEmissionSubstrate() {
   std::cout << "Fitting result: " << fitParams << '\n' << '\n';
 
   // simulation results
+  alpha = fitParams(1);
   Eigen::ArrayXd optIntensities(matstack.x.rows());
   optIntensities = fitParams(0) * (fitParams(1)*mResidual.powerGlass.row(0) + (1 - fitParams(1))*mResidual.powerGlass.row(1));
   Eigen::ArrayXd::Map(&yFit[0], matstack.x.rows()) = optIntensities;

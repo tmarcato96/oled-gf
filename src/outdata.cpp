@@ -11,6 +11,7 @@
 
 
 Data::Results::Results(const BaseSolver& solver) :
+  alpha{alpha},
   u{solver.getInPlaneWavevector()},
   powerUpPerp{solver.mFracPowerPerpUpPol},
   powerUpPara{solver.mFracPowerParaUpPol},
@@ -44,7 +45,8 @@ Data::Exporter::Exporter(const BaseSolver& solver) :
 void Data::Exporter::makeTree() {
 
   std::string layerUpPerp, layerUpPara, layerUsPara, u;
-  std::unique_ptr<Json::JsonObject> rootObj(new Json::JsonObject{});
+  std::unique_ptr<Json::JsonNode> alphaVal(new Json::JsonNode{_results.alpha});
+  std::unique_ptr<Json::JsonObject> rootObj(new Json::JsonObject{std::pair("alpha", std::move(alphaVal))});
 
   for(Eigen::Index layerIdx = 0; layerIdx < _results.powerUpPerp.rows(); layerIdx++) {
     std::string layer = std::format("layer {}", size_t(layerIdx));

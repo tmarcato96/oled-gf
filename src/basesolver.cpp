@@ -39,10 +39,12 @@ BaseSolver::BaseSolver(const std::vector<Layer>& layers,
   const double dipolePosition,
   const double wavelength,
   const double sweepStart,
-  const double sweepStop) :
+  const double sweepStop,
+  const double alpha) :
   mLayers{std::move(layers)},
   mDipolePosition{dipolePosition},
   mWvl{wavelength},
+  alpha{alpha},
   _sweepStart{sweepStart},
   _sweepStop{sweepStop}
 {
@@ -59,8 +61,9 @@ BaseSolver::BaseSolver(const std::vector<Layer>& layers,
   const double dipolePosition,
   const std::string& spectrumFile,
   const double sweepStart,
-  const double sweepStop) :
-  BaseSolver(layers, dipolePosition, 0.0, sweepStart, sweepStop)
+  const double sweepStop,
+  const double alpha) :
+  BaseSolver(layers, dipolePosition, 0.0, sweepStart, sweepStop, alpha)
 {
   _spectrum = Data::loadFromFile(spectrumFile, 2);
 }
@@ -69,8 +72,9 @@ BaseSolver::BaseSolver(const std::vector<Layer>& layers,
   const double dipolePosition,
   const GaussianSpectrum& spectrum,
   const double sweepStart,
-  const double sweepStop) :
-  BaseSolver(layers, dipolePosition, 0.0, sweepStart, sweepStop)
+  const double sweepStop,
+  const double alpha) :
+  BaseSolver(layers, dipolePosition, 0.0, sweepStart, sweepStop, alpha)
 {
   _spectrum = std::move(spectrum.spectrum);
   _dipolePositions = Vector::Zero(10);
@@ -80,8 +84,9 @@ BaseSolver::BaseSolver(const std::vector<Layer>& layers,
   const DipoleDistribution& dipoleDist,
   const double wavelength,
   const double sweepStart,
-  const double sweepStop) :
-  BaseSolver(layers, 0.0, wavelength, sweepStart, sweepStop)
+  const double sweepStop,
+  const double alpha) :
+  BaseSolver(layers, 0.0, wavelength, sweepStart, sweepStop, alpha)
 {
   _dipolePositions = std::move(dipoleDist.dipolePositions);
 }
@@ -90,8 +95,9 @@ BaseSolver::BaseSolver(const std::vector<Layer>& layers,
   const DipoleDistribution& dipoleDist,
   const GaussianSpectrum& spectrum,
   const double sweepStart,
-  const double sweepStop) :
-  BaseSolver(layers, 0.0, spectrum, sweepStart, sweepStop)
+  const double sweepStop,
+  const double alpha) :
+  BaseSolver(layers, 0.0, spectrum, sweepStart, sweepStop, alpha)
 {
   _dipolePositions = std::move(dipoleDist.dipolePositions);
 }
@@ -424,6 +430,12 @@ void BaseSolver::calculate()
   double bPerpSum = 1.0 - q + q * (1.0 + bPerp.sum());
   double bParaSum = 1.0 - q + q * (1.0 + bPara.sum());
   calculateDissPower(bPerpSum);
+
+  //normalizing dissipated power by alpha to get efficiency
+  mFracPowerPerpUpPol *= alpha;
+  mFracPowerParaUpPol *= (1 - alpha);
+  mFracPowerParaUsPol *= (1 - alpha);
+
 
   // Loggin
   std::cout << "\n\n\n"
