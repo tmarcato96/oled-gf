@@ -11,7 +11,7 @@
 
 
 Data::Results::Results(const BaseSolver& solver) :
-  alpha{alpha},
+  alpha{solver.alpha},
   u{solver.getInPlaneWavevector()},
   powerUpPerp{solver.mFracPowerPerpUpPol},
   powerUpPara{solver.mFracPowerParaUpPol},
