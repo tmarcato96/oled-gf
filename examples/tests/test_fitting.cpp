@@ -8,7 +8,7 @@
 #include <vector>
 
 #include <Eigen/Core>
-#include <material.hpp>
+#include <matlayer.hpp>
 #include <fitting.hpp>
 #include <simulation.hpp>
 

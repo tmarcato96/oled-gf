@@ -2,7 +2,7 @@
 #include <fstream>
 
 #include <basesolver.hpp>
-#include <material.hpp>
+#include <matlayer.hpp>
 #include <simulation.hpp>
 #include <outdata.hpp>
 
