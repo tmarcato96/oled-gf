@@ -7,7 +7,7 @@
 #include <forwardDecl.hpp>
 #include <jsonsimplecpp/node.hpp>
 #include <basesolver.hpp>
-#include "outdata.hpp"
+#include <outdata.hpp>
 
 
 Data::Results::Results(const BaseSolver& solver) :
