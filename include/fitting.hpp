@@ -15,7 +15,7 @@
 #include <map>
 
 #include <basesolver.hpp>
-#include "material.hpp"
+#include <matlayer.hpp>
 
 
 // Generic functor

@@ -7,7 +7,7 @@
 #include <vector>
 
 #include "linalg.hpp"
-#include "material.hpp"
+#include <matlayer.hpp>
 #include "simulation.hpp"
 
 void Simulation::genInPlaneWavevector()

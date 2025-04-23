@@ -11,9 +11,8 @@
 #include <string>
 #include <vector>
 
-#include "basesolver.hpp"
-#include <layer.hpp>
-#include "material.hpp"
+#include <basesolver.hpp>
+#include <matlayer.hpp>
 
 
 /*! \class Simulation

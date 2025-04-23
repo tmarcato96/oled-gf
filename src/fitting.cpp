@@ -11,7 +11,7 @@
 #include "indata.hpp"
 #include "fitting.hpp"
 #include "linalg.hpp"
-#include "material.hpp"
+#include "matlayer.hpp"
 #include "basesolver.hpp"
 
 

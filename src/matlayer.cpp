@@ -1,11 +1,14 @@
-#include "material.hpp"
+#include "matlayer.hpp"
 #include "indata.hpp"
+
+#include <utility>
 #include <algorithm>
 #include <cmath>
 #include <complex>
 #include <iostream>
 #include <stdexcept>
 #include <Eigen/Core>
+
 
 
 Material::Material(double realRefIndex, double imagRefIndex)
@@ -54,4 +57,18 @@ std::complex<double> Material::getEpsilon(double wavelength) const
 {
   std::complex<double> res = getRefIndex(wavelength);
   return res * res;
+}
+
+Layer::Layer(Material material, double thickness, bool emitterFlag):
+             _material(std::move(material)),
+             _thickness(thickness),
+             isEmitter(emitterFlag)
+{}
+
+const Material& Layer::getMaterial() const {
+    return _material;
+}
+
+const double Layer::getThickness() const {
+    return _thickness;
 }

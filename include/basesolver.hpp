@@ -13,8 +13,7 @@
 
 #include <Eigen/Core>
 #include <forwardDecl.hpp>
-#include <layer.hpp>
-#include <material.hpp>
+#include <matlayer.hpp>
 #include <sstream>
 
 enum class DipoleDistributionType { Uniform };

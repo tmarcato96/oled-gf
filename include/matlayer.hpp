@@ -23,6 +23,7 @@
     such that interpolation is used to estimate and return the permittivity
     for a given wavelength.
 */
+
 class Material
 {
 private:
@@ -41,4 +42,17 @@ public:
   /*!< Returns the complex refractive index of the material.*/
   std::complex<double> getEpsilon(double wavelength) const;
   /*!< Returns the complex permittivity of the material.*/
+};
+
+class Layer {
+  Material _material;
+  double _thickness;
+
+  public:
+      Layer(Material material, double thickness, bool emitterFlag = false);
+
+      const Material& getMaterial() const;
+      const double getThickness() const;
+
+      bool isEmitter;
 };
