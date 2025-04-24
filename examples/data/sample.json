@@ -1,0 +1,29 @@
+##template for JSON config file
+
+{ 
+
+	layer0: {
+			thickness:	42.0, #nm (double)
+			emitter:	bool,
+			material:	filepath, #filepath to CSV or
+			material:	n, k,     #comma separated real and imaginary indices, spaces are ignored
+		}
+
+	layer1: {
+			thickness:	1.0,
+			emitter:	bool,
+			matfile:	filepath,
+			material:	n, k,
+		}
+
+	...
+
+	alpha: 0.42 #for simulation only!!!
+	
+	fitdata:     {
+			450 #nm : 42.0, #for fitting only. either wavelength and intensity or filepath
+			...
+		     }
+
+	fitdata: filepath #filepath to CSV file
+}
