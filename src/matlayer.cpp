@@ -10,6 +10,9 @@
 #include <Eigen/Core>
 
 
+Material::Material() :
+  mRefIndices{std::pair{0.0, 0.0}}
+  {}
 
 Material::Material(double realRefIndex, double imagRefIndex)
 {

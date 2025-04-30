@@ -31,6 +31,8 @@ private:
 
 
 public:
+  Material();
+  
   Material(double realRefIndex, double imagRefIndex);
   /*!< Constructor for the case that the refractive index is not given as a function of the wavelength but just a singular value.*/
   Material(double wavelength, double realRefIndex, double imagRefIndex);
