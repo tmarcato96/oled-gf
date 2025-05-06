@@ -82,6 +82,13 @@ class Fitting : public BaseSolver {
             const double sweepStart,
             const double sweepStop);
 
+    Fitting(Matrix fitData,
+            const std::map<int, Layer>& layers,
+            const double dipolePosition,
+            const double wavelength,
+            const double sweepStart,
+            const double sweepStop);
+
     Fitting(const std::string& fittingFilePath,
             const std::vector<Layer>& layers,
             const double dipolePosition,

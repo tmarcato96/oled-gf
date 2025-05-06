@@ -29,6 +29,22 @@ Fitting::Fitting(const std::string& fittingFilePath,
                  init(std::move(fittingFilePath));
 }
 
+Fitting::Fitting(Matrix fitData,
+                const std::map<int, Layer>& layers,
+                const double dipolePosition,
+                const double wavelength,
+                const double sweepStart,
+                const double sweepStop):
+                BaseSolver(layers,
+                            dipolePosition,
+                            wavelength,
+                            sweepStart,
+                            sweepStop),
+                mIntensityData{fitData} {
+                  std::string empty{};
+                  init(empty);
+}
+
 Fitting::Fitting(const std::string& fittingFilePath,
                  const std::vector<Layer>& layers,
                  const double dipolePosition,
