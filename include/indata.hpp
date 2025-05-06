@@ -9,43 +9,38 @@
 #include <jsonsimplecpp\node.hpp>
 #include <jsonsimplecpp\parser.hpp>
 
+#include <visitor.hpp>
+#include <fileutils.hpp>
 #include <forwardDecl.hpp>
 #include <matlayer.hpp>
 #include <basesolver.hpp>
 
 namespace Data {
 
-    Matrix loadFromFile(const std::string& filepath, size_t ncols, char delimiter='\t');
-
-    struct JSONinput{
-        public:
-            std::map<int, Layer> layerMap;
-            std::map<double, double> fitData;
-            std::optional<double> alpha;
-        
-        private:
-            struct VisitorPolicy {
-                
-            };
-
-            VisitorPolicy policy;
-            std::string _filepath;
-            std::unique_ptr<Json::JsonNode<Json::PrintVisitor>> _root;
-            std::unique_ptr<Json::JsonNode<Json::PrintVisitor>> setRoot();
-
-    };
+    //filepolicy is Json::JsonNode<ConfigVisitor>
+    template<typename FilePolicy>
+    class Reader {
+    private:
+        std::map<int, Layer> _layerMap;
+        std::map<double, double> _fitData;
+        std::optional<double> _alpha;
     
-    struct CSVinput{
-        public:
-            std::map<int, Layer> layerMap;
-            std::map<double, double> fitData;
-            std::optional<double> alpha;
+        std::string _filepath;
+        FilePolicy _policy;
+    
+        void parseFile() {
+            _policy(_filepath);
+            _policy.parse();
+            _policy.
+        }
+    
+    public:
+        Reader() {
+            parseFile();
+        }
 
-        private:
+        std::unique_ptr<BaseSolver> makeSolver();
     };
-
-    template<typename T>
-    class Reader {};
 
     class Importer {
         protected:
@@ -74,11 +69,7 @@ namespace Data {
 
     class JSONimporter : public Importer {
         private:
-            std::unique_ptr<Json::JsonNode<Json::PrintVisitor>> _root;
-            std::unique_ptr<Json::JsonNode<Json::PrintVisitor>> setRoot();
-            Reader<JSONinput> reader;
-
-            void setSolverMode() override;
+            Reader<Json::JsonNode<ConfigVisitor>> _reader;
         
         public:
             std::unique_ptr<BaseSolver> solverFromFile() override;
