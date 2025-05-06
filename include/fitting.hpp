@@ -102,6 +102,13 @@ class Fitting : public BaseSolver {
             const GaussianSpectrum& spectrum,
             const double sweepStart,
             const double sweepStop);
+  
+    Fitting(const Matrix& fitData,
+            const std::map<int, Layer>& layers,
+            const DipoleDistribution& dipoleDist,
+            const GaussianSpectrum& spectrum,
+            const double sweepStart,
+            const double sweepStop);
 
     /*!< Fitting class constructor, the constructor takes a (std) vector of class Material containing the materials of the stack to be simulated, 
     a (std) vector of layer thicknesses with matching indices, the index of the dipole layer, the dipole position within the stack, the chosen wavelength
@@ -124,9 +131,8 @@ class Fitting : public BaseSolver {
     ResFunctorNumericalDiff mResidual;
 
   private:
-    const std::string _fittingFile;
 
-    void init();
+    void init(const std::string& fittingFile);
 
     void genInPlaneWavevector() override; 
     void genOutofPlaneWavevector() override;

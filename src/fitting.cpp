@@ -25,10 +25,8 @@ Fitting::Fitting(const std::string& fittingFilePath,
                  dipolePosition,
                  wavelength,
                  sweepStart,
-                 sweepStop),
-                 _fittingFile(std::move(fittingFilePath))
-                  {
-                    init();
+                 sweepStop) {
+                 init(std::move(fittingFilePath));
 }
 
 Fitting::Fitting(const std::string& fittingFilePath,
@@ -41,9 +39,8 @@ Fitting::Fitting(const std::string& fittingFilePath,
                             dipolePosition,
                             spectrumFile,
                             sweepStart,
-                            sweepStop),
-                 _fittingFile(std::move(fittingFilePath)) {
-                  init();
+                            sweepStop) {
+                 init(std::move(fittingFilePath));
 }
 
 Fitting::Fitting(const std::string& fittingFilePath,
@@ -56,9 +53,8 @@ Fitting::Fitting(const std::string& fittingFilePath,
                             dipolePosition,
                             spectrum,
                             sweepStart,
-                            sweepStop),
-                 _fittingFile(std::move(fittingFilePath)) {
-                  init();
+                            sweepStop) {
+                 init(std::move(fittingFilePath));
 }
 
 Fitting::Fitting(const std::string& fittingFilePath,
@@ -71,19 +67,36 @@ Fitting::Fitting(const std::string& fittingFilePath,
                             dipoleDist,
                             spectrum,
                             sweepStart,
-                            sweepStop),
-                 _fittingFile(std::move(fittingFilePath)) {
-                  init();
+                            sweepStop) {
+                 init(std::move(fittingFilePath));
 }
 
-void Fitting::init() {
+Fitting::Fitting(const Matrix& fitData,
+                 const std::map<int, Layer>& layers,
+                 const DipoleDistribution& dipoleDist,
+                 const GaussianSpectrum& spectrum,
+                 const double sweepStart,
+                 const double sweepStop):
+                 BaseSolver(layers,
+                  dipoleDist,
+                  spectrum,
+                  sweepStart,
+                  sweepStop),
+                 mIntensityData{fitData} {
+                 std::string empty{};
+                 init(empty);
+}
+
+void Fitting::init(const std::string& fittingFile) {
   // Log initialization of Simulation
   std::cout << "\n\n\n"
             << "-----------------------------------------------------------------\n";
   std::cout << "              Initializing Fitting             \n";
   std::cout << "-----------------------------------------------------------------\n"
             << "\n\n";
-  mIntensityData = Data::loadFromFile(_fittingFile, 2);
+
+  if (!fittingFile.empty()) mIntensityData = Data::loadFromFile(fittingFile, 2);
+  else if (mIntensityData.size() == 0) throw std::runtime_error("fitting data improperly initialized!");
   this->discretize();
   run();
   //setting up functor for fitting
