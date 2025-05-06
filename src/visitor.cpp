@@ -12,13 +12,13 @@
 #include <visitor.hpp>
 
 
-ConfigVisitor::ConfigVisitor(std::map<int, Layer>& layerMap, std::map<double, double>& fitData, std::optional<double>& alpha) :
+ConfigVisitor::ConfigVisitor(std::map<int, Layer>& layerMap, Matrix& fitData, std::optional<double>& alpha) :
   _layerMap(layerMap),
   _fitData{fitData},
   _alpha{alpha},
+  _depth{0},
   _helperQueue{},
-  _helperFitCalls{0},
-  _depth{0}
+  _helperFitCalls{0}
   {}
 
 void ConfigVisitor::operator()(const std::unique_ptr<JsonObject>& mapptr) {
@@ -51,8 +51,8 @@ void ConfigVisitor::fillBaseField() {
 
   //fills layer
   if (std::holds_alternative<std::string>(_helperQueue.front()) && (
-  std::get<std::string>(_helperQueue.front()).substr(0, 5) == (std::string)"Layer" || 
-  std::get<std::string>(_helperQueue.front()).substr(0, 5) == (std::string)"layer")) {
+  std::get<std::string>(_helperQueue.front()).substr(0, 5) == static_cast<std::string>("Layer") || 
+  std::get<std::string>(_helperQueue.front()).substr(0, 5) == static_cast<std::string>("layer"))) {
 
     bool layerEmitter;
     double layerThickness;
@@ -74,8 +74,8 @@ void ConfigVisitor::fillBaseField() {
 
   //fills fitData
   else if (std::holds_alternative<std::string>(_helperQueue.front()) && (
-  std::get<std::string>(_helperQueue.front()) == (std::string)"fitData" || 
-  std::get<std::string>(_helperQueue.front()) == (std::string)"FitData")) {
+  std::get<std::string>(_helperQueue.front()) == static_cast<std::string>("fitData") || 
+  std::get<std::string>(_helperQueue.front()) == static_cast<std::string>("FitData"))) {
 
     _helperQueue.pop();
     fillFitData();
@@ -83,8 +83,8 @@ void ConfigVisitor::fillBaseField() {
 
   //fill alpha
   else if (std::holds_alternative<std::string>(_helperQueue.front()) && (
-  std::get<std::string>(_helperQueue.front()) == (std::string)"alpha" || 
-  std::get<std::string>(_helperQueue.front()) == (std::string)"Alpha")) {
+  std::get<std::string>(_helperQueue.front()) == static_cast<std::string>("alpha") || 
+  std::get<std::string>(_helperQueue.front()) == static_cast<std::string>("Alpha"))) {
 
     _helperQueue.pop();
     _alpha = std::get<double>(return_pop(_helperQueue));
@@ -107,7 +107,7 @@ void ConfigVisitor::fillMaterial(Material& mat) {
 
     double wavelength = std::stoi(subfield);
 
-    std::string subfield = std::get<std::string>(return_pop(_helperQueue));
+    subfield = std::get<std::string>(return_pop(_helperQueue));
     double realRefIndex = std::stoi(subfield.substr(0, subfield.find(',')));
 
     subfield.erase(0, subfield.find(','));  //double check
@@ -131,7 +131,7 @@ void ConfigVisitor::fillFitData() {
   else if (std::isdigit(subfield[0])) {
 
     double wavelength = std::stoi(subfield);
-    std::string subfield = std::get<std::string>(return_pop(_helperQueue));
+    subfield = std::get<std::string>(return_pop(_helperQueue));
     double intensity = std::stoi(subfield.substr(0, subfield.find(',')));
 
     _fitData(_helperFitCalls, 0) = wavelength;
