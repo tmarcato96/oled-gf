@@ -37,6 +37,10 @@ Material::Material(const std::string& path, const char delimiter)
   }
 }
 
+void Material::insert(double wavelength, double realRefIndex, double imagRefIndex) {
+  mRefIndices.insert(std::pair{wavelength, std::complex<double>(realRefIndex, imagRefIndex)});
+}
+
 std::complex<double> Material::getRefIndex(double wavelength) const
 {
 

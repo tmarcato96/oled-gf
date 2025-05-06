@@ -44,6 +44,7 @@ public:
   /*!< Returns the complex refractive index of the material.*/
   std::complex<double> getEpsilon(double wavelength) const;
   /*!< Returns the complex permittivity of the material.*/
+  void insert(double wavelength, double realRefIndex, double imagRefIndex);
 };
 
 class Layer {
