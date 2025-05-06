@@ -62,56 +62,45 @@ void Data::ImportManager::autoSetFileFormat() {
   } 
   
   else if (_fin.fail()) {
-      throw std::runtime_error("File read error occurred when detecting format!");
+    throw std::runtime_error("File read error occurred when detecting format!");
   }
 }
 
 std::unique_ptr<Data::Importer> Data::ImportManager::makeImporter() {
   
   if (_fin.is_open()) _fin.close();
-
   if (_ftype == FileFormat::JSON) std::unique_ptr<Data::Importer> importer_ptr(new Data::JSONimporter(_filepath));
+  else{throw std::runtime_error("support for other file formats not implemented yet!");}
 }
 
 //importer stuff
 
 Data::Importer::Importer(const std::string& filepath) :
-  _filepath{filepath},
-  _fin{filepath}
+  _filepath{filepath}
   {}
 
-  Data::Importer::Importer(const std::string& filepath, Data::SolverMode mode) :
+Data::Importer::Importer(const std::string& filepath, Data::SolverMode mode) :
   _filepath{filepath},
-  _fin{filepath},
   _mode{mode}
   {}
 
 
 Data::JSONimporter::JSONimporter(const std::string& filepath, Data::SolverMode mode) :
+  _reader{filepath},
   Data::Importer::Importer(filepath, mode)
   {}
 
 Data::JSONimporter::JSONimporter(const std::string& filepath) :
+  _reader{filepath},
   Data::Importer::Importer(filepath)
   {
     setSolverMode();
   }
 
-std::unique_ptr<BaseSolver> Data::JSONimporter::solverFromFile() {
-  std::unique_ptr<BaseSolver> solverPtr;
-
-  if (_mode == SolverMode::fitting) 
-    solverPtr = new(Fitting())
-
+void  Data::JSONimporter::setSolverMode() {
+  _mode = _reader.get_mode();
 }
 
-std::unique_ptr<Json::JsonNode<ConfigVisitor>> Data::JSONinput::setRoot() {
-
-  Json::JsonParser<ConfigVisitor> parser(_filepath);
-  parser.parse();
-
-  auto resPtr = const_cast<Json::JsonNode<ConfigVisitor>*>(parser.getJsonTree());
-  std::unique_ptr<Json::JsonNode<ConfigVisitor>> rootPtr(resPtr);
-
-  return std::move(rootPtr);
+std::unique_ptr<BaseSolver> Data::JSONimporter::solverFromFile() {
+  return _reader.makeSolver();
 }
