@@ -54,7 +54,7 @@ void Data::ImportManager::autoSetFileFormat() {
   char c;
   while (_fin.get(c)) {
     if (std::isalnum(static_cast<unsigned char>(c))) {_ftype = FileFormat::CSV; return;}
-    else if (c = '{') {_ftype = FileFormat::JSON; return;}
+    else if (c == '{') {_ftype = FileFormat::JSON; return;}
   }
 
   if (_fin.eof()) {
@@ -86,13 +86,13 @@ Data::Importer::Importer(const std::string& filepath, Data::SolverMode mode) :
 
 
 Data::JSONimporter::JSONimporter(const std::string& filepath, Data::SolverMode mode) :
-  _reader{filepath},
-  Data::Importer::Importer(filepath, mode)
+  Data::Importer::Importer(filepath, mode),
+  _reader{filepath}
   {}
 
 Data::JSONimporter::JSONimporter(const std::string& filepath) :
-  _reader{filepath},
-  Data::Importer::Importer(filepath)
+  Data::Importer::Importer(filepath),
+  _reader{filepath}
   {
     setSolverMode();
   }

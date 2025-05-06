@@ -29,7 +29,7 @@ namespace Data {
                 void makeTree();
         
                 Results _results;
-                Json::JsonNode _root;
+                Json::JsonNode<Json::PrintVisitor> _root;
 
                 public:
 

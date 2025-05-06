@@ -14,38 +14,41 @@
 #include <forwardDecl.hpp>
 #include <matlayer.hpp>
 #include <basesolver.hpp>
+#include <fitting.hpp>
+#include <simulation.hpp>
 
 namespace Data {
 
+    enum class SolverMode{simulation, fitting, automatic};
+    enum class FileFormat{CSV, JSON, automatic};
+
     //filepolicy is Json::JsonNode<ConfigVisitor>
-    template<typename FilePolicy=Json::JsonNode<ConfigVisitor>>
+    template<typename FilePolicy=Json::JsonParser<ConfigVisitor>>
     class Reader {
         private:
             std::map<int, Layer> _layerMap;
-            std::map<double, double> _fitData;
+            Matrix _fitData;
             std::optional<double> _alpha;
             SolverMode _smode;
-            std::unique_ptr<Json::JsonNode<ConfigVisitor>> _rootPtr;
-            std::unique_ptr<ConfigVisitor> _visitor;
 
-            
             const std::string _filepath;
-            Json::JsonNode<ConfigVisitor> _policy;
-        
-            void parseFile() {
-                _policy.setVisitor(_visitor);
+            std::shared_ptr<ConfigVisitor> _visitor;
+            Json::JsonParser<ConfigVisitor> _policy;
+            Json::JsonNode<ConfigVisitor>* _rootPtr;
+
+            Json::JsonNode<ConfigVisitor>* parseFile() {
                 _policy.parse();
                 auto resPtr = const_cast<Json::JsonNode<ConfigVisitor>*>(_policy.getJsonTree());
-                _rootPtr{resPtr}; //triple check
+                return resPtr;
             }
         
         public:
             Reader(const std::string& filepath) :
-            _policy{filepath},
-            _visitor{new ConfigVisitor(_layerMap, _fitData, _alpha)}
-             {
-                parseFile();
-                
+            _filepath{filepath},
+            _visitor{new ConfigVisitor(_layerMap, _fitData, _alpha)},
+            _policy{_filepath, _visitor},
+            _rootPtr{parseFile()}
+            {
                 if (_alpha.has_value()) _smode = SolverMode::fitting;
                 else{ _smode = SolverMode::simulation;}
             }
@@ -55,21 +58,22 @@ namespace Data {
             std::unique_ptr<BaseSolver> makeSolver() {
                 
                 std::unique_ptr<BaseSolver> solverPtr;
-                if (_smode == SolverMode::fitting) solverPtr = std::make_unique<Fitting>(_fitData, _layerMap, 0.0, 0.0, 170)
-                else{ solverPtr = std::make_unique<Simulation>(SimulationMode::AngleSweep, _layerMap, 0.0, 0.0, 0.0, 170.0)}
+                if (_smode == SolverMode::fitting) solverPtr = std::make_unique<Fitting>(_fitData, _layerMap, 0.0, 0.0, 170.0);
+                else{solverPtr = std::make_unique<Simulation>();}
                 
-                return std::move(solverPtr);
+                return solverPtr;
             }
     };
 
     class Importer {
         protected:
-            virtual void setSolverMode() = 0;
-            SolverMode _mode;
 
             Importer(const std::string& filepath);
             Importer(const std::string& filepath, SolverMode mode);
             const std::string& _filepath;
+
+            virtual void setSolverMode() = 0;
+            SolverMode _mode;
 
         public:
             virtual std::unique_ptr<BaseSolver> solverFromFile() = 0;
@@ -98,16 +102,12 @@ namespace Data {
             JSONimporter(const std::string& filepath, SolverMode mode);
     };
 
-
-    enum class SolverMode{simulation, fitting, automatic};
-    enum class FileFormat{CSV, JSON, automatic};
-
     class ImportManager {
         private:
             const std::string& _filepath;
+            std::ifstream _fin;
             FileFormat _ftype;
             SolverMode _smode;
-            std::ifstream _fin;
             
             void autoSetFileFormat();
 

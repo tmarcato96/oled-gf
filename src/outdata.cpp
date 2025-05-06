@@ -9,6 +9,9 @@
 #include <basesolver.hpp>
 #include <outdata.hpp>
 
+using JsonNode = Json::JsonNode<Json::PrintVisitor>;
+using JsonObject = std::map<std::string, std::unique_ptr<JsonNode>>;
+using JsonList = std::vector<std::unique_ptr<JsonNode>>;
 
 Data::Results::Results(const BaseSolver& solver) :
   alpha{solver.alpha},
@@ -45,8 +48,8 @@ Data::Exporter::Exporter(const BaseSolver& solver) :
 void Data::Exporter::makeTree() {
 
   std::string layerUpPerp, layerUpPara, layerUsPara, u;
-  std::unique_ptr<Json::JsonNode> alphaVal(new Json::JsonNode{_results.alpha});
-  std::unique_ptr<Json::JsonObject> rootObj(new Json::JsonObject());
+  std::unique_ptr<JsonNode> alphaVal(new JsonNode{_results.alpha});
+  std::unique_ptr<JsonObject> rootObj(new JsonObject());
   (*rootObj)["alpha"] = std::move(alphaVal);
 
   for(Eigen::Index layerIdx = 0; layerIdx < _results.powerUpPerp.rows(); layerIdx++) {
@@ -56,21 +59,21 @@ void Data::Exporter::makeTree() {
     layerUpPara = _results.layerToString(_results.powerUpPara, layerIdx);
     layerUsPara = _results.layerToString(_results.powerUsPara, layerIdx);
 
-    std::unique_ptr<Json::JsonNode> leafUpPerp = std::make_unique<Json::JsonNode>();
+    std::unique_ptr<JsonNode> leafUpPerp = std::make_unique<JsonNode>();
     leafUpPerp->value = layerUpPerp;
-    std::unique_ptr<Json::JsonNode> leafUpPara = std::make_unique<Json::JsonNode>();
+    std::unique_ptr<JsonNode> leafUpPara = std::make_unique<JsonNode>();
     leafUpPara->value = layerUpPara;
-    std::unique_ptr<Json::JsonNode> leafUsPara = std::make_unique<Json::JsonNode>();
+    std::unique_ptr<JsonNode> leafUsPara = std::make_unique<JsonNode>();
     leafUsPara->value = layerUsPara;
 
-    std::unique_ptr<Json::JsonObject> child = std::make_unique<Json::JsonObject>();
-    child->insert(std::pair<std::string, std::unique_ptr<Json::JsonNode>>("PowerUpPerp", std::move(leafUpPerp)));
-    child->insert(std::pair<std::string, std::unique_ptr<Json::JsonNode>>("PowerUpPara", std::move(leafUpPara)));
-    child->insert(std::pair<std::string, std::unique_ptr<Json::JsonNode>>("PowerUsPara", std::move(leafUsPara)));
+    std::unique_ptr<JsonObject> child = std::make_unique<JsonObject>();
+    child->insert(std::pair<std::string, std::unique_ptr<JsonNode>>("PowerUpPerp", std::move(leafUpPerp)));
+    child->insert(std::pair<std::string, std::unique_ptr<JsonNode>>("PowerUpPara", std::move(leafUpPara)));
+    child->insert(std::pair<std::string, std::unique_ptr<JsonNode>>("PowerUsPara", std::move(leafUsPara)));
 
-    std::unique_ptr<Json::JsonNode> childptr = std::make_unique<Json::JsonNode>();
+    std::unique_ptr<JsonNode> childptr = std::make_unique<JsonNode>();
     childptr->value = std::move(child);
-    rootObj->insert(std::pair<std::string, std::unique_ptr<Json::JsonNode>>(layer, std::move(childptr)));
+    rootObj->insert(std::pair<std::string, std::unique_ptr<JsonNode>>(layer, std::move(childptr)));
   }
   _root.value = std::move(rootObj);
 }
