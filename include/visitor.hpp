@@ -1,6 +1,8 @@
 #include <iostream>
 #include <map>
-#include <stack>
+#include <queue>
+#include <filesystem>
+#include <fstream>
 #include <matlayer.hpp>
 #include <jsonsimplecpp/node.hpp>
 #include <jsonsimplecpp/parser.hpp>
@@ -16,30 +18,28 @@ struct ConfigVisitor {
   void operator()(const std::string&);
   void operator()(double);
 
-  void checkKey();
   ConfigVisitor(std::map<int, Layer>& layerMap, std::map<double, double>& fitData, std::optional<double>& alpha);
-  void setStream(std::ostream& stream);
 
 private:
   std::map<int, Layer> _layerMap;
-  std::map<double, double> _fitData;
   std::optional<double> _alpha;
+  Matrix _fitData;
   size_t _depth;
 
   //private helper stuff
-  std::stack<ValueType> _helperStack;
+  std::queue<ValueType> _helperQueue;
+  int _helperFitCalls;
 
-  bool is_digits_only(const std::string& str);
-  Material fillMaterial();
-  std::map<double, double> fillFitData();
+  void fillFitData();
+  void fillMaterial(Material& mat);
   void fillBaseField();
 
   template <typename T>
-  T return_pop(std::stack<T>& s) { //returns the top element and pops stack IN THIS ORDER
+  T return_pop(std::queue<T>& s) { //returns the top element and pops queue IN THIS ORDER
     if (s.empty()) throw std::runtime_error("Stack is empty");
-    T top = s.top();
+    T first = s.first();
     s.pop();
-    return top;
+    return first;
   }
 };
 
