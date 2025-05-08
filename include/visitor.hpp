@@ -1,5 +1,7 @@
 #pragma once
 
+#pragma once
+
 #include <iostream>
 #include <map>
 #include <queue>
@@ -8,9 +10,20 @@
 #include <fstream>
 #include <matlayer.hpp>
 #include <simulation.hpp>
+#include <fitting.hpp>
 #include <basesolver.hpp>
 #include <jsonsimplecpp/node.hpp>
 #include <jsonsimplecpp/parser.hpp>
+
+
+
+template <typename T>
+T return_pop(std::queue<T>& s) { //returns the top element and pops queue IN THIS ORDER
+  if (s.empty()) throw std::runtime_error("Object is empty");
+  T first = s.front();
+  s.pop();
+  return first;
+}
 
 struct ConfigVisitor {
   public:
@@ -20,10 +33,10 @@ struct ConfigVisitor {
 
     void operator()(const std::unique_ptr<JsonObject>&);
     void operator()(const std::unique_ptr<JsonList>&);
-    void operator()(const std::string&);
-    void operator()(double);
 
     ConfigVisitor()=default;
+
+    std::unique_ptr<BaseSolver> makeSolver();
 
   private:
     std::map<int, Layer> _layerMap;
@@ -46,14 +59,6 @@ struct ConfigVisitor {
     void fillMaterialHelper(Material& mat);
     void fillDipoleModeHelper();
     void fillSpectrumModeHelper();
-
-    template <typename T>
-    T return_pop(std::queue<T>& s) { //returns the top element and pops queue IN THIS ORDER
-      if (s.empty()) throw std::runtime_error("Stack is empty");
-      T first = s.front();
-      s.pop();
-      return first;
-  }
 };
 
 //note to self: don't forget to differentiate between simulation and fitting!!!!
