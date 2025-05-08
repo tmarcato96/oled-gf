@@ -27,14 +27,14 @@ Fitting::Fitting(const std::string& fittingFilePath,
                  sweepStart,
                  sweepStop) {
                  init(std::move(fittingFilePath));
-}
+                }
 
-Fitting::Fitting(Matrix fitData,
-                const std::map<int, Layer>& layers,
+Fitting::Fitting(Matrix& fitData,
+                const std::vector<Layer>& layers,
                 const double dipolePosition,
                 const double wavelength,
                 const double sweepStart,
-                const double sweepStop):
+                const double sweepStop) :
                 BaseSolver(layers,
                             dipolePosition,
                             wavelength,
@@ -43,7 +43,7 @@ Fitting::Fitting(Matrix fitData,
                 mIntensityData{fitData} {
                   std::string empty{};
                   init(empty);
-}
+                }
 
 Fitting::Fitting(const std::string& fittingFilePath,
                  const std::vector<Layer>& layers,
@@ -57,7 +57,7 @@ Fitting::Fitting(const std::string& fittingFilePath,
                             sweepStart,
                             sweepStop) {
                  init(std::move(fittingFilePath));
-}
+                }
 
 Fitting::Fitting(const std::string& fittingFilePath,
                  const std::vector<Layer>& layers,
@@ -71,7 +71,23 @@ Fitting::Fitting(const std::string& fittingFilePath,
                             sweepStart,
                             sweepStop) {
                  init(std::move(fittingFilePath));
-}
+                }
+
+Fitting::Fitting(const Matrix& fitData,
+                const std::vector<Layer>& layers,
+                const double dipolePosition,
+                const GaussianSpectrum& spectrum,
+                const double sweepStart,
+                const double sweepStop) :
+                BaseSolver(layers,
+                dipolePosition,
+                spectrum,
+                sweepStart,
+                sweepStop),
+                mIntensityData{fitData} {
+                std::string empty{};
+                init(empty);
+              }
 
 Fitting::Fitting(const std::string& fittingFilePath,
                  const std::vector<Layer>& layers,
@@ -85,14 +101,14 @@ Fitting::Fitting(const std::string& fittingFilePath,
                             sweepStart,
                             sweepStop) {
                  init(std::move(fittingFilePath));
-}
+                }
 
 Fitting::Fitting(const Matrix& fitData,
-                 const std::map<int, Layer>& layers,
+                 const std::vector<Layer>& layers,
                  const DipoleDistribution& dipoleDist,
                  const GaussianSpectrum& spectrum,
                  const double sweepStart,
-                 const double sweepStop):
+                 const double sweepStop) :
                  BaseSolver(layers,
                   dipoleDist,
                   spectrum,
@@ -101,7 +117,7 @@ Fitting::Fitting(const Matrix& fitData,
                  mIntensityData{fitData} {
                  std::string empty{};
                  init(empty);
-}
+                }
 
 void Fitting::init(const std::string& fittingFile) {
   // Log initialization of Simulation

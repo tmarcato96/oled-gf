@@ -55,45 +55,9 @@ BaseSolver::BaseSolver(const std::vector<Layer>& layers,
   }
   _spectrum = Matrix::Zero(50, 2);
   _dipolePositions = Vector::Zero(10);
-};
-
-BaseSolver::BaseSolver(const std::map<int, Layer>& layers,
-  const double dipolePosition,
-  const double wavelength,
-  const double sweepStart,
-  const double sweepStop,
-  const double inpalpha) :
-  mLayers{layers.size()},
-  mDipolePosition{dipolePosition},
-  mWvl{wavelength},
-  _sweepStart{sweepStart},
-  _sweepStop{sweepStop},
-  alpha{inpalpha}
-{
-  for (auto it = layers.begin(); it != layers.end(); it++) {
-    mLayers[it->first] = it->second;
-  }
-  mDipoleLayer = 0;
-  for (auto layer : mLayers) {
-    if (layer.isEmitter) { break; }
-    mDipoleLayer++;
-  }
-  _spectrum = Matrix::Zero(50, 2);
-  _dipolePositions = Vector::Zero(10);
-};
-
-BaseSolver::BaseSolver(const std::vector<Layer>& layers,
-  const double dipolePosition,
-  const std::string& spectrumFile,
-  const double sweepStart,
-  const double sweepStop,
-  const double inpalpha) :
-  BaseSolver(layers, dipolePosition, 0.0, sweepStart, sweepStop, inpalpha)
-{
-  _spectrum = Data::loadFromFile(spectrumFile, 2);
 }
 
-BaseSolver::BaseSolver(const std::map<int, Layer>& layers,
+BaseSolver::BaseSolver(const std::vector<Layer>& layers,
   const double dipolePosition,
   const std::string& spectrumFile,
   const double sweepStart,
@@ -116,18 +80,6 @@ BaseSolver::BaseSolver(const std::vector<Layer>& layers,
   _dipolePositions = Vector::Zero(10);
 }
 
-BaseSolver::BaseSolver(const std::map<int, Layer>& layers,
-  const double dipolePosition,
-  const GaussianSpectrum& spectrum,
-  const double sweepStart,
-  const double sweepStop,
-  const double inpalpha) :
-  BaseSolver(layers, dipolePosition, 0.0, sweepStart, sweepStop, inpalpha)
-{
-  _spectrum = std::move(spectrum.spectrum);
-  _dipolePositions = Vector::Zero(10);
-}
-
 BaseSolver::BaseSolver(const std::vector<Layer>& layers,
   const DipoleDistribution& dipoleDist,
   const double wavelength,
@@ -139,29 +91,7 @@ BaseSolver::BaseSolver(const std::vector<Layer>& layers,
   _dipolePositions = std::move(dipoleDist.dipolePositions);
 }
 
-BaseSolver::BaseSolver(const std::map<int, Layer>& layers,
-  const DipoleDistribution& dipoleDist,
-  const double wavelength,
-  const double sweepStart,
-  const double sweepStop,
-  const double inpalpha) :
-  BaseSolver(layers, 0.0, wavelength, sweepStart, sweepStop, inpalpha)
-{
-  _dipolePositions = std::move(dipoleDist.dipolePositions);
-}
-
 BaseSolver::BaseSolver(const std::vector<Layer>& layers,
-  const DipoleDistribution& dipoleDist,
-  const GaussianSpectrum& spectrum,
-  const double sweepStart,
-  const double sweepStop,
-  const double inpalpha) :
-  BaseSolver(layers, 0.0, spectrum, sweepStart, sweepStop, inpalpha)
-{
-  _dipolePositions = std::move(dipoleDist.dipolePositions);
-}
-
-BaseSolver::BaseSolver(const std::map<int, Layer>& layers,
   const DipoleDistribution& dipoleDist,
   const GaussianSpectrum& spectrum,
   const double sweepStart,

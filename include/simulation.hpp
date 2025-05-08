@@ -50,57 +50,35 @@ class Simulation : public BaseSolver
       /*!< Simulation class constructor, the constructor takes a (std) vector of class Material containing the materials of the stack to be simulated, 
       a (std) vector of layer thicknesses with matching indices, the index of the dipole layer, the dipole position within the stack and the chosen wavelength 
       to be used for the simulation */
-    
-    Simulation(SimulationMode mode, 
-      const std::map<int, Layer>& layers,
+
+    Simulation(SimulationMode mode,
+      const std::vector<Layer>& layers,
       const double dipolePosition,
+      const std::string& spectrumFile,
+      const double sweepStart,
+      const double sweepStop,
+      const double alpha=1.0/3.0);
+
+    Simulation(SimulationMode mode,
+      const std::vector<Layer>& layers,
+      const double dipolePosition,
+      const GaussianSpectrum& spectrum,
+      const double sweepStart,
+      const double sweepStop,
+      const double alpha=1.0/3.0);
+
+
+    Simulation(SimulationMode mode,
+      const std::vector<Layer>& layers,
+      const DipoleDistribution& dipoleDist,
       const double wavelength,
       const double sweepStart,
       const double sweepStop,
       const double alpha=1.0/3.0);
 
-    Simulation(SimulationMode mode,
-      const std::vector<Layer>& layers,
-      const double dipolePosition,
-      const std::string& spectrumFile,
-      const double sweepStart,
-      const double sweepStop,
-      const double alpha=1.0/3.0);
-
-    Simulation(SimulationMode mode,
-      const std::map<int, Layer>& layers,
-      const double dipolePosition,
-      const std::string& spectrumFile,
-      const double sweepStart,
-      const double sweepStop,
-      const double alpha=1.0/3.0);
-  
-    Simulation(SimulationMode mode,
-      const std::vector<Layer>& layers,
-      const double dipolePosition,
-      const GaussianSpectrum& spectrum,
-      const double sweepStart,
-      const double sweepStop,
-      const double alpha=1.0/3.0);
-
-    Simulation(SimulationMode mode,
-      const std::map<int, Layer>& layers,
-      const double dipolePosition,
-      const GaussianSpectrum& spectrum,
-      const double sweepStart,
-      const double sweepStop,
-      const double alpha=1.0/3.0);
 
     Simulation(SimulationMode mode,
       const std::vector<Layer>& layers,
-      const DipoleDistribution& dipoleDist,
-      const GaussianSpectrum& spectrum,
-      const double sweepStart,
-      const double sweepStop,
-      const double alpha=1.0/3.0);
-
-  Simulation(SimulationMode mode,
-      const std::map<int, Layer>& layers,
       const DipoleDistribution& dipoleDist,
       const GaussianSpectrum& spectrum,
       const double sweepStart,
