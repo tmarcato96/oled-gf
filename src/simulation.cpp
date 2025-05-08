@@ -97,9 +97,28 @@ Simulation::Simulation(SimulationMode mode,
     sweepStart,
     sweepStop,
     alpha)
-{
-  init();
-}
+  {
+    init();
+  }
+
+Simulation::Simulation(SimulationMode mode,
+  const std::map<int, Layer>& layers,
+  const double dipolePosition,
+  const double wavelength,
+  const double sweepStart,
+  const double sweepStop,
+  const double alpha) :
+  _mode{mode},
+  BaseSolver(layers,
+    dipolePosition,
+    wavelength,
+    sweepStart,
+    sweepStop,
+    alpha)
+  {
+    init();
+  }
+
 
 Simulation::Simulation(SimulationMode mode,
       const std::vector<Layer>& layers,
@@ -115,9 +134,28 @@ Simulation::Simulation(SimulationMode mode,
                  sweepStart,
                  sweepStop, 
                  alpha)
-{
+  {
+    init();
+  }
+
+Simulation::Simulation(SimulationMode mode,
+  const std::map<int, Layer>& layers,
+  const double dipolePosition,
+  const std::string& spectrumFile,
+  const double sweepStart,
+  const double sweepStop,
+  const double alpha) :
+  _mode{mode},
+  BaseSolver(layers,
+             dipolePosition,
+             spectrumFile,
+             sweepStart,
+             sweepStop, 
+             alpha)
+  {
   init();
-}
+  }
+
 
 Simulation::Simulation(SimulationMode mode,
       const std::vector<Layer>& layers,
@@ -133,9 +171,28 @@ Simulation::Simulation(SimulationMode mode,
                  sweepStart,
                  sweepStop, 
                  alpha)
-{
+  {
+    init();
+  }
+
+Simulation::Simulation(SimulationMode mode,
+  const std::map<int, Layer>& layers,
+  const double dipolePosition,
+  const GaussianSpectrum& spectrum,
+  const double sweepStart,
+  const double sweepStop,
+  const double alpha) :
+  _mode{mode},
+  BaseSolver(layers,
+             dipolePosition,
+             spectrum,
+             sweepStart,
+             sweepStop, 
+             alpha)
+  {
   init();
-}
+  }
+
 
 Simulation::Simulation(SimulationMode mode,
       const std::vector<Layer>& layers,
@@ -154,3 +211,21 @@ Simulation::Simulation(SimulationMode mode,
 {
   init();
 }
+
+Simulation::Simulation(SimulationMode mode,
+  const std::map<int, Layer>& layers,
+  const DipoleDistribution& dipoleDist,
+  const GaussianSpectrum& spectrum,
+  const double sweepStart,
+  const double sweepStop,
+  const double alpha) :
+  _mode{mode},
+  BaseSolver(layers,
+             dipoleDist,
+             spectrum,
+             sweepStart,
+             sweepStop,
+             alpha)
+  {
+  init();
+  }
