@@ -53,6 +53,7 @@ class Layer {
 
   public:
       Layer(Material material, double thickness, bool emitterFlag = false);
+      Layer()=default;
 
       const Material& getMaterial() const;
       const double getThickness() const;

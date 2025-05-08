@@ -67,10 +67,11 @@ void Data::ImportManager::autoSetFileFormat() {
 }
 
 std::unique_ptr<Data::Importer> Data::ImportManager::makeImporter() {
-  
+  std::unique_ptr<Data::Importer> importer_ptr;
   if (_fin.is_open()) _fin.close();
-  if (_ftype == FileFormat::JSON) std::unique_ptr<Data::Importer> importer_ptr(new Data::JSONimporter(_filepath));
-  else{throw std::runtime_error("support for other file formats not implemented yet!");}
+  if (_ftype == FileFormat::JSON) importer_ptr = std::make_unique<Data::JSONimporter>(_filepath);
+  else{throw std::runtime_error("support for other file formats not implemented et!");}
+  return importer_ptr;
 }
 
 //importer stuff

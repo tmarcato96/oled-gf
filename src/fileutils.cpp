@@ -7,7 +7,7 @@
 #include <forwardDecl.hpp>
 #include <Eigen/Core>
 
-Matrix Data::loadFromFile(const std::string& filepath, size_t ncols, char delimiter=',') {
+Matrix Data::loadFromFile(const std::string& filepath, size_t ncols, char delimiter) {
   
     std::filesystem::path path(filepath);
     std::ifstream iFile(path);
