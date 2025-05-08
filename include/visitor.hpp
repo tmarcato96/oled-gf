@@ -1,7 +1,5 @@
 #pragma once
 
-#pragma once
-
 #include <iostream>
 #include <map>
 #include <queue>
@@ -33,13 +31,17 @@ struct ConfigVisitor {
 
     void operator()(const std::unique_ptr<JsonObject>&);
     void operator()(const std::unique_ptr<JsonList>&);
+    void operator()(const double);
+    void operator()(const std::string&);
 
     ConfigVisitor()=default;
 
     std::unique_ptr<BaseSolver> makeSolver();
+    bool isSimulation();
 
   private:
     std::map<int, Layer> _layerMap;
+    std::vector<Layer> _layers;
     std::optional<Matrix> _fitData;
     std::optional<double> _alpha;
     std::optional<SimulationMode> _simMode;

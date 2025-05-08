@@ -18,11 +18,10 @@ void ConfigVisitor::operator()(const std::unique_ptr<JsonObject>& mapptr) {
   _depth++;
   for(auto it = mapptr->begin(); it != mapptr->end(); it++) {
     if (it->second == nullptr) _depth > 1 ? _helperQueue.push(it->first) : throw std::runtime_error("File format error: empty field!");
-    else if (std::holds_alternative<std::string>(it->second->value)) _helperQueue.push(std::get<std::string>(it->second->value));
-    else if (std::holds_alternative<double>(it->second->value)) _helperQueue.push(std::get<double>(it->second->value));
+    //else if (std::holds_alternative<std::string>(it->second->value)) _helperQueue.push(std::get<std::string>(it->second->value));
+    //else if (std::holds_alternative<double>(it->second->value)) _helperQueue.push(std::get<double>(it->second->value));
     else {
       _helperQueue.push(it->first);
-      it->second->traverse();  // go deeper into map
     }
     if (_depth == 1) fillBaseField();
   }
@@ -33,13 +32,20 @@ void ConfigVisitor::operator()(const std::unique_ptr<JsonList>& listptr) {
   _depth++;
   for(auto it = listptr->begin(); it != listptr->end(); it++) {
     if (*it == nullptr) throw std::runtime_error("File format error: empty field!");
-    else if (std::holds_alternative<std::string>((*it)->value)) _helperQueue.push(std::get<std::string>((*it)->value));
-    else if (std::holds_alternative<double>((*it)->value)) _helperQueue.push(std::get<double>((*it)->value));
-    else {(*it)->traverse();} // go deeper into list
+    //else if (std::holds_alternative<std::string>((*it)->value)) _helperQueue.push(std::get<std::string>((*it)->value));
+    //else if (std::holds_alternative<double>((*it)->value)) _helperQueue.push(std::get<double>((*it)->value));
 
     if (_depth == 1) fillBaseField();
   }
   _depth--;
+}
+
+void ConfigVisitor::operator()(const std::string& val) {
+  _helperQueue.push(val);
+}
+
+void ConfigVisitor::operator()(const double val) {
+  _helperQueue.push(val);
 }
 
 void ConfigVisitor::fillBaseField() {
@@ -206,4 +212,43 @@ void ConfigVisitor::fillSpectrumModeHelper() {
     else {throw std::runtime_error("misformatted spectrum info provided!");}
   }
   _spectrum = GaussianSpectrum(xmin, xmax, x0, sigma);
+}
+
+std::unique_ptr<BaseSolver> ConfigVisitor::makeSolver() {
+  if ((_alpha.has_value() || _simMode.has_value()) && _fitData.has_value()) throw std::runtime_error("config file contains specs for both simulation and fitting!");
+  else if (!_alpha.has_value() && !_fitData.has_value()) throw std::runtime_error("config file missing specs!");
+
+  std::vector<Layer> layers;
+  layers.reserve(_layerMap.size());
+  
+  for (auto& [key, layer] : _layerMap) {
+      layers.push_back(std::move(layer));
+  }
+
+  _layerMap.clear();
+
+  double* dipoleVal = std::get_if<double>(&_dipoleDist);
+  double* wavelength = std::get_if<double>(&_spectrum);
+  
+  std::unique_ptr<BaseSolver> solverPtr;
+  if (_alpha.has_value() && (dipoleVal && wavelength)) solverPtr = std::make_unique<Simulation>(Simulation(_simMode.value(), _layers, *dipoleVal, *wavelength, _sweepStart, _sweepStop, _alpha.value()));
+  else if (_alpha.has_value() && dipoleVal) {
+    auto specVal = std::get<GaussianSpectrum>(_spectrum);
+    solverPtr = std::make_unique<Simulation>(Simulation(_simMode.value(), _layers, *dipoleVal, specVal, _sweepStart, _sweepStop, _alpha.value()));
+  }
+  else if (_alpha.has_value() && wavelength) {
+    auto dipDist = std::get<DipoleDistribution>(_dipoleDist);
+    solverPtr = std::make_unique<Simulation>(Simulation(_simMode.value(), _layers, dipDist, *wavelength, _sweepStart, _sweepStop, _alpha.value()));
+  }  
+  else if (dipoleVal && wavelength) solverPtr = std::make_unique<Fitting>(Fitting(_fitData.value(), _layers, *dipoleVal, *wavelength, _sweepStart, _sweepStop));
+  else if (dipoleVal) {
+    auto specVal = std::get<GaussianSpectrum>(_spectrum);
+    solverPtr = std::make_unique<Fitting>(Fitting(_fitData.value(), _layers, *dipoleVal, specVal, _sweepStart, _sweepStop));
+  }
+  return solverPtr;
+}
+
+bool ConfigVisitor::isSimulation(){
+  if (_alpha.has_value() && _simMode.has_value()) return 1;
+  else {return 0;};
 }
