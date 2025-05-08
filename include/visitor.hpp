@@ -3,9 +3,12 @@
 #include <iostream>
 #include <map>
 #include <queue>
+#include <optional>
 #include <filesystem>
 #include <fstream>
 #include <matlayer.hpp>
+#include <simulation.hpp>
+#include <basesolver.hpp>
 #include <jsonsimplecpp/node.hpp>
 #include <jsonsimplecpp/parser.hpp>
 
@@ -20,21 +23,29 @@ struct ConfigVisitor {
     void operator()(const std::string&);
     void operator()(double);
 
-    ConfigVisitor(std::map<int, Layer>& layerMap, Matrix& fitData, std::optional<double>& alpha);
+    ConfigVisitor()=default;
 
   private:
     std::map<int, Layer> _layerMap;
-    Matrix _fitData;
+    std::optional<Matrix> _fitData;
     std::optional<double> _alpha;
+    std::optional<SimulationMode> _simMode;
+    std::variant<DipoleDistribution, double> _dipoleDist;
+    std::variant<GaussianSpectrum, double> _spectrum;
+
+  
+    double _sweepStart;
+    double _sweepStop;
     size_t _depth;
 
     //private helper stuff
     std::queue<ValueType> _helperQueue;
     int _helperFitCalls;
 
-    void fillFitData();
-    void fillMaterial(Material& mat);
     void fillBaseField();
+    void fillMaterialHelper(Material& mat);
+    void fillDipoleModeHelper();
+    void fillSpectrumModeHelper();
 
     template <typename T>
     T return_pop(std::queue<T>& s) { //returns the top element and pops queue IN THIS ORDER
