@@ -3,7 +3,7 @@
 #include <iostream>
 
 #include <basesolver.hpp>
-#include <material.hpp>
+#include <matlayer.hpp>
 #include <outdata.hpp>
 #include <simulation.hpp>
 

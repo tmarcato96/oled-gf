@@ -13,8 +13,10 @@
 int main()
 {
   // Create Solver
-  auto importer = Data::ImportManager("C:\\Users\\mnouman\\oled-gf\\examples\\data\\simulation.json").makeImporter();
+  auto manager = Data::ImportManager("C:\\Users\\mnouman\\oled-gf\\examples\\data\\simulation.json");
+  auto importer = manager.makeImporter();
   auto solverJob = importer->solverFromFile();
+  solverJob->run();
   auto dipoleIndex = solverJob->getDipoleIndex();
 
   // Mode dissipation figure
@@ -23,17 +25,18 @@ int main()
   Vector const& yParapPol = solverJob->mFracPowerParaUpPol.row(dipoleIndex - 1).head(u.size());
   Vector const& yParasPol = solverJob->mFracPowerParaUsPol.row(dipoleIndex - 1).head(u.size());
 
-  Data::Exporter exporter(*solverJob);
+
   std::ofstream output("C:\\Users\\mnouman\\oled-gf\\mat\\segfault.json");
-  exporter.print(output);
+  Data::Exporter exporter(*solverJob, output);
+  exporter.print();
 
   //Plot
-  matplot::semilogy(u, y)->line_width(2).color("red");
-  matplot::hold(matplot::on);
-  matplot::semilogy(u, yParapPol)->line_width(2).color("blue");
-  matplot::semilogy(u, yParasPol)->line_width(2).color("green");
-  matplot::xlim({0.0, 2.0});
-  matplot::xlabel("Normalized Wavevector");
-  matplot::ylabel("Dissipated Power");
-  matplot::show();
+  //matplot::semilogy(u, y)->line_width(2).color("red");
+  //matplot::hold(matplot::on);
+  //matplot::semilogy(u, yParapPol)->line_width(2).color("blue");
+  //matplot::semilogy(u, yParasPol)->line_width(2).color("green");
+  //matplot::xlim({0.0, 2.0});
+  //matplot::xlabel("Normalized Wavevector");
+  //matplot::ylabel("Dissipated Power");
+  //matplot::show();
 }

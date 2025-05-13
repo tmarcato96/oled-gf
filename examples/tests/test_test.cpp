@@ -43,9 +43,9 @@ int main()
   Vector const& yParapPol = simulation->mFracPowerParaUpPol.row(dipoleIndex - 1).head(u.size());
   Vector const& yParasPol = simulation->mFracPowerParaUsPol.row(dipoleIndex - 1).head(u.size());
 
-  Data::Exporter exporter(*simulation);
   std::ofstream output("C:\\Users\\mnouman\\oled-gf\\mat\\segfault.json");
-  exporter.print(output);
+  Data::Exporter exporter(*simulation, output);
+  exporter.print();
 
   // Plot
   //matplot::semilogy(u, y)->line_width(2).color("red");

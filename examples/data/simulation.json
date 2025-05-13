@@ -1,0 +1,83 @@
+{ 
+	"layer1": {
+			"thickness":-1.0,
+			"emitter":	0,
+			"material":	"C:\\Users\\mnouman\\oled-gf\\mat\\air.csv"
+		},
+
+	"layer2": {
+			"thickness":200e-10,
+			"emitter":	0,
+			"material":	"C:\\Users\\mnouman\\oled-gf\\mat\\ag.csv"
+		},
+
+	"layer3": {
+			"thickness":1000e-10,
+			"emitter":	0,
+			"material":	"C:\\Users\\mnouman\\oled-gf\\mat\\mg_palik.csv"
+		},
+
+
+	"layer4": {
+			"thickness":500e-10,
+			"emitter":	0,
+			"material":	"C:\\Users\\mnouman\\oled-gf\\mat\\tpd.csv"
+		},
+
+
+	"layer5": {
+			"thickness":	200e-10,
+			"emitter":	1,
+			"material":	"C:\\Users\\mnouman\\oled-gf\\mat\\alq3_literature2.csv"
+		},
+
+
+	"layer6": {
+			"thickness":500e-10,
+			"emitter":	0,
+			"material":	"C:\\Users\\mnouman\\oled-gf\\mat\\tpd.csv"
+		},
+
+
+	"layer7": {
+			"thickness":300e-10,
+			"emitter":	0,
+			"material":	"C:\\Users\\mnouman\\oled-gf\\mat\\pedot.csv"
+		},
+
+
+	"layer8": {
+			"thickness":1600e-10,
+			"emitter":	0,
+			"material":	"C:\\Users\\mnouman\\oled-gf\\mat\\test_ito.csv"
+		},
+
+
+	"layer9": {
+			"thickness":5000e-10,
+			"emitter":	0,
+			"material":	"C:\\Users\\mnouman\\oled-gf\\mat\\glass_no_loss.csv"
+		},
+
+
+	"layer10": {
+			"thickness":-1.0,
+			"emitter":	0,
+			"material":	"C:\\Users\\mnouman\\oled-gf\\mat\\glass_no_loss.csv"
+		},
+
+	"alpha": 0.34,
+
+	"simtype": "ModeDissipation",
+
+	"sweep":	{
+			"start": 0,
+			"stop": 3.10747
+		},
+
+
+	"dipole": 0,
+
+	"spectrum": 535
+	
+}
