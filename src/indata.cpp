@@ -15,8 +15,8 @@
 
 
 //import manager stuff
-Data::ImportManager::ImportManager(const std::string&filepath) :
-  _filepath{filepath},
+Data::ImportManager::ImportManager(const std::string& filepath) :
+  _filepath{std::move(filepath)},
   _fin{filepath},
   _smode{SolverMode::automatic}
   {

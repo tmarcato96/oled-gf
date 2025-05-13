@@ -33,22 +33,19 @@ std::string Data::Results::layerToString(const Matrix& mat, Eigen::Index layerNu
     return ss.str();
 }
 
-void Data::Exporter::print(std::ostream& sout) {
-    _root.print(sout);
-}
-
 void Data::Exporter::print() {
     _root.print();
 }
 
-Data::Exporter::Exporter(const BaseSolver& solver) :
-  _results{solver}
+Data::Exporter::Exporter(const BaseSolver& solver, std::ostream& sout) :
+  _results{solver},
+  _visitor{new Json::PrintVisitor(sout)}
   {makeTree();}
 
 void Data::Exporter::makeTree() {
 
   std::string layerUpPerp, layerUpPara, layerUsPara, u;
-  std::unique_ptr<JsonNode> alphaVal(new JsonNode{_results.alpha});
+  std::unique_ptr<JsonNode> alphaVal(new JsonNode{_results.alpha, _visitor});
   std::unique_ptr<JsonObject> rootObj(new JsonObject());
   (*rootObj)["alpha"] = std::move(alphaVal);
 
@@ -61,10 +58,13 @@ void Data::Exporter::makeTree() {
 
     std::unique_ptr<JsonNode> leafUpPerp = std::make_unique<JsonNode>();
     leafUpPerp->value = layerUpPerp;
+    leafUpPerp->setVisitor(_visitor);
     std::unique_ptr<JsonNode> leafUpPara = std::make_unique<JsonNode>();
     leafUpPara->value = layerUpPara;
+    leafUpPara->setVisitor(_visitor);
     std::unique_ptr<JsonNode> leafUsPara = std::make_unique<JsonNode>();
     leafUsPara->value = layerUsPara;
+    leafUsPara->setVisitor(_visitor);
 
     std::unique_ptr<JsonObject> child = std::make_unique<JsonObject>();
     child->insert(std::pair<std::string, std::unique_ptr<JsonNode>>("PowerUpPerp", std::move(leafUpPerp)));
@@ -73,7 +73,9 @@ void Data::Exporter::makeTree() {
 
     std::unique_ptr<JsonNode> childptr = std::make_unique<JsonNode>();
     childptr->value = std::move(child);
+    childptr->setVisitor(_visitor);
     rootObj->insert(std::pair<std::string, std::unique_ptr<JsonNode>>(layer, std::move(childptr)));
   }
   _root.value = std::move(rootObj);
+  _root.setVisitor(_visitor);
 }

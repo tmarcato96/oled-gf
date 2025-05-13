@@ -18,10 +18,9 @@ void ConfigVisitor::operator()(const std::unique_ptr<JsonObject>& mapptr) {
   _depth++;
   for(auto it = mapptr->begin(); it != mapptr->end(); it++) {
     if (it->second == nullptr) _depth > 1 ? _helperQueue.push(it->first) : throw std::runtime_error("File format error: empty field!");
-    //else if (std::holds_alternative<std::string>(it->second->value)) _helperQueue.push(std::get<std::string>(it->second->value));
-    //else if (std::holds_alternative<double>(it->second->value)) _helperQueue.push(std::get<double>(it->second->value));
     else {
       _helperQueue.push(it->first);
+      it->second->traverse();
     }
     if (_depth == 1) fillBaseField();
   }
@@ -30,11 +29,14 @@ void ConfigVisitor::operator()(const std::unique_ptr<JsonObject>& mapptr) {
 
 void ConfigVisitor::operator()(const std::unique_ptr<JsonList>& listptr) {
   _depth++;
-  for(auto it = listptr->begin(); it != listptr->end(); it++) {
-    if (*it == nullptr) throw std::runtime_error("File format error: empty field!");
-    //else if (std::holds_alternative<std::string>((*it)->value)) _helperQueue.push(std::get<std::string>((*it)->value));
-    //else if (std::holds_alternative<double>((*it)->value)) _helperQueue.push(std::get<double>((*it)->value));
-
+  for (auto it = listptr->begin(); it != listptr->end(); it++) {
+    if (*it == nullptr) {
+      if (_depth > 1)
+          continue;
+      else
+          throw std::runtime_error("File format error: empty field!");
+  }
+    else{ (*it)->traverse();}
     if (_depth == 1) fillBaseField();
   }
   _depth--;
@@ -60,7 +62,7 @@ void ConfigVisitor::fillBaseField() {
     bool layerEmitter;
     double layerThickness;
     Material layerMat;
-    size_t layerNum = std::stoi(field.substr(6, field.length()));
+    size_t layerNum = std::stoi(field.substr(5, field.length()-5));
     
     _helperQueue.pop();
     while(!_helperQueue.empty()){
@@ -87,14 +89,14 @@ void ConfigVisitor::fillBaseField() {
       _fitData = Data::loadFromFile(subfield, 2);
     }
   
-    //for in-file intensities
+    //for in-file intensities MAKE SURE TO TEST!
     else if (std::isdigit(subfield[0])) {
   
       double wavelength = std::stoi(subfield);
       subfield = std::get<std::string>(return_pop(_helperQueue));
       double intensity = std::stoi(subfield.substr(0, subfield.find(',')));
   
-      _fitData.value()(_helperFitCalls, 0) = wavelength;  //double check
+      _fitData.value()(_helperFitCalls, 0) = wavelength;
       _fitData.value()(_helperFitCalls, 1) = intensity;
       _helperFitCalls++;
     }
@@ -114,12 +116,11 @@ void ConfigVisitor::fillBaseField() {
            field == static_cast<std::string>("Dipole")) {
 
     _helperQueue.pop();
-    std::string subfield = std::get<std::string>(return_pop(_helperQueue));
-    if (subfield ==  static_cast<std::string>("uniform")) fillDipoleModeHelper();
-    else{
-      _helperQueue.pop();
-      _dipoleDist = std::get<double>(return_pop(_helperQueue));
+    if (std::holds_alternative<std::string>(_helperQueue.front())) {
+      auto subfield = std::get<std::string>(return_pop(_helperQueue));
+      if (subfield ==  static_cast<std::string>("uniform")) fillDipoleModeHelper();
     }
+    else{_dipoleDist = std::get<double>(return_pop(_helperQueue));}
   }
 
   //fills spectrum
@@ -127,12 +128,11 @@ void ConfigVisitor::fillBaseField() {
            field == static_cast<std::string>("Spectrum")) {
 
     _helperQueue.pop();
-    std::string subfield = std::get<std::string>(return_pop(_helperQueue));
-    if (subfield ==  static_cast<std::string>("gaussian")) fillSpectrumModeHelper();
-    else{
-      _helperQueue.pop();
-      _spectrum = std::get<double>(return_pop(_helperQueue));
+    if (std::holds_alternative<std::string>(_helperQueue.front())) {
+      auto subfield = std::get<std::string>(return_pop(_helperQueue));
+      if (subfield ==  static_cast<std::string>("gaussian")) fillSpectrumModeHelper();
     }
+    else{_spectrum = std::get<double>(return_pop(_helperQueue));}
   }
 
   //fills simulation mode stuff
@@ -140,9 +140,10 @@ void ConfigVisitor::fillBaseField() {
            field == static_cast<std::string>("Simtype")) {
 
           _helperQueue.pop();
+
           std::string subfield = std::get<std::string>(return_pop(_helperQueue));
-          if (subfield == "anglesweep") _simMode = SimulationMode::AngleSweep;
-          else if (subfield == "modedissipation") _simMode = SimulationMode::ModeDissipation;
+          if (subfield == "anglesweep" || subfield == "angleSweep") _simMode = SimulationMode::AngleSweep;
+          if (subfield == "modedissipation" || subfield == "modeDissipation") _simMode = SimulationMode::ModeDissipation;
   }
 
   //fills sweep configuration
@@ -152,7 +153,9 @@ void ConfigVisitor::fillBaseField() {
           _helperQueue.pop();
           std::string subfield = std::get<std::string>(return_pop(_helperQueue));
           if (subfield == "start") _sweepStart = std::get<double> (return_pop(_helperQueue));
-          else if (subfield == "stop") _sweepStop = std::get<double> (return_pop(_helperQueue));
+          else {throw std::runtime_error("misformatted sweep settings");}          
+          subfield = std::get<std::string>(return_pop(_helperQueue));
+          if (subfield == "stop") _sweepStop = std::get<double> (return_pop(_helperQueue));
           else {throw std::runtime_error("misformatted sweep settings");}
   }
   else{throw std::runtime_error("JSON config file contains ambiguous parameters!");}
@@ -180,7 +183,7 @@ void ConfigVisitor::fillMaterialHelper(Material& mat) {
 
     mat.insert(wavelength, realRefIndex, imagRefIndex);
   }
-  else{throw std::runtime_error("misformatted layer material field in JSON config file!");}
+  else{throw std::runtime_error("misformatted material field for layer in JSON config file!");}
 }
 
 void ConfigVisitor::fillDipoleModeHelper() {
@@ -231,19 +234,19 @@ std::unique_ptr<BaseSolver> ConfigVisitor::makeSolver() {
   double* wavelength = std::get_if<double>(&_spectrum);
   
   std::unique_ptr<BaseSolver> solverPtr;
-  if (_alpha.has_value() && (dipoleVal && wavelength)) solverPtr = std::make_unique<Simulation>(Simulation(_simMode.value(), _layers, *dipoleVal, *wavelength, _sweepStart, _sweepStop, _alpha.value()));
+  if (_alpha.has_value() && (dipoleVal && wavelength)) solverPtr = std::make_unique<Simulation>(Simulation(_simMode.value(), layers, *dipoleVal, *wavelength, _sweepStart, _sweepStop, _alpha.value()));
   else if (_alpha.has_value() && dipoleVal) {
     auto specVal = std::get<GaussianSpectrum>(_spectrum);
-    solverPtr = std::make_unique<Simulation>(Simulation(_simMode.value(), _layers, *dipoleVal, specVal, _sweepStart, _sweepStop, _alpha.value()));
+    solverPtr = std::make_unique<Simulation>(Simulation(_simMode.value(), layers, *dipoleVal, specVal, _sweepStart, _sweepStop, _alpha.value()));
   }
   else if (_alpha.has_value() && wavelength) {
     auto dipDist = std::get<DipoleDistribution>(_dipoleDist);
-    solverPtr = std::make_unique<Simulation>(Simulation(_simMode.value(), _layers, dipDist, *wavelength, _sweepStart, _sweepStop, _alpha.value()));
+    solverPtr = std::make_unique<Simulation>(Simulation(_simMode.value(), layers, dipDist, *wavelength, _sweepStart, _sweepStop, _alpha.value()));
   }  
-  else if (dipoleVal && wavelength) solverPtr = std::make_unique<Fitting>(Fitting(_fitData.value(), _layers, *dipoleVal, *wavelength, _sweepStart, _sweepStop));
+  else if (dipoleVal && wavelength) solverPtr = std::make_unique<Fitting>(Fitting(_fitData.value(), layers, *dipoleVal, *wavelength, _sweepStart, _sweepStop));
   else if (dipoleVal) {
     auto specVal = std::get<GaussianSpectrum>(_spectrum);
-    solverPtr = std::make_unique<Fitting>(Fitting(_fitData.value(), _layers, *dipoleVal, specVal, _sweepStart, _sweepStop));
+    solverPtr = std::make_unique<Fitting>(Fitting(_fitData.value(), layers, *dipoleVal, specVal, _sweepStart, _sweepStop));
   }
   return solverPtr;
 }

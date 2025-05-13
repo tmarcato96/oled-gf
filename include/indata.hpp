@@ -23,28 +23,38 @@ namespace Data {
     enum class FileFormat{CSV, JSON, automatic};
 
     //filepolicy is Json::Parser<ConfigVisitor>
-    template<typename FilePolicy = Json::JsonParser<ConfigVisitor>>
+    template <template<class> class ReaderType, class ReaderPolicy = ConfigVisitor>
     class Reader {
     private:
         SolverMode _smode;
         const std::string _filepath;
-        std::shared_ptr<ConfigVisitor> _visitor;
-        FilePolicy _policy;  //
-        Json::JsonNode<ConfigVisitor>* _rootPtr;
+        std::shared_ptr<ReaderPolicy> _visitor;
+        ReaderType<ReaderPolicy> _policy;
+        std::unique_ptr<Json::JsonNode<ReaderPolicy>> _rootPtr;
     
         Json::JsonNode<ConfigVisitor>* parseFile() {
-            _policy.parse();
-            auto resPtr = const_cast<Json::JsonNode<ConfigVisitor>*>(_policy.getJsonTree());
-            return resPtr;
+            //_policy.parse();
+            //auto resPtr = Json::JsonNode<ReaderPolicy>*(_policy.getJsonTree());
+
+            //return resPtr;
         }
     
     public:
         Reader(const std::string& filepath) :
               _filepath{filepath},
-              _visitor{std::make_shared<ConfigVisitor>()},
-              _policy{_filepath, _visitor},
-              _rootPtr{parseFile()}
+              _visitor{new ConfigVisitor()},
+              _policy{_filepath, _visitor}
+
         {
+            if (!_visitor.get()) {
+                throw std::runtime_error("Visitor not initialized");
+            }
+         //   _rootPtr = std::unique_ptr<Json::JsonNode<ConfigVisitor>>(parseFile());
+         std::cout << _filepath << std::endl;
+           _policy.parse();
+           auto root = _policy.getJsonTree();
+           root->traverse();
+         //_rootPtr->traverse();
             if (_visitor->isSimulation()) _smode = SolverMode::fitting;
             else _smode = SolverMode::simulation;
         }
@@ -84,7 +94,7 @@ namespace Data {
     class JSONimporter : public Importer {
         private:
             void setSolverMode() override;
-            Reader<Json::JsonParser<ConfigVisitor>> _reader;
+            Reader<Json::JsonParser, ConfigVisitor> _reader;
         
         public:
             std::unique_ptr<BaseSolver> solverFromFile() override;
@@ -95,7 +105,7 @@ namespace Data {
 
     class ImportManager {
         private:
-            const std::string& _filepath;
+            const std::string _filepath;
             std::ifstream _fin;
             FileFormat _ftype;
             SolverMode _smode;

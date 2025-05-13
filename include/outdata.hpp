@@ -30,13 +30,13 @@ namespace Data {
         
                 Results _results;
                 Json::JsonNode<Json::PrintVisitor> _root;
+                std::shared_ptr<Json::PrintVisitor> _visitor;
 
                 public:
 
-                Exporter(const BaseSolver& solver);
+                Exporter(const BaseSolver& solver, std::ostream& sout= std::cout);
                 ~Exporter() = default;
 
-                void print(std::ostream& sout);
                 void print();
         };
 }

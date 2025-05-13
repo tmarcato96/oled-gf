@@ -13,8 +13,6 @@
 #include <jsonsimplecpp/node.hpp>
 #include <jsonsimplecpp/parser.hpp>
 
-
-
 template <typename T>
 T return_pop(std::queue<T>& s) { //returns the top element and pops queue IN THIS ORDER
   if (s.empty()) throw std::runtime_error("Object is empty");
@@ -28,7 +26,7 @@ struct ConfigVisitor {
     using JsonObject = std::map<std::string, std::unique_ptr<Json::JsonNode<ConfigVisitor>>>;
     using JsonList = std::vector<std::unique_ptr<Json::JsonNode<ConfigVisitor>>>;
     using ValueType = std::variant<std::string, double>;
-
+    
     void operator()(const std::unique_ptr<JsonObject>&);
     void operator()(const std::unique_ptr<JsonList>&);
     void operator()(const double);
