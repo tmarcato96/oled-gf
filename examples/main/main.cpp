@@ -9,8 +9,7 @@
 #include <iostream>
 #include <iterator>
 #include <linalg.hpp>
-#include <material.hpp>
-#include <layer.hpp>
+#include <matlayer.hpp>
 #include <memory>
 #include <numeric>
 #include <simulation.hpp>
