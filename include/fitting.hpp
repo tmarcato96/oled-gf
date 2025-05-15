@@ -113,6 +113,21 @@ class Fitting : public BaseSolver {
     Fitting(const std::string& fittingFilePath,
             const std::vector<Layer>& layers,
             const DipoleDistribution& dipoleDist,
+            const double wavelength,
+            const double sweepStart,
+            const double sweepStop);
+
+    Fitting(const Matrix& fitData,
+            const std::vector<Layer>& layers,
+            const DipoleDistribution& dipoleDist,
+            const double wavelength,
+            const double sweepStart,
+            const double sweepStop);
+
+
+    Fitting(const std::string& fittingFilePath,
+            const std::vector<Layer>& layers,
+            const DipoleDistribution& dipoleDist,
             const GaussianSpectrum& spectrum,
             const double sweepStart,
             const double sweepStop);

@@ -450,7 +450,7 @@ void BaseSolver::calculateWithSpectrum()
   CMatrix pPerpUpPol = CMatrix::Zero(matstack.numLayers - 1, matstack.u.size());
   CMatrix pParaUpPol = CMatrix::Zero(matstack.numLayers - 1, matstack.u.size());
   CMatrix pParaUsPol = CMatrix::Zero(matstack.numLayers - 1, matstack.u.size());
-  double dX = _spectrum(1, 0) - _spectrum(0, 0);
+  double dX = _spectrum(1, 0) - _spectrum(0, 0);  //CHANGE IF DISCRETIZATION BECOMES UNEQUALLY SPACED
   for (Eigen::Index i = 0; i < _spectrum.rows(); ++i) {
     mWvl = _spectrum(i, 0);
     this->discretize();

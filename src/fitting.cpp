@@ -92,6 +92,36 @@ Fitting::Fitting(const Matrix& fitData,
 Fitting::Fitting(const std::string& fittingFilePath,
                  const std::vector<Layer>& layers,
                  const DipoleDistribution& dipoleDist,
+                 const double wavelength,
+                 const double sweepStart,
+                 const double sweepStop):
+                 BaseSolver(layers,
+                            dipoleDist,
+                            wavelength,
+                            sweepStart,
+                            sweepStop) {
+                 init(std::move(fittingFilePath));
+                }
+
+Fitting::Fitting(const Matrix& fitData,
+                 const std::vector<Layer>& layers,
+                 const DipoleDistribution& dipoleDist,
+                 const double wavelength,
+                 const double sweepStart,
+                 const double sweepStop):
+                 BaseSolver(layers,
+                            dipoleDist,
+                            wavelength,
+                            sweepStart,
+                            sweepStop),
+                            mIntensityData{fitData} {
+                std::string empty{};
+                init(empty);
+              }
+
+Fitting::Fitting(const std::string& fittingFilePath,
+                 const std::vector<Layer>& layers,
+                 const DipoleDistribution& dipoleDist,
                  const GaussianSpectrum& spectrum,
                  const double sweepStart,
                  const double sweepStop):
