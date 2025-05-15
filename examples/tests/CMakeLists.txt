@@ -32,3 +32,12 @@ target_link_libraries(test_sim_input PUBLIC
                      oledgf_warnings
                      matplot
                      PRIVATE Eigen)
+
+add_executable(test_fit_input test_fit_input.cpp)
+target_include_directories(test_fit_input PUBLIC "${PROJECT_SOURCE_DIR}/include")
+target_link_libraries(test_fit_input PUBLIC 
+                     OLEDFunctions 
+                     oledgf_options 
+                     oledgf_warnings
+                     matplot
+                     PRIVATE Eigen)
