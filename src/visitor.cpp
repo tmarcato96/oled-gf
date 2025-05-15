@@ -53,7 +53,7 @@ void ConfigVisitor::operator()(const double val) {
 void ConfigVisitor::fillBaseField() {
 
   if(!std::holds_alternative<std::string>(_helperQueue.front())) throw std::runtime_error("misformatted JSON config file!");
-  std::string field = std::get<std::string>(_helperQueue.front());
+  auto field = std::get<std::string>(_helperQueue.front());
 
   //fills layer
   if (field.substr(0, 5) == static_cast<std::string>("Layer") || 
@@ -66,7 +66,7 @@ void ConfigVisitor::fillBaseField() {
     
     _helperQueue.pop();
     while(!_helperQueue.empty()){
-      std::string subfield = std::get<std::string>(return_pop(_helperQueue));
+      auto subfield = std::get<std::string>(return_pop(_helperQueue));
         if (subfield == "thickness") layerThickness = std::get<double>(return_pop(_helperQueue));
         else if (subfield == "emitter") layerEmitter = static_cast<bool>(std::get<double>(return_pop(_helperQueue)));
         else if (subfield == "material") fillMaterialHelper(layerMat);
@@ -83,18 +83,20 @@ void ConfigVisitor::fillBaseField() {
 
     _helperQueue.pop();
     //for CSV reference
-    std::string subfield = std::get<std::string>(return_pop(_helperQueue));
-    if (subfield.contains('/') || subfield.contains('\\')) {
-  
-      _fitData = Data::loadFromFile(subfield, 2);
+    if (std::holds_alternative<std::string>(_helperQueue.front())) {
+      auto subfield = std::get<std::string>(return_pop(_helperQueue));
+      if (subfield.contains('/') || subfield.contains('\\')) {
+        _fitData = Data::loadFromFile(subfield, 2);
+      }
+      else{throw std::runtime_error("misformatted path to intensities!");}
     }
-  
     //for in-file intensities MAKE SURE TO TEST!
-    else if (std::isdigit(subfield[0])) {
-  
-      double wavelength = std::stoi(subfield);
-      subfield = std::get<std::string>(return_pop(_helperQueue));
-      double intensity = std::stoi(subfield.substr(0, subfield.find(',')));
+    else if (std::holds_alternative<double>(_helperQueue.front())) {
+      auto subfield = std::get<double>(return_pop(_helperQueue));
+      double wavelength = subfield;
+
+      subfield = std::get<double>(return_pop(_helperQueue));
+      double intensity = subfield;
   
       _fitData.value()(_helperFitCalls, 0) = wavelength;
       _fitData.value()(_helperFitCalls, 1) = intensity;
@@ -141,7 +143,7 @@ void ConfigVisitor::fillBaseField() {
 
           _helperQueue.pop();
 
-          std::string subfield = std::get<std::string>(return_pop(_helperQueue));
+          auto subfield = std::get<std::string>(return_pop(_helperQueue));
           if (subfield == "anglesweep" || subfield == "angleSweep") _simMode = SimulationMode::AngleSweep;
           if (subfield == "modedissipation" || subfield == "modeDissipation") _simMode = SimulationMode::ModeDissipation;
   }
@@ -151,7 +153,7 @@ void ConfigVisitor::fillBaseField() {
            field == static_cast<std::string>("Sweep")) {
 
           _helperQueue.pop();
-          std::string subfield = std::get<std::string>(return_pop(_helperQueue));
+          auto subfield = std::get<std::string>(return_pop(_helperQueue));
           if (subfield == "start") _sweepStart = std::get<double> (return_pop(_helperQueue));
           else {throw std::runtime_error("misformatted sweep settings");}          
           subfield = std::get<std::string>(return_pop(_helperQueue));
@@ -164,26 +166,29 @@ void ConfigVisitor::fillBaseField() {
 void ConfigVisitor::fillMaterialHelper(Material& mat) {
 
   //for CSV reference
-  std::string subfield = std::get<std::string>(return_pop(_helperQueue));
-  if (subfield.contains('/') || subfield.contains('\\')) {
-    Material res(subfield, ',');
+  if(std::holds_alternative<std::string>(_helperQueue.front())) {
+    auto subfield = std::get<std::string>(return_pop(_helperQueue));
+    if (subfield.contains('/') || subfield.contains('\\')) {
+      Material res(subfield, ',');
+      mat = res;
+    }
+    else{
+      throw std::runtime_error("misformatted material field for layer in JSON config file!");
+    }
+  }
+  
+  //for in-file intensities
+  else if (std::holds_alternative<double>(_helperQueue.front())) {
+    
+    auto subfield = std::get<double>(return_pop(_helperQueue));
+    double realRefIndex = subfield;
+
+    subfield = std::get<double>(return_pop(_helperQueue));
+    double imagRefIndex = subfield;
+
+    Material res(realRefIndex, imagRefIndex);
     mat = res;
   }
-
-  //for in-file intensities
-  else if (std::isdigit(subfield[0])) {
-
-    double wavelength = std::stoi(subfield);
-
-    subfield = std::get<std::string>(return_pop(_helperQueue));
-    double realRefIndex = std::stoi(subfield.substr(0, subfield.find(',')));
-
-    subfield.erase(0, subfield.find(','));  //double check
-    double imagRefIndex = std::stoi(subfield.substr(0, subfield.find(',')));
-
-    mat.insert(wavelength, realRefIndex, imagRefIndex);
-  }
-  else{throw std::runtime_error("misformatted material field for layer in JSON config file!");}
 }
 
 void ConfigVisitor::fillDipoleModeHelper() {

@@ -32,13 +32,6 @@ namespace Data {
         ReaderType<ReaderPolicy> _policy;
         std::unique_ptr<Json::JsonNode<ReaderPolicy>> _rootPtr;
     
-        Json::JsonNode<ConfigVisitor>* parseFile() {
-            //_policy.parse();
-            //auto resPtr = Json::JsonNode<ReaderPolicy>*(_policy.getJsonTree());
-
-            //return resPtr;
-        }
-    
     public:
         Reader(const std::string& filepath) :
               _filepath{filepath},
@@ -49,14 +42,12 @@ namespace Data {
             if (!_visitor.get()) {
                 throw std::runtime_error("Visitor not initialized");
             }
-         //   _rootPtr = std::unique_ptr<Json::JsonNode<ConfigVisitor>>(parseFile());
-         std::cout << _filepath << std::endl;
+            std::cout << _filepath << std::endl;
            _policy.parse();
            auto root = _policy.getJsonTree();
            root->traverse();
-         //_rootPtr->traverse();
-            if (_visitor->isSimulation()) _smode = SolverMode::fitting;
-            else _smode = SolverMode::simulation;
+            if (_visitor->isSimulation()) _smode = SolverMode::simulation;
+            else _smode = SolverMode::fitting;
         }
     
         SolverMode get_mode() {return _smode;}

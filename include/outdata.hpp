@@ -27,7 +27,7 @@ namespace Data {
         class Exporter{
 
                 void makeTree();
-        
+
                 Results _results;
                 Json::JsonNode<Json::PrintVisitor> _root;
                 std::shared_ptr<Json::PrintVisitor> _visitor;
