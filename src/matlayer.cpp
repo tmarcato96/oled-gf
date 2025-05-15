@@ -11,34 +11,34 @@
 
 
 Material::Material() :
-  mRefIndices{std::pair{0.0, 0.0}}
+  refIndices{std::pair{0.0, 0.0}}
   {}
 
 Material::Material(double realRefIndex, double imagRefIndex)
 {
   Eigen::ArrayXd wavelength = Eigen::ArrayXd::LinSpaced(50, 300, 800);
   for (auto wvl: wavelength) { 
-    mRefIndices.insert(std::pair<double, std::complex<double>>{wvl, std::complex<double>(realRefIndex, imagRefIndex)});
+    refIndices.insert(std::pair<double, std::complex<double>>{wvl, std::complex<double>(realRefIndex, imagRefIndex)});
   }
 }
 
 Material::Material(double wavelength, double realRefIndex, double imagRefIndex)
 {
-  mRefIndices.insert(std::pair{wavelength, std::complex<double>(realRefIndex, imagRefIndex)});
+  refIndices.insert(std::pair{wavelength, std::complex<double>(realRefIndex, imagRefIndex)});
 }
 
 Material::Material(const std::string& path, const char delimiter)
 {
   Matrix data = Data::loadFromFile(path, 3, delimiter);
   for (Eigen::Index i=0; i<data.rows(); ++i) {
-    mRefIndices.insert(std::pair<double, std::complex<double>>{data(i, 0), 
+    refIndices.insert(std::pair<double, std::complex<double>>{data(i, 0), 
                                                                std::complex<double>(data(i, 1),
                                                                                     data(i, 2))});
   }
 }
 
 void Material::insert(double wavelength, double realRefIndex, double imagRefIndex) {
-  mRefIndices.insert(std::pair{wavelength, std::complex<double>(realRefIndex, imagRefIndex)});
+  refIndices.insert(std::pair{wavelength, std::complex<double>(realRefIndex, imagRefIndex)});
 }
 
 std::complex<double> Material::getRefIndex(double wavelength) const
@@ -46,11 +46,11 @@ std::complex<double> Material::getRefIndex(double wavelength) const
 
   std::complex<double> res;
   try {
-    res = mRefIndices.at(wavelength);
+    res = refIndices.at(wavelength);
     return res;
   } catch (const std::out_of_range& oor) {
-    auto const uBound = mRefIndices.upper_bound(wavelength);
-    if (uBound != mRefIndices.end()) {
+    auto const uBound = refIndices.upper_bound(wavelength);
+    if (uBound != refIndices.end()) {
       auto const lBound = std::prev(uBound);
       double ratio = (wavelength - lBound->first) / (uBound->first - lBound->first);
       res = ratio * uBound->second + (1 - ratio) * lBound->second; // Interpolation

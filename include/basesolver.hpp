@@ -102,10 +102,10 @@ BaseSolver(const std::vector<Layer>& layers,
     const double sweepStop,
     const double alpha=1.0/3.0);
 
-  std::vector<Layer> mLayers;
-  Eigen::Index mDipoleLayer;
-  double mDipolePosition;
-  double mWvl;
+  std::vector<Layer> layers;
+  Eigen::Index dipoleLayer;
+  double dipolePosition;
+  double wvl;
 
   Matrix _spectrum;
   Vector _dipolePositions;
@@ -189,11 +189,11 @@ public:
   
   double alpha;
 
-  CMatrix mPowerPerpUpPol;
-  CMatrix mPowerParaUpPol;
-  CMatrix mPowerParaUsPol;
+  CMatrix powerPerpUpPol;
+  CMatrix powerParaUpPol;
+  CMatrix powerParaUsPol;
 
-  Matrix mFracPowerPerpUpPol;
-  Matrix mFracPowerParaUpPol;
-  Matrix mFracPowerParaUsPol;
+  Matrix fracPowerPerpUpPol;
+  Matrix fracPowerParaUpPol;
+  Matrix fracPowerParaUsPol;
 };

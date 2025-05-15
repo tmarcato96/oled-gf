@@ -21,9 +21,9 @@ int main()
 
   // Mode dissipation figure
   Vector const& u = solverJob->getInPlaneWavevector();
-  Vector const& y = solverJob->mFracPowerPerpUpPol.row(dipoleIndex - 1).head(u.size());
-  Vector const& yParapPol = solverJob->mFracPowerParaUpPol.row(dipoleIndex - 1).head(u.size());
-  Vector const& yParasPol = solverJob->mFracPowerParaUsPol.row(dipoleIndex - 1).head(u.size());
+  Vector const& y = solverJob->fracPowerPerpUpPol.row(dipoleIndex - 1).head(u.size());
+  Vector const& yParapPol = solverJob->fracPowerParaUpPol.row(dipoleIndex - 1).head(u.size());
+  Vector const& yParasPol = solverJob->fracPowerParaUsPol.row(dipoleIndex - 1).head(u.size());
 
 
   std::ofstream output("C:\\Users\\mnouman\\oled-gf\\mat\\segfault.json");
@@ -31,12 +31,12 @@ int main()
   exporter.print();
 
   //Plot
-  //matplot::semilogy(u, y)->line_width(2).color("red");
-  //matplot::hold(matplot::on);
-  //matplot::semilogy(u, yParapPol)->line_width(2).color("blue");
-  //matplot::semilogy(u, yParasPol)->line_width(2).color("green");
-  //matplot::xlim({0.0, 2.0});
-  //matplot::xlabel("Normalized Wavevector");
-  //matplot::ylabel("Dissipated Power");
-  //matplot::show();
+ // matplot::semilogy(u, y)->line_width(2).color("red");
+ // matplot::hold(matplot::on);
+ // matplot::semilogy(u, yParapPol)->line_width(2).color("blue");
+ // matplot::semilogy(u, yParasPol)->line_width(2).color("green");
+ // matplot::xlim({0.0, 2.0});
+ // matplot::xlabel("Normalized Wavevector");
+ // matplot::ylabel("Dissipated Power");
+ // matplot::show();
 }

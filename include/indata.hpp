@@ -69,6 +69,7 @@ namespace Data {
 
         public:
             virtual std::unique_ptr<BaseSolver> solverFromFile() = 0;
+            virtual SolverMode getSolverMode() = 0;
             virtual ~Importer() = default;
     };
 
@@ -78,6 +79,7 @@ namespace Data {
         
         public:
             std::unique_ptr<BaseSolver> solverFromFile() override;
+            virtual SolverMode getSolverMode() override;
             INIimporter(const std::string& filepath);
             INIimporter(const std::string& filepath, SolverMode mode);
     };
@@ -89,6 +91,7 @@ namespace Data {
         
         public:
             std::unique_ptr<BaseSolver> solverFromFile() override;
+            virtual SolverMode getSolverMode() override;
 
             JSONimporter(const std::string& filepath);
             JSONimporter(const std::string& filepath, SolverMode mode);

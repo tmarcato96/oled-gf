@@ -102,6 +102,10 @@ void  Data::JSONimporter::setSolverMode() {
   _mode = _reader.get_mode();
 }
 
+Data::SolverMode Data::JSONimporter::getSolverMode() {
+  return(_mode);
+}
+
 std::unique_ptr<BaseSolver> Data::JSONimporter::solverFromFile() {
   return _reader.makeSolver();
 }

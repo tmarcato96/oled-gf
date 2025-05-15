@@ -33,7 +33,7 @@ int main() {
   // Dipole distribution
   DipoleDistribution dipoleDist(0.0, 35e-9, DipoleDistributionType::Uniform);
   // Create Solver
-  auto solver = std::make_unique<Fitting>(targetToFit, layers, 17.5e-9, wavelength, 0.0, 90.0);
+  auto solver = std::make_unique<Fitting>(targetToFit, layers, dipoleDist, spectrum, 0.0, 90.0);
   // Fit
   auto fitRes = solver->fitEmissionSubstrate();
 

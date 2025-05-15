@@ -32,9 +32,9 @@ int main()
 
   // Mode dissipation figure
   Vector const& u = simulation->getInPlaneWavevector();
-  Vector const& y = simulation->mFracPowerPerpUpPol.row(dipoleIndex - 1).head(u.size());
-  Vector const& yParapPol = simulation->mFracPowerParaUpPol.row(dipoleIndex - 1).head(u.size());
-  Vector const& yParasPol = simulation->mFracPowerParaUsPol.row(dipoleIndex - 1).head(u.size());
+  Vector const& y = simulation->fracPowerPerpUpPol.row(dipoleIndex - 1).head(u.size());
+  Vector const& yParapPol = simulation->fracPowerParaUpPol.row(dipoleIndex - 1).head(u.size());
+  Vector const& yParasPol = simulation->fracPowerParaUsPol.row(dipoleIndex - 1).head(u.size());
 
   std::cout << y.head(20) << '\n';
 

@@ -22,14 +22,14 @@ void BaseSolver::loadMaterialData()
   std::cout << "-----------------------------------------------------------------\n"
             << "\n\n";
 
-  matstack.numLayers = static_cast<Eigen::Index>(mLayers.size());
+  matstack.numLayers = static_cast<Eigen::Index>(layers.size());
   matstack.numInterfaces = matstack.numLayers - 1;
-  matstack.numLayersTop = mDipoleLayer + 1;
-  matstack.numLayersBottom = matstack.numLayers - mDipoleLayer;
+  matstack.numLayersTop = dipoleLayer + 1;
+  matstack.numLayersBottom = matstack.numLayers - dipoleLayer;
 
   matstack.epsilon.resize(matstack.numLayers);
   for (size_t i = 0; i < static_cast<size_t>(matstack.numLayers); ++i) {
-    matstack.epsilon(i) = mLayers[i].getMaterial().getEpsilon(mWvl);
+    matstack.epsilon(i) = layers[i].getMaterial().getEpsilon(wvl);
     std::cout << "Layer " << i << "; Material: (" << matstack.epsilon(i).real() << ", " << matstack.epsilon(i).imag()
               << ")\n";
   }
@@ -41,17 +41,17 @@ BaseSolver::BaseSolver(const std::vector<Layer>& layers,
   const double sweepStart,
   const double sweepStop,
   const double inpalpha) :
-  mLayers{std::move(layers)},
-  mDipolePosition{dipolePosition},
-  mWvl{wavelength},
+  layers{std::move(layers)},
+  dipolePosition{dipolePosition},
+  wvl{wavelength},
   _sweepStart{sweepStart},
   _sweepStop{sweepStop},
   alpha{inpalpha}
 {
-  mDipoleLayer = 0;
+  dipoleLayer = 0;
   for (auto layer : layers) {
     if (layer.isEmitter) { break; }
-    mDipoleLayer++;
+    dipoleLayer++;
   }
   _spectrum = Matrix::Zero(50, 2);
   _dipolePositions = Vector::Zero(10);
@@ -111,7 +111,7 @@ void BaseSolver::calculateFresnelCoeffs()
              matstack.h.block(0, 0, matstack.h.rows() - 1, matstack.h.cols())) /
            (matstack.h.block(1, 0, matstack.h.rows() - 1, matstack.h.cols()) +
              matstack.h.block(0, 0, matstack.h.rows() - 1, matstack.h.cols()));
-  (R_perp.bottomRows(R_perp.rows() - mDipoleLayer)) *= -1.0;
+  (R_perp.bottomRows(R_perp.rows() - dipoleLayer)) *= -1.0;
 
   R_para = ((matstack.h.block(0, 0, matstack.h.rows() - 1, matstack.h.cols())).colwise() *
               matstack.epsilon.segment(1, matstack.epsilon.size() - 1) -
@@ -121,7 +121,7 @@ void BaseSolver::calculateFresnelCoeffs()
                matstack.epsilon.segment(1, matstack.epsilon.size() - 1) +
              (matstack.h.block(1, 0, matstack.h.rows() - 1, matstack.h.cols())).colwise() *
                matstack.epsilon.segment(0, matstack.epsilon.size() - 1));
-  (R_para.bottomRows(R_para.rows() - mDipoleLayer)) *= -1.0;
+  (R_para.bottomRows(R_para.rows() - dipoleLayer)) *= -1.0;
   // Move into SolverCoefficients
   coeffs._Rperp = std::move(R_perp);
   coeffs._Rpara = std::move(R_para);
@@ -135,7 +135,7 @@ void BaseSolver::calculateGFCoeffRatios()
   CMatrix CT = CMatrix::Zero(matstack.numLayersBottom, matstack.numKVectors);
   CMatrix FT = CMatrix::Zero(matstack.numLayersBottom, matstack.numKVectors);
 
-  for (Eigen::Index i = 1; i < mDipoleLayer + 1; ++i) {
+  for (Eigen::Index i = 1; i < dipoleLayer + 1; ++i) {
     CB.row(i) =
       Eigen::exp(-2.0 * I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i - 1)) *
       (coeffs._Rperp.row(i - 1) +
@@ -151,8 +151,8 @@ void BaseSolver::calculateGFCoeffRatios()
              (FB.row(i - 1) * Eigen::exp(2.0 * I * matstack.h.row(i - 1) * (matstack.z0.cast<CMPLX>())(i - 1))));
   }
 
-  for (Eigen::Index i = matstack.numLayers - mDipoleLayer - 2; i >= 0; --i) {
-    Eigen::Index indexFromTop = i + mDipoleLayer;
+  for (Eigen::Index i = matstack.numLayers - dipoleLayer - 2; i >= 0; --i) {
+    Eigen::Index indexFromTop = i + dipoleLayer;
     CT.row(i) =
       Eigen::exp(2.0 * I * matstack.h.row(indexFromTop) * (matstack.z0.cast<CMPLX>())(indexFromTop)) *
       (coeffs._Rperp.row(indexFromTop) + (CT.row(i + 1) * Eigen::exp(-2.0 * I * matstack.h.row(indexFromTop + 1) *
@@ -185,25 +185,25 @@ void BaseSolver::calculateGFCoeffs()
   CMatrix f_para = CMatrix::Zero(matstack.numLayers, matstack.numKVectors);
   CMatrix fd_para = CMatrix::Zero(matstack.numLayers, matstack.numKVectors);
 
-  c.row(mDipoleLayer) =
-    (coeffs._cb.row(mDipoleLayer) + 1) * coeffs._ct.row(0) / (1 - coeffs._cb.row(mDipoleLayer) * coeffs._ct.row(0));
-  cd.row(mDipoleLayer) =
-    (coeffs._ct.row(0) + 1) * coeffs._cb.row(mDipoleLayer) / (1 - coeffs._cb.row(mDipoleLayer) * coeffs._ct.row(0));
+  c.row(dipoleLayer) =
+    (coeffs._cb.row(dipoleLayer) + 1) * coeffs._ct.row(0) / (1 - coeffs._cb.row(dipoleLayer) * coeffs._ct.row(0));
+  cd.row(dipoleLayer) =
+    (coeffs._ct.row(0) + 1) * coeffs._cb.row(dipoleLayer) / (1 - coeffs._cb.row(dipoleLayer) * coeffs._ct.row(0));
 
-  f_perp.row(mDipoleLayer) =
-    (coeffs._fb.row(mDipoleLayer) + 1) * coeffs._ft.row(0) / (1 - coeffs._fb.row(mDipoleLayer) * coeffs._ft.row(0));
-  fd_perp.row(mDipoleLayer) =
-    (coeffs._ft.row(0) + 1) * coeffs._fb.row(mDipoleLayer) / (1 - coeffs._fb.row(mDipoleLayer) * coeffs._ft.row(0));
+  f_perp.row(dipoleLayer) =
+    (coeffs._fb.row(dipoleLayer) + 1) * coeffs._ft.row(0) / (1 - coeffs._fb.row(dipoleLayer) * coeffs._ft.row(0));
+  fd_perp.row(dipoleLayer) =
+    (coeffs._ft.row(0) + 1) * coeffs._fb.row(dipoleLayer) / (1 - coeffs._fb.row(dipoleLayer) * coeffs._ft.row(0));
 
-  f_para.row(mDipoleLayer) =
-    (coeffs._fb.row(mDipoleLayer) - 1) * coeffs._ft.row(0) / (1 - coeffs._fb.row(mDipoleLayer) * coeffs._ft.row(0));
-  fd_para.row(mDipoleLayer) =
-    (1 - coeffs._ft.row(0)) * coeffs._fb.row(mDipoleLayer) / (1 - coeffs._fb.row(mDipoleLayer) * coeffs._ft.row(0));
+  f_para.row(dipoleLayer) =
+    (coeffs._fb.row(dipoleLayer) - 1) * coeffs._ft.row(0) / (1 - coeffs._fb.row(dipoleLayer) * coeffs._ft.row(0));
+  fd_para.row(dipoleLayer) =
+    (1 - coeffs._ft.row(0)) * coeffs._fb.row(dipoleLayer) / (1 - coeffs._fb.row(dipoleLayer) * coeffs._ft.row(0));
 
   Vector boolValue = Vector::Zero(matstack.numLayers);
-  boolValue(mDipoleLayer) = 1.0;
+  boolValue(dipoleLayer) = 1.0;
 
-  for (Eigen::Index i = mDipoleLayer; i >= 1; --i) {
+  for (Eigen::Index i = dipoleLayer; i >= 1; --i) {
     c.row(i - 1) =
       0.5 * Eigen::exp(I * matstack.h.row(i - 1) * (matstack.z0.cast<CMPLX>())(i - 1)) *
       ((boolValue(i) + c.row(i)) * Eigen::exp(-I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i - 1)) *
@@ -255,7 +255,7 @@ void BaseSolver::calculateGFCoeffs()
             matstack.k(i - 1) / matstack.k(i) * matstack.h.row(i) / matstack.h.row(i - 1)));
   }
 
-  for (Eigen::Index i = mDipoleLayer; i < matstack.numLayers - 1; ++i) {
+  for (Eigen::Index i = dipoleLayer; i < matstack.numLayers - 1; ++i) {
     c.row(i + 1) = 0.5 * Eigen::exp(I * matstack.h.row(i + 1) * (matstack.z0.cast<CMPLX>())(i)) *
                    (c.row(i) * Eigen::exp(-I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i)) *
                        (1 + matstack.h.row(i) / matstack.h.row(i + 1)) +
@@ -319,15 +319,15 @@ void BaseSolver::calculateLifetime(Vector& bPerp, Vector& bPara)
   CVector bTmp2(matstack.u.size());
 
   bTmp = matstack.dX * (3.0 / 2.0) * Eigen::pow(Eigen::cos(matstack.x), 3);
-  bTmp *= (coeffs._f_perp(mDipoleLayer, Eigen::seqN(0, matstack.u.size())) +
-           coeffs._fd_perp(mDipoleLayer, Eigen::seqN(0, matstack.u.size())));
+  bTmp *= (coeffs._f_perp(dipoleLayer, Eigen::seqN(0, matstack.u.size())) +
+           coeffs._fd_perp(dipoleLayer, Eigen::seqN(0, matstack.u.size())));
   bPerp = bTmp.real();
 
-  bTmp2 = (coeffs._c(mDipoleLayer, Eigen::seqN(0, matstack.u.size())) +
-           coeffs._cd(mDipoleLayer, Eigen::seqN(0, matstack.u.size())));
+  bTmp2 = (coeffs._c(dipoleLayer, Eigen::seqN(0, matstack.u.size())) +
+           coeffs._cd(dipoleLayer, Eigen::seqN(0, matstack.u.size())));
   bTmp = Eigen::pow(Eigen::sin(matstack.x.head(matstack.x.size())), 2);
-  bTmp *= (coeffs._f_para(mDipoleLayer, Eigen::seqN(0, matstack.u.size())) -
-           coeffs._fd_para(mDipoleLayer, Eigen::seqN(0, matstack.u.size())));
+  bTmp *= (coeffs._f_para(dipoleLayer, Eigen::seqN(0, matstack.u.size())) -
+           coeffs._fd_para(dipoleLayer, Eigen::seqN(0, matstack.u.size())));
   bTmp += bTmp2;
   bTmp *= matstack.dX * (3.0 / 4.0) * Eigen::cos(matstack.x.head(matstack.x.size()));
   bPara = bTmp.real();
@@ -336,74 +336,74 @@ void BaseSolver::calculateLifetime(Vector& bPerp, Vector& bPara)
 void BaseSolver::calculateDissPower(const double bPerpSum, const double bParaSum)
 {
   // Power calculation
-  mPowerPerpUpPol.resize(matstack.numLayers - 1, matstack.u.size());
-  mPowerParaUpPol.resize(matstack.numLayers - 1, matstack.u.size());
-  mPowerParaUsPol.resize(matstack.numLayers - 1, matstack.u.size());
+  powerPerpUpPol.resize(matstack.numLayers - 1, matstack.u.size());
+  powerParaUpPol.resize(matstack.numLayers - 1, matstack.u.size());
+  powerParaUsPol.resize(matstack.numLayers - 1, matstack.u.size());
   CMatrix powerParaTemp(matstack.numLayers - 1, matstack.u.size());
 
   double q = 1.0; // PLQY
   CMPLX I(0.0, 1.0);
 
   Vector boolValue = Vector::Zero(matstack.numLayers);
-  boolValue(mDipoleLayer) = 1.0;
+  boolValue(dipoleLayer) = 1.0;
   for (Eigen::Index i = 0; i < matstack.numLayers - 1; ++i) {
-    mPowerPerpUpPol.row(i) =
+    powerPerpUpPol.row(i) =
       (-3.0 * q / 4.0) * ((Eigen::pow(matstack.u, 3)) / Eigen::abs(1 - Eigen::pow(matstack.u, 2))) *
-      (Eigen::sqrt(matstack.epsilon(i) / matstack.epsilon(mDipoleLayer) - Eigen::pow(matstack.u, 2))) *
+      (Eigen::sqrt(matstack.epsilon(i) / matstack.epsilon(dipoleLayer) - Eigen::pow(matstack.u, 2))) *
       (std::conj(std::sqrt(matstack.epsilon(i))) / std::sqrt(matstack.epsilon(i)));
-    mPowerPerpUpPol.row(i) *= (coeffs._f_perp(i, Eigen::seqN(0, mPowerPerpUpPol.cols())) *
+    powerPerpUpPol.row(i) *= (coeffs._f_perp(i, Eigen::seqN(0, powerPerpUpPol.cols())) *
                                 Eigen::exp(-I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i))) -
-                              ((coeffs._fd_perp(i, Eigen::seqN(0, mPowerPerpUpPol.cols())) + boolValue(i)) *
+                              ((coeffs._fd_perp(i, Eigen::seqN(0, powerPerpUpPol.cols())) + boolValue(i)) *
                                 Eigen::exp(I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i)));
-    mPowerPerpUpPol.row(i) *=
-      (Eigen::conj((coeffs._f_perp(i, Eigen::seqN(0, mPowerPerpUpPol.cols())) *
+    powerPerpUpPol.row(i) *=
+      (Eigen::conj((coeffs._f_perp(i, Eigen::seqN(0, powerPerpUpPol.cols())) *
                      Eigen::exp(-I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i))) +
-                   ((coeffs._fd_perp(i, Eigen::seqN(0, mPowerPerpUpPol.cols())) + boolValue(i)) *
+                   ((coeffs._fd_perp(i, Eigen::seqN(0, powerPerpUpPol.cols())) + boolValue(i)) *
                      Eigen::exp(I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i)))));
-    mPowerParaUsPol.row(i) =
+    powerParaUsPol.row(i) =
       (-3.0 * q / 8.0) *
       (matstack.u *
-        Eigen::conj(Eigen::sqrt(matstack.epsilon(i) / matstack.epsilon(mDipoleLayer) - Eigen::pow(matstack.u, 2)))) /
+        Eigen::conj(Eigen::sqrt(matstack.epsilon(i) / matstack.epsilon(dipoleLayer) - Eigen::pow(matstack.u, 2)))) /
       (Eigen::abs(1 - Eigen::pow(matstack.u, 2)));
-    mPowerParaUsPol.row(i) *= (coeffs._c(i, Eigen::seqN(0, mPowerParaUsPol.cols())) *
+    powerParaUsPol.row(i) *= (coeffs._c(i, Eigen::seqN(0, powerParaUsPol.cols())) *
                                 Eigen::exp(-I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i))) +
-                              ((coeffs._cd(i, Eigen::seqN(0, mPowerParaUsPol.cols())) + boolValue(i)) *
+                              ((coeffs._cd(i, Eigen::seqN(0, powerParaUsPol.cols())) + boolValue(i)) *
                                 Eigen::exp(I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i)));
-    mPowerParaUsPol.row(i) *= (Eigen::conj((coeffs._c(i, Eigen::seqN(0, mPowerParaUsPol.cols())) *
+    powerParaUsPol.row(i) *= (Eigen::conj((coeffs._c(i, Eigen::seqN(0, powerParaUsPol.cols())) *
                                              Eigen::exp(-I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i))) -
-                                           ((coeffs._cd(i, Eigen::seqN(0, mPowerParaUsPol.cols())) + boolValue(i)) *
+                                           ((coeffs._cd(i, Eigen::seqN(0, powerParaUsPol.cols())) + boolValue(i)) *
                                              Eigen::exp(I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i)))));
 
-    mPowerParaUpPol.row(i) =
+    powerParaUpPol.row(i) =
       (-3.0 * q / 8.0) *
-      (matstack.u * Eigen::sqrt(matstack.epsilon(i) / matstack.epsilon(mDipoleLayer) - Eigen::pow(matstack.u, 2))) *
+      (matstack.u * Eigen::sqrt(matstack.epsilon(i) / matstack.epsilon(dipoleLayer) - Eigen::pow(matstack.u, 2))) *
       (std::conj(std::sqrt(matstack.epsilon(i))) / std::sqrt(matstack.epsilon(i)));
-    mPowerParaUpPol.row(i) *= (coeffs._f_para(i, Eigen::seqN(0, mPowerParaUpPol.cols())) *
+    powerParaUpPol.row(i) *= (coeffs._f_para(i, Eigen::seqN(0, powerParaUpPol.cols())) *
                                 Eigen::exp(-I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i))) -
-                              ((coeffs._fd_para(i, Eigen::seqN(0, mPowerParaUpPol.cols())) - boolValue(i)) *
+                              ((coeffs._fd_para(i, Eigen::seqN(0, powerParaUpPol.cols())) - boolValue(i)) *
                                 Eigen::exp(I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i)));
-    mPowerParaUpPol.row(i) *=
-      (Eigen::conj((coeffs._f_para(i, Eigen::seqN(0, mPowerParaUpPol.cols())) *
+    powerParaUpPol.row(i) *=
+      (Eigen::conj((coeffs._f_para(i, Eigen::seqN(0, powerParaUpPol.cols())) *
                      Eigen::exp(-I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i))) +
-                   ((coeffs._fd_para(i, Eigen::seqN(0, mPowerParaUpPol.cols())) - boolValue(i)) *
+                   ((coeffs._fd_para(i, Eigen::seqN(0, powerParaUpPol.cols())) - boolValue(i)) *
                      Eigen::exp(I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i)))));
   }
 
   // Fraction power calculation
-  Matrix m1 = Eigen::real(mPowerPerpUpPol.block(0, 0, mPowerPerpUpPol.rows() - 1, mPowerPerpUpPol.cols()));
-  Matrix m2 = Eigen::real(mPowerPerpUpPol.block(1, 0, mPowerPerpUpPol.rows() - 1, mPowerPerpUpPol.cols()));
-  mFracPowerPerpUpPol = Eigen::abs(m2 - m1);
-  mFracPowerPerpUpPol /= std::abs(bPerpSum);
+  Matrix m1 = Eigen::real(powerPerpUpPol.block(0, 0, powerPerpUpPol.rows() - 1, powerPerpUpPol.cols()));
+  Matrix m2 = Eigen::real(powerPerpUpPol.block(1, 0, powerPerpUpPol.rows() - 1, powerPerpUpPol.cols()));
+  fracPowerPerpUpPol = Eigen::abs(m2 - m1);
+  fracPowerPerpUpPol /= std::abs(bPerpSum);
 
-  Matrix m3 = Eigen::real(mPowerParaUpPol.block(0, 0, mPowerParaUpPol.rows() - 1, mPowerParaUpPol.cols()));
-  Matrix m4 = Eigen::real(mPowerParaUpPol.block(1, 0, mPowerParaUpPol.rows() - 1, mPowerParaUpPol.cols()));
-  mFracPowerParaUpPol = Eigen::abs(m4 - m3);
-  mFracPowerParaUpPol /= std::abs(bParaSum);
+  Matrix m3 = Eigen::real(powerParaUpPol.block(0, 0, powerParaUpPol.rows() - 1, powerParaUpPol.cols()));
+  Matrix m4 = Eigen::real(powerParaUpPol.block(1, 0, powerParaUpPol.rows() - 1, powerParaUpPol.cols()));
+  fracPowerParaUpPol = Eigen::abs(m4 - m3);
+  fracPowerParaUpPol /= std::abs(bParaSum);
 
-  Matrix m5 = Eigen::real(mPowerParaUsPol.block(0, 0, mPowerParaUsPol.rows() - 1, mPowerParaUsPol.cols()));
-  Matrix m6 = Eigen::real(mPowerParaUsPol.block(1, 0, mPowerParaUsPol.rows() - 1, mPowerParaUsPol.cols()));
-  mFracPowerParaUsPol = Eigen::abs(m6 - m5);
-  mFracPowerParaUsPol /= std::abs(bParaSum);
+  Matrix m5 = Eigen::real(powerParaUsPol.block(0, 0, powerParaUsPol.rows() - 1, powerParaUsPol.cols()));
+  Matrix m6 = Eigen::real(powerParaUsPol.block(1, 0, powerParaUsPol.rows() - 1, powerParaUsPol.cols()));
+  fracPowerParaUsPol = Eigen::abs(m6 - m5);
+  fracPowerParaUsPol /= std::abs(bParaSum);
 }
 
 void BaseSolver::calculate()
@@ -432,9 +432,9 @@ void BaseSolver::calculate()
   calculateDissPower(bPerpSum, bParaSum);
 
   //normalizing dissipated power by alpha to get efficiency
-  mFracPowerPerpUpPol *= alpha;
-  mFracPowerParaUpPol *= (1 - alpha);
-  mFracPowerParaUsPol *= (1 - alpha);
+  fracPowerPerpUpPol *= alpha;
+  fracPowerParaUpPol *= (1 - alpha);
+  fracPowerParaUsPol *= (1 - alpha);
 
 
   // Loggin
@@ -452,22 +452,22 @@ void BaseSolver::calculateWithSpectrum()
   CMatrix pParaUsPol = CMatrix::Zero(matstack.numLayers - 1, matstack.u.size());
   double dX = _spectrum(1, 0) - _spectrum(0, 0);  //CHANGE IF DISCRETIZATION BECOMES UNEQUALLY SPACED
   for (Eigen::Index i = 0; i < _spectrum.rows(); ++i) {
-    mWvl = _spectrum(i, 0);
+    wvl = _spectrum(i, 0);
     this->discretize();
     calculate();
     // Integration
     if (i == 0 || i == _spectrum.rows() - 1) {
-      mPowerPerpUpPol *= 0.5;
-      mPowerParaUpPol *= 0.5;
-      mPowerParaUsPol *= 0.5;
+      powerPerpUpPol *= 0.5;
+      powerParaUpPol *= 0.5;
+      powerParaUsPol *= 0.5;
     }
-    pPerpUpPol += (mPowerPerpUpPol * _spectrum(i, 1));
-    pParaUpPol += (mPowerParaUpPol * _spectrum(i, 1));
-    pParaUsPol += (mPowerParaUsPol * _spectrum(i, 1));
+    pPerpUpPol += (powerPerpUpPol * _spectrum(i, 1));
+    pParaUpPol += (powerParaUpPol * _spectrum(i, 1));
+    pParaUsPol += (powerParaUsPol * _spectrum(i, 1));
   }
-  mPowerPerpUpPol = pPerpUpPol * dX;
-  mPowerParaUpPol = pParaUpPol * dX;
-  mPowerParaUsPol = pParaUsPol * dX;
+  powerPerpUpPol = pPerpUpPol * dX;
+  powerParaUpPol = pParaUpPol * dX;
+  powerParaUsPol = pParaUsPol * dX;
 }
 
 void BaseSolver::calculateWithDipoleDistribution()
@@ -476,24 +476,24 @@ void BaseSolver::calculateWithDipoleDistribution()
   CMatrix pParaUpPol = CMatrix::Zero(matstack.numLayers - 1, matstack.u.size());
   CMatrix pParaUsPol = CMatrix::Zero(matstack.numLayers - 1, matstack.u.size());
   double dX = _dipolePositions(1) - _dipolePositions(0);
-  double thickness = mLayers[mDipoleLayer].getThickness();
+  double thickness = layers[dipoleLayer].getThickness();
   for (Eigen::Index i = 0; i < _dipolePositions.size(); ++i) {
-    mDipolePosition = _dipolePositions(i);
+    dipolePosition = _dipolePositions(i);
     this->discretize();
     calculateWithSpectrum();
     // Integration
     if (i == 0 || i == _dipolePositions.size() - 1) {
-      mPowerPerpUpPol *= 0.5;
-      mPowerParaUpPol *= 0.5;
-      mPowerParaUsPol *= 0.5;
+      powerPerpUpPol *= 0.5;
+      powerParaUpPol *= 0.5;
+      powerParaUsPol *= 0.5;
     }
-    pPerpUpPol += (mPowerPerpUpPol);
-    pParaUpPol += (mPowerParaUpPol);
-    pParaUsPol += (mPowerParaUsPol);
+    pPerpUpPol += (powerPerpUpPol);
+    pParaUpPol += (powerParaUpPol);
+    pParaUsPol += (powerParaUsPol);
   }
-  mPowerPerpUpPol = pPerpUpPol * dX / thickness;
-  mPowerParaUpPol = pParaUpPol * dX / thickness;
-  mPowerParaUsPol = pParaUsPol * dX / thickness;
+  powerPerpUpPol = pPerpUpPol * dX / thickness;
+  powerParaUpPol = pParaUpPol * dX / thickness;
+  powerParaUsPol = pParaUsPol * dX / thickness;
 }
 
 void BaseSolver::run()
@@ -513,34 +513,34 @@ void BaseSolver::calculateEmissionSubstrate(Vector& thetaGlass,
   Vector& powerParasPolGlass) const
 {
   double uCriticalGlass =
-    std::real(std::sqrt(matstack.epsilon(matstack.numLayers - 1) / matstack.epsilon(mDipoleLayer)));
+    std::real(std::sqrt(matstack.epsilon(matstack.numLayers - 1) / matstack.epsilon(dipoleLayer)));
   auto uGlassIt =
     std::find_if(matstack.u.begin(), matstack.u.end(), [uCriticalGlass](auto a) { return a > uCriticalGlass; });
   auto uGlassIndex = uGlassIt - matstack.u.begin();
 
   thetaGlass = Eigen::real(Eigen::acos(Eigen::sqrt(
-    1 - matstack.epsilon(mDipoleLayer) / matstack.epsilon(matstack.numLayers - 1) * Eigen::pow(matstack.u, 2))));
+    1 - matstack.epsilon(dipoleLayer) / matstack.epsilon(matstack.numLayers - 1) * Eigen::pow(matstack.u, 2))));
 
-  powerPerpGlass = ((Eigen::real(mPowerPerpUpPol.row(matstack.numLayers - 2))) *
-                    std::sqrt(std::real(matstack.epsilon(matstack.numLayers - 1) / matstack.epsilon(mDipoleLayer))));
+  powerPerpGlass = ((Eigen::real(powerPerpUpPol.row(matstack.numLayers - 2))) *
+                    std::sqrt(std::real(matstack.epsilon(matstack.numLayers - 1) / matstack.epsilon(dipoleLayer))));
   powerPerpGlass /= Eigen::tan(thetaGlass);
 
-  // CMatrix powerParaUTot = mPowerParaUpPol + mPowerParaUsPol;
+  // CMatrix powerParaUTot = powerParaUpPol + powerParaUsPol;
 
   powerParapPolGlass =
-    ((Eigen::real(mPowerParaUpPol.row(matstack.numLayers - 2))) *
-      std::sqrt(std::real(matstack.epsilon(matstack.numLayers - 1) / matstack.epsilon(mDipoleLayer))));
+    ((Eigen::real(powerParaUpPol.row(matstack.numLayers - 2))) *
+      std::sqrt(std::real(matstack.epsilon(matstack.numLayers - 1) / matstack.epsilon(dipoleLayer))));
   powerParapPolGlass /= Eigen::tan(thetaGlass);
 
   powerParasPolGlass =
-    ((Eigen::real(mPowerParaUsPol.row(matstack.numLayers - 2))) *
-      std::sqrt(std::real(matstack.epsilon(matstack.numLayers - 1) / matstack.epsilon(mDipoleLayer))));
+    ((Eigen::real(powerParaUsPol.row(matstack.numLayers - 2))) *
+      std::sqrt(std::real(matstack.epsilon(matstack.numLayers - 1) / matstack.epsilon(dipoleLayer))));
   powerParasPolGlass /= Eigen::tan(thetaGlass);
 }
 
 Vector const& BaseSolver::getInPlaneWavevector() const { return matstack.u; }
 
-Eigen::Index BaseSolver::getDipoleIndex() const { return mDipoleLayer; }
+Eigen::Index BaseSolver::getDipoleIndex() const { return dipoleLayer; }
 
 DipoleDistribution::DipoleDistribution(double zmin, double zmax, DipoleDistributionType type)
 {

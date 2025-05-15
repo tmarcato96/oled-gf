@@ -29,19 +29,19 @@ struct Functor
   typedef Eigen::Matrix<Scalar, ValuesAtCompileTime, 1> ValueType;
   typedef Eigen::Matrix<Scalar, ValuesAtCompileTime, InputsAtCompileTime> JacobianType;
 
-  int m_inputs, m_values;
+  int f_inputs, f_values;
 
   Functor() :
-    m_inputs(InputsAtCompileTime),
-    m_values(ValuesAtCompileTime)
+    f_inputs(InputsAtCompileTime),
+    f_values(ValuesAtCompileTime)
   {}
   Functor(int inputs, int values) :
-    m_inputs(inputs),
-    m_values(values)
+    f_inputs(inputs),
+    f_values(values)
   {}
 
-  int inputs() const { return m_inputs; }
-  int values() const { return m_values; }
+  int inputs() const { return f_inputs; }
+  int values() const { return f_values; }
 };
 
 //public struct so that the numerical diff struct can access it
@@ -156,9 +156,9 @@ class Fitting : public BaseSolver {
     optimize the fittinng parameters and returns a (std) pair containing an Eigen vector of optimized parameters and the Eigen array of emitted power as a function of angle.*/
 
   // void plot() override;
-    Matrix mIntensityData;
+    Matrix intensityData;
 
-    ResFunctorNumericalDiff mResidual;
+    ResFunctorNumericalDiff residual;
 
   private:
 

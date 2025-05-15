@@ -27,7 +27,7 @@
 class Material
 {
 private:
-  std::map<double, std::complex<double>> mRefIndices;
+  std::map<double, std::complex<double>> refIndices;
 
 
 public:

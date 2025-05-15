@@ -16,11 +16,11 @@ void Simulation::genInPlaneWavevector()
   matstack.z0.resize(matstack.numLayers - 1);
   matstack.z0(0) = 0.0;
   std::vector<double> thicknesses;
-  for (size_t i=1; i < mLayers.size()-1; ++i) {
-    thicknesses.push_back(mLayers[i].getThickness());
+  for (size_t i=1; i < layers.size()-1; ++i) {
+    thicknesses.push_back(layers[i].getThickness());
   }
   std::partial_sum(thicknesses.begin(), thicknesses.end(), std::next(matstack.z0.begin()), std::plus<double>());
-  matstack.z0 -= (matstack.z0(mDipoleLayer - 1) + mDipolePosition);
+  matstack.z0 -= (matstack.z0(dipoleLayer - 1) + dipolePosition);
 
   // Discretization of in-plane wavevector
   CMPLX I(0.0, 1.0);
@@ -31,7 +31,7 @@ void Simulation::genInPlaneWavevector()
     x_range = arange<Vector>(_sweepStart * M_PI / 180, _sweepStop * M_PI / 180 + x_res, x_res);
 
     matstack.x = x_range.head(x_range.size()-1);
-    matstack.u = Eigen::real(Eigen::sqrt(matstack.epsilon(matstack.numLayers - 1)/matstack.epsilon(mDipoleLayer)*(1- pow(Eigen::cos(matstack.x), 2))));
+    matstack.u = Eigen::real(Eigen::sqrt(matstack.epsilon(matstack.numLayers - 1)/matstack.epsilon(dipoleLayer)*(1- pow(Eigen::cos(matstack.x), 2))));
   }
   //x_init is real and x_end is complex
   else if (_mode == SimulationMode::ModeDissipation) {
@@ -58,10 +58,10 @@ void Simulation::genInPlaneWavevector()
 void Simulation::genOutofPlaneWavevector()
 {
   // Out of plane wavevector
-  matstack.k = 2 * M_PI / mWvl / 1e-9 * matstack.epsilon.sqrt();
+  matstack.k = 2 * M_PI / wvl / 1e-9 * matstack.epsilon.sqrt();
   matstack.h.resize(matstack.numLayers, matstack.u.size());
-  matstack.h = matstack.k(mDipoleLayer) *
-               (((matstack.epsilon.replicate(1, matstack.u.size())) / matstack.epsilon(mDipoleLayer)).rowwise() -
+  matstack.h = matstack.k(dipoleLayer) *
+               (((matstack.epsilon.replicate(1, matstack.u.size())) / matstack.epsilon(dipoleLayer)).rowwise() -
                  matstack.u.pow(2).transpose())
                  .sqrt();
 }
