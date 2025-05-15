@@ -26,7 +26,7 @@
 
 
 	"layer5": {
-			"thickness":	200e-10,
+			"thickness":200e-10,
 			"emitter":	1,
 			"material":	"C:\\Users\\mnouman\\oled-gf\\mat\\alq3_literature2.csv"
 		},
@@ -68,13 +68,12 @@
 
 	"alpha": 0.34,
 
-	"simtype": "ModeDissipation",
+	"simtype": "modeDissipation",
 
 	"sweep":	{
 			"start": 0,
 			"stop": 3.10747
 		},
-
 
 	"dipole": 0,
 

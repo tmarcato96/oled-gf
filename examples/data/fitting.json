@@ -1,0 +1,48 @@
+{ 
+	"layer1": {
+			"thickness":-1.0,
+			"emitter":	0,
+			"material":	[1.0, 0.0]
+		},
+
+	"layer2": {
+			"thickness":35e-9,
+			"emitter":	1,
+			"material":	[1.7, 0.0]
+		},
+
+	"layer3": {
+			"thickness":5000e-9,
+			"emitter":	0,
+			"material":	[1.52, 0.0]
+		},
+
+	"layer4": {
+			"thickness":-1.0,
+			"emitter":	0,
+			"material":	[1.52, 0.0]
+		},
+
+	"sweep": {
+			"start": 0,
+			"stop": 90.0
+		},
+
+	"dipole": {"uniform":{
+						  "zmin": 0,
+						  "zmax": 35e-9
+						 }
+			  },
+
+    "fitData": "C:\\Users\\mnouman\\oled-gf\\examples\\data\\3ML_processed.txt",
+
+	"spectrum": {"gaussian": {
+							  "xmin":400,
+							  "xmax":700,
+							  "x0":456,
+							  "sigma":8.4925
+							 }
+
+}
+	
+}
