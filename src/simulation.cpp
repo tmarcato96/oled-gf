@@ -84,22 +84,22 @@ void Simulation::init() {
 }
 
 Simulation::Simulation(SimulationMode mode,
-  const std::vector<Layer>& layers,
-  const double dipolePosition,
-  const double wavelength,
-  const double sweepStart,
-  const double sweepStop,
-  const double alpha) :
-  _mode{mode},
-  BaseSolver(layers,
-    dipolePosition,
-    wavelength,
-    sweepStart,
-    sweepStop,
-    alpha)
-  {
-    init();
-  }
+      const std::vector<Layer>& layers,
+      const double dipolePosition,
+      const double wavelength,
+      const double sweepStart,
+      const double sweepStop,
+      const double alpha) :
+      BaseSolver(layers,
+        dipolePosition,
+        wavelength,
+        sweepStart,
+        sweepStop,
+        alpha),
+      _mode{mode}
+      {
+        init();
+      }
 
 Simulation::Simulation(SimulationMode mode,
       const std::vector<Layer>& layers,
@@ -108,16 +108,16 @@ Simulation::Simulation(SimulationMode mode,
       const double sweepStart,
       const double sweepStop,
       const double alpha) :
-      _mode{mode},
       BaseSolver(layers,
                  dipolePosition,
                  spectrumFile,
                  sweepStart,
                  sweepStop, 
-                 alpha)
-  {
-    init();
-  }
+                 alpha),
+      _mode{mode}
+      {
+        init();
+      }
 
 Simulation::Simulation(SimulationMode mode,
       const std::vector<Layer>& layers,
@@ -126,34 +126,34 @@ Simulation::Simulation(SimulationMode mode,
       const double sweepStart,
       const double sweepStop,
       const double alpha) :
-      _mode{mode},
       BaseSolver(layers,
                  dipolePosition,
                  spectrum,
                  sweepStart,
                  sweepStop, 
-                 alpha)
-  {
-    init();
-  }
+                 alpha),
+      _mode{mode}
+      {
+        init();
+      }
 
-  Simulation::Simulation(SimulationMode mode,
+Simulation::Simulation(SimulationMode mode,
     const std::vector<Layer>& layers,
     const DipoleDistribution& dipoleDist,
     const double wavelength,
     const double sweepStart,
     const double sweepStop,
     const double alpha) :
-    _mode{mode},
     BaseSolver(layers,
-               dipoleDist,
-               wavelength,
-               sweepStart,
-               sweepStop,
-               alpha)
-{
-init();
-}
+              dipoleDist,
+              wavelength,
+              sweepStart,
+              sweepStop,
+              alpha),
+    _mode{mode}
+    {
+    init();
+    }
 
 Simulation::Simulation(SimulationMode mode,
       const std::vector<Layer>& layers,
@@ -162,13 +162,13 @@ Simulation::Simulation(SimulationMode mode,
       const double sweepStart,
       const double sweepStop,
       const double alpha) :
-      _mode{mode},
       BaseSolver(layers,
                  dipoleDist,
                  spectrum,
                  sweepStart,
                  sweepStop,
-                 alpha)
-{
-  init();
-}
+                 alpha),
+      _mode{mode}
+      {
+        init();
+      }
