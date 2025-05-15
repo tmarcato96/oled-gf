@@ -56,7 +56,7 @@ class Layer {
       Layer()=default;
 
       const Material& getMaterial() const;
-      const double getThickness() const;
+      double getThickness() const;
 
       bool isEmitter;
 };
