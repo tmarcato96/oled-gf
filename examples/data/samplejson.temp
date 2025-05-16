@@ -1,0 +1,44 @@
+#template for JSON config file
+
+{ 
+
+	layer0: {
+			thickness:	42.0, #nm (double)
+			emitter:	bool,
+			material:	filepath, #filepath to CSV or
+			material:	n, k,     #comma separated real and imaginary indices, spaces are ignored
+		}
+
+	layer1: {
+			thickness:	1.0,
+			emitter:	bool,
+			material:	[n, k]
+		}
+
+	...
+
+	alpha: 0.42 #for simulation only!!!
+
+	simtype: AngleSweep/ModeDissipation
+
+	sweep: {start:
+			stop:}
+	
+	fitdata: {
+		450 #nm : 42.0, #for fitting only. either wavelength and intensity or filepath
+			...
+		     }
+
+	fitdata: filepath #filepath to CSV file
+
+	dipole: {
+		mode:{modename:{specs...}}
+		#OR
+		z0: #technically the implementation allows any (string) name here at least for now
+		#so expected behavior if other strings are used
+	}
+
+	spectrum: {
+		mode:{modename:{specs...}}
+	}
+}
