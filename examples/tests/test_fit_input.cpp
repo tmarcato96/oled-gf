@@ -13,7 +13,7 @@
 int main()
 {
   // Create Solver
-  auto manager = Data::ImportManager("C:\\Users\\mnouman\\oled-gf\\examples\\data\\simulation.json");
+  auto manager = Data::ImportManager("C:\\Users\\mnouman\\oled-gf\\examples\\data\\fitting.json");
   auto importer = manager.makeImporter();
   auto solverJob = importer->solverFromFile();
 

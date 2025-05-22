@@ -16,22 +16,44 @@
 #include <matlayer.hpp>
 #include <sstream>
 
-enum class DipoleDistributionType { Uniform };
+struct Distribution { //Linear distribution
 
-struct DipoleDistribution
-{
-  Vector dipolePositions;
+  double lBound;
+  double hBound;
+  Vector positions;
 
-  DipoleDistribution() = default;
-  DipoleDistribution(double zmin, double zmax, DipoleDistributionType);
+  Distribution(double xLeft, double xRight, size_t numPoints=20);
+  Distribution() = default;
+
 };
 
-struct GaussianSpectrum
-{
-  Matrix spectrum;
+struct NormalDistribution : public Distribution {
 
-  GaussianSpectrum() = default;
-  GaussianSpectrum(double xmin, double xmax, double x0, double sigma);
+  NormalDistribution(double xmin, double xmax, double x0, double sigma, size_t NumPoints=20);
+
+};
+
+template <typename DistType> 
+struct Spectrum {
+  
+  public:
+    Matrix spectrum;
+    DistType distr;
+
+    Spectrum(DistType& dist) {
+      distr = dist;
+      make_spectrum();
+    }
+
+    Spectrum() = default;
+
+  protected:
+    void make_spectrum() {
+      size_t numPoints = distr.positions.size();
+      spectrum.resize(numPoints, 2);
+      spectrum.col(0) = distr.positions;
+      spectrum.col(1) = Eigen::ArrayXd::LinSpaced(numPoints, distr.lBound, distr.hBound);
+    }
 };
 
 //! A Struct to contain all the Green's Function coefficients.
@@ -83,21 +105,21 @@ protected:
 
 BaseSolver(const std::vector<Layer>& Layer,
     const double dipolePosition,
-    const GaussianSpectrum& spectrum,
+    const Spectrum<Distribution>& spectrum,
     const double sweepStart,
     const double sweepStop,
     const double alpha=1.0/3.0);
 
 BaseSolver(const std::vector<Layer>& Layer,
-    const DipoleDistribution& dipoleDist,
+    const Distribution& dipoleDist,
     const double wavelength,
     const double sweepStart,
     const double sweepStop,
     const double alpha=1.0/3.0);
 
 BaseSolver(const std::vector<Layer>& layers,
-    const DipoleDistribution& dipoleDist,
-    const GaussianSpectrum& spectrum,
+    const Distribution& dipoleDist,
+    const Spectrum<Distribution>& spectrum,
     const double sweepStart,
     const double sweepStop,
     const double alpha=1.0/3.0);

@@ -32,7 +32,7 @@ struct ConfigVisitor {
     void operator()(const double);
     void operator()(const std::string&);
 
-    ConfigVisitor()=default;
+    ConfigVisitor() = default;
 
     std::unique_ptr<BaseSolver> makeSolver();
     bool isSimulation();
@@ -43,8 +43,9 @@ struct ConfigVisitor {
     std::optional<Matrix> _fitData;
     std::optional<double> _alpha;
     std::optional<SimulationMode> _simMode;
-    std::variant<DipoleDistribution, double> _dipoleDist;
-    std::variant<GaussianSpectrum, double> _spectrum;
+    Distribution _test;
+    std::variant<Distribution, double> _dipoleDist;
+    std::variant<Spectrum<Distribution>, double> _spectrum;
 
   
     double _sweepStart;

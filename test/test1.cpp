@@ -35,7 +35,7 @@ int main()
   std::ofstream outFile(std::filesystem::path("./test/out.json"));
 
   if (outFile.is_open()) {
-    exporter.print(outFile);
+    exporter.print();
     outFile.close();
   }
   else {

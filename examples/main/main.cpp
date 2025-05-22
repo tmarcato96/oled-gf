@@ -55,7 +55,8 @@ int main()
 
   // Spectrum
   const double fwhm = 30;
-  GaussianSpectrum spectrum(450, 700, wavelength, fwhm/2.355);
+  NormalDistribution dist{450, 700, wavelength, fwhm/2.355, 50};
+  Spectrum<Distribution> spectrum{dist};
 
   // Create Solver
   auto simulation = std::make_unique<Simulation>(SimulationMode::AngleSweep, layers, 10e-9, spectrum, 0.0, 90.0);

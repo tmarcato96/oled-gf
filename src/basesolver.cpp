@@ -70,7 +70,7 @@ BaseSolver::BaseSolver(const std::vector<Layer>& layers,
 
 BaseSolver::BaseSolver(const std::vector<Layer>& layers,
   const double dipolePosition,
-  const GaussianSpectrum& spectrum,
+  const Spectrum<Distribution>& spectrum,
   const double sweepStart,
   const double sweepStop,
   const double inpalpha) :
@@ -81,25 +81,25 @@ BaseSolver::BaseSolver(const std::vector<Layer>& layers,
 }
 
 BaseSolver::BaseSolver(const std::vector<Layer>& layers,
-  const DipoleDistribution& dipoleDist,
+  const Distribution& dipoleDist,
   const double wavelength,
   const double sweepStart,
   const double sweepStop,
   const double inpalpha) :
   BaseSolver(layers, 0.0, wavelength, sweepStart, sweepStop, inpalpha)
 {
-  _dipolePositions = std::move(dipoleDist.dipolePositions);
+  _dipolePositions = std::move(dipoleDist.positions);
 }
 
 BaseSolver::BaseSolver(const std::vector<Layer>& layers,
-  const DipoleDistribution& dipoleDist,
-  const GaussianSpectrum& spectrum,
+  const Distribution& dipoleDist,
+  const Spectrum<Distribution>& spectrum,
   const double sweepStart,
   const double sweepStop,
   const double inpalpha) :
   BaseSolver(layers, 0.0, spectrum, sweepStart, sweepStop, inpalpha)
 {
-  _dipolePositions = std::move(dipoleDist.dipolePositions);
+  _dipolePositions = std::move(dipoleDist.positions);
 }
 
 void BaseSolver::calculateFresnelCoeffs()
@@ -542,19 +542,16 @@ Vector const& BaseSolver::getInPlaneWavevector() const { return matstack.u; }
 
 Eigen::Index BaseSolver::getDipoleIndex() const { return dipoleLayer; }
 
-DipoleDistribution::DipoleDistribution(double zmin, double zmax, DipoleDistributionType type)
-{
-  switch (type) {
-  case DipoleDistributionType::Uniform: dipolePositions = Vector::LinSpaced(10, zmin, zmax); break;
 
-  default: throw std::runtime_error("Unsupported dipole distribution");
+Distribution::Distribution(double xLeft, double xRight, size_t numPoints) :
+  lBound{xLeft},
+  hBound{xRight}
+  {
+    positions = Eigen::ArrayXd::LinSpaced(numPoints, xLeft, xRight);
   }
-}
 
-GaussianSpectrum::GaussianSpectrum(double xmin, double xmax, double x0, double sigma)
-{
-  spectrum.resize(50, 2);
-  Eigen::ArrayXd x = Eigen::ArrayXd::LinSpaced(50, xmin, xmax);
-  spectrum.col(0) = x;
-  spectrum.col(1) = (1.0 / sqrt(2 * M_PI * pow(sigma, 2))) * (-0.5 * ((x - x0) / sigma).pow(2)).exp();
-}
+NormalDistribution::NormalDistribution(double xmin, double xmax, double x0, double sigma, size_t numPoints) :
+  Distribution(xmin, xmax, numPoints)
+  {
+    positions = (1.0 / sqrt(2 * M_PI * pow(sigma, 2))) * (-0.5 * ((positions - x0) / sigma).pow(2)).exp();
+  }

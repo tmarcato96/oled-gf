@@ -200,7 +200,7 @@ void ConfigVisitor::fillDipoleModeHelper() {
   subfield = std::get<std::string>(return_pop(_helperQueue)); //zmax
   double z2 = std::get<double>(return_pop(_helperQueue));
 
-  z1 > z2 ? _dipoleDist = DipoleDistribution(z1, z2, DipoleDistributionType::Uniform) : _dipoleDist = DipoleDistribution(z2, z1, DipoleDistributionType::Uniform);
+  z1 > z2 ? _dipoleDist = Distribution(z1, z2) : _dipoleDist = Distribution(z2, z1);
 }
 
 void ConfigVisitor::fillSpectrumModeHelper() {
@@ -219,7 +219,10 @@ void ConfigVisitor::fillSpectrumModeHelper() {
     else if (subfield == "sigma") sigma = val;
     else {throw std::runtime_error("misformatted spectrum info provided!");}
   }
-  _spectrum = GaussianSpectrum(xmin, xmax, x0, sigma);
+
+  NormalDistribution dist(xmin, xmax, x0, sigma, 50);
+  _spectrum = Spectrum<Distribution>(dist);
+
 }
 
 std::unique_ptr<BaseSolver> ConfigVisitor::makeSolver() {
@@ -241,29 +244,29 @@ std::unique_ptr<BaseSolver> ConfigVisitor::makeSolver() {
   std::unique_ptr<BaseSolver> solverPtr;
   if (_alpha.has_value() && (dipoleVal && wavelength)) solverPtr = std::make_unique<Simulation>(Simulation(_simMode.value(), layers, *dipoleVal, *wavelength, _sweepStart, _sweepStop, _alpha.value()));
   else if (_alpha.has_value() && dipoleVal) {
-    auto specVal = std::get<GaussianSpectrum>(_spectrum);
+    auto specVal = std::get<Spectrum<Distribution>>(_spectrum);
     solverPtr = std::make_unique<Simulation>(Simulation(_simMode.value(), layers, *dipoleVal, specVal, _sweepStart, _sweepStop, _alpha.value()));
   }
   else if (_alpha.has_value() && wavelength) {
-    auto dipDist = std::get<DipoleDistribution>(_dipoleDist);
+    auto dipDist = std::get<Distribution>(_dipoleDist);
     solverPtr = std::make_unique<Simulation>(Simulation(_simMode.value(), layers, dipDist, *wavelength, _sweepStart, _sweepStop, _alpha.value()));
   } 
   else if (_alpha.has_value() && dipoleVal) {
-    auto specVal = std::get<GaussianSpectrum>(_spectrum);
+    auto specVal = std::get<Spectrum<Distribution>>(_spectrum);
     solverPtr = std::make_unique<Simulation>(Simulation(_simMode.value(), layers, *dipoleVal, specVal, _sweepStart, _sweepStop, _alpha.value()));
   }
   else if (dipoleVal && wavelength) solverPtr = std::make_unique<Fitting>(Fitting(_fitData.value(), layers, *dipoleVal, *wavelength, _sweepStart, _sweepStop));
   else if (dipoleVal) {
-    auto specVal = std::get<GaussianSpectrum>(_spectrum);
+    auto specVal = std::get<Spectrum<Distribution>>(_spectrum);
     solverPtr = std::make_unique<Fitting>(Fitting(_fitData.value(), layers, *dipoleVal, specVal, _sweepStart, _sweepStop));
   }
   else if (wavelength){
-    auto dipDist = std::get<DipoleDistribution>(_dipoleDist);
+    auto dipDist = std::get<Distribution>(_dipoleDist);
     solverPtr = std::make_unique<Fitting>(Fitting(_fitData.value(), layers, dipDist, *wavelength, _sweepStart, _sweepStop));
   }
   else{
-    auto dipDist = std::get<DipoleDistribution>(_dipoleDist);
-    auto specVal = std::get<GaussianSpectrum>(_spectrum);
+    auto dipDist = std::get<Distribution>(_dipoleDist);
+    auto specVal = std::get<Spectrum<Distribution>>(_spectrum);
     solverPtr = std::make_unique<Fitting>(Fitting(_fitData.value(), layers, dipDist, specVal, _sweepStart, _sweepStop));
   }
   return solverPtr;

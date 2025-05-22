@@ -99,27 +99,27 @@ class Fitting : public BaseSolver {
     Fitting(const std::string& fittingFilePath,
             const std::vector<Layer>& layers,
             const double dipolePosition,
-            const GaussianSpectrum& spectrum,
+            const Spectrum<Distribution>& spectrum,
             const double sweepStart,
             const double sweepStop);
 
     Fitting(const Matrix& fitData,
             const std::vector<Layer>& layers,
             const double dipolePosition,
-            const GaussianSpectrum& spectrum,
+            const Spectrum<Distribution>& spectrum,
             const double sweepStart,
             const double sweepStop);
 
     Fitting(const std::string& fittingFilePath,
             const std::vector<Layer>& layers,
-            const DipoleDistribution& dipoleDist,
+            const Distribution& dipoleDist,
             const double wavelength,
             const double sweepStart,
             const double sweepStop);
 
     Fitting(const Matrix& fitData,
             const std::vector<Layer>& layers,
-            const DipoleDistribution& dipoleDist,
+            const Distribution& dipoleDist,
             const double wavelength,
             const double sweepStart,
             const double sweepStop);
@@ -127,15 +127,15 @@ class Fitting : public BaseSolver {
 
     Fitting(const std::string& fittingFilePath,
             const std::vector<Layer>& layers,
-            const DipoleDistribution& dipoleDist,
-            const GaussianSpectrum& spectrum,
+            const Distribution& dipoleDist,
+            const Spectrum<Distribution>& spectrum,
             const double sweepStart,
             const double sweepStop);
     
     Fitting(const Matrix& fitData,
             const std::vector<Layer>& layers,
-            const DipoleDistribution& dipoleDist,
-            const GaussianSpectrum& spectrum,
+            const Distribution& dipoleDist,
+            const Spectrum<Distribution>& spectrum,
             const double sweepStart,
             const double sweepStop);
 
