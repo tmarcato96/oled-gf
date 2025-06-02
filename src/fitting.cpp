@@ -15,6 +15,7 @@
 #include "basesolver.hpp"
 
 
+
 Fitting::Fitting(const std::string& fittingFilePath,
                  const std::vector<Layer>& layers,
                  const double dipolePosition,
@@ -235,11 +236,10 @@ int ResFunctor::inputs() const {return 2;}
 
 int ResFunctor::values() const {return intensities.size();}
 
-std::pair<Eigen::VectorXd, Eigen::ArrayXd> Fitting::fitEmissionSubstrate() {
+Fitting::FitRes Fitting::fitEmissionSubstrate() {
+
   //returns the vector of parameters and the fitted intensities as a std::pair
-
   std::vector<double> theta(matstack.x.rows()), yFit(matstack.x.rows()), yExp(residual.intensities.rows());
-
 
   Eigen::ArrayXd::Map(&theta[0], intensityData.rows()-1) = intensityData.col(0).segment(0, matstack.u.size());
   Eigen::ArrayXd::Map(&yExp[0], intensityData.rows()-1) = residual.intensities;
@@ -252,8 +252,8 @@ std::pair<Eigen::VectorXd, Eigen::ArrayXd> Fitting::fitEmissionSubstrate() {
 
   Eigen::LevenbergMarquardt<ResFunctorNumericalDiff> lm(residual);
   lm.parameters.maxfev = 2000;
-  lm.parameters.xtol = 1e-10;
-  lm.parameters.ftol = 1e-10;
+  lm.parameters.xtol = 1e-8;
+  lm.parameters.ftol = 1e-8;
 
   int status = lm.minimize(fitParams);
   std::cout << "Number of iterations: " << lm.iter << '\n';
@@ -266,13 +266,7 @@ std::pair<Eigen::VectorXd, Eigen::ArrayXd> Fitting::fitEmissionSubstrate() {
   optIntensities = fitParams(0) * (fitParams(1)*residual.powerGlass.row(0) + (1 - fitParams(1))*residual.powerGlass.row(1));
   Eigen::ArrayXd::Map(&yFit[0], matstack.x.rows()) = optIntensities;
 
-  //plotting the results
-  matplot::figure();
-  
-  matplot::scatter(theta, yExp);
-  matplot::hold(matplot::on);
-  matplot::plot(theta, yFit)->line_width(2).color("red");
-  matplot::show();
+  Fitting::FitRes res{yExp, yFit, theta, fitParams};
 
-  return std::pair<Eigen::VectorXd, Eigen::ArrayXd>(fitParams, optIntensities);
+  return res;
 };

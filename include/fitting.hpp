@@ -146,11 +146,18 @@ class Fitting : public BaseSolver {
 
     ~Fitting() = default;
 
+    struct FitRes{
+        std::vector<double> yExp;
+        std::vector<double> yFit;
+        std::vector<double> x;
+        Eigen::VectorXd optParams;
+    };
+
     Matrix calculateEmissionSubstrate(); //MAKE PRIVATE
     /*!< Member method of Fitting used to simulate the emitted power leaving the substrate. The function simulates parallel and perpendicular components of the power emitted,
     so that it returns an Eigen array where the first and second columnns are the perpendicular and parallel components of the emitted power, repectively.*/ 
 
-    std::pair<Eigen::VectorXd, Eigen::ArrayXd> fitEmissionSubstrate();
+    FitRes fitEmissionSubstrate();
     /*!< Member method of Fitting used to fit the emitted power leaving the substrate. The function uses the components of the power emitted simulated by
     calculateEmissionSubstrate() and the experimentally obtained intensities in order to compute the residuals for fitting. It uses the Levenberg-Marquadt algorithm to 
     optimize the fittinng parameters and returns a (std) pair containing an Eigen vector of optimized parameters and the Eigen array of emitted power as a function of angle.*/
