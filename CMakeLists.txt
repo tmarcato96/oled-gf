@@ -1,4 +1,12 @@
-cmake_minimum_required(VERSION 3.15...3.25)
+cmake_minimum_required(VERSION 3.25)
+
+set(CMAKE_AUTOMOC ON)            #needed for Qt macros and preproc stuff
+set(CMAKE_AUTOUIC ON)
+set(CMAKE_AUTORCC ON)
+
+project(oledgf
+        VERSION 0.1
+        LANGUAGES CXX)
 
 if (NOT DEFINED CMAKE_CXX_STANDARD)
     set(CMAKE_CXX_STANDARD 23)
@@ -11,11 +19,10 @@ project(oledgf
         VERSION 0.1
         LANGUAGES CXX)
 
-
 include(cmake/PreventInSourceBuilds.cmake)
+include(Dependencies.cmake)
 include(ProjectOptions.cmake)
 
-include(Dependencies.cmake)
 oledgf_local_options()
 oledgf_setup_dependencies()
 
@@ -23,13 +30,14 @@ oledgf_setup_dependencies()
 target_compile_features(oledgf_options INTERFACE cxx_std_${CMAKE_CXX_STANDARD})
 
 add_subdirectory(src)
+add_subdirectory(gui/src)
 
-#add_subdirectory(examples/main)
-#add_subdirectory(examples/tests)
+add_subdirectory(examples/main)
+add_subdirectory(examples/tests)
 
 # Adding tests:
-include(CTest)
+#include(CTest)
 
-if(BUILD_TESTING)
-  add_subdirectory(test)
-endif()
+#if(BUILD_TESTING)
+#  add_subdirectory(test)
+#endif()
