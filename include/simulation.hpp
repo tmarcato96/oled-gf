@@ -40,6 +40,14 @@ class Simulation : public BaseSolver
     SimulationMode _mode;
 
   public:
+
+    struct SimRes { //this thing only exists to make plotting easier just like FitRes. (also needs testing)
+      std::vector<double> u;
+      std::vector<double> yPerp, yParaUpPol, yParaUsPol;
+    };
+
+    SimRes powerModeDissipation();
+
     Simulation(SimulationMode mode, 
       const std::vector<Layer>& layers,
       const double dipolePosition,

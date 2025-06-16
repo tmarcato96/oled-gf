@@ -83,6 +83,19 @@ void Simulation::init() {
   this->discretize();
 }
 
+
+Simulation::SimRes Simulation::powerModeDissipation() { //needs testing
+  std::vector<double> u(matstack.u.rows()), powerPerp(fracPowerPerpUpPol.cols()), 
+  powerParaUs(fracPowerParaUpPol.cols()), powerParaUp(fracPowerParaUpPol.cols());
+
+  Eigen::ArrayXd::Map(&powerPerp[0], fracPowerPerpUpPol.cols()-1) = fracPowerPerpUpPol.col(fracPowerPerpUpPol.cols()-1).segment(0, matstack.u.size());
+  Eigen::ArrayXd::Map(&powerParaUs[0], fracPowerParaUsPol.cols()-1) = fracPowerParaUsPol.col(fracPowerParaUsPol.cols()-1).segment(0, matstack.u.size());
+  Eigen::ArrayXd::Map(&powerParaUp[0], fracPowerParaUpPol.cols()-1) = fracPowerParaUpPol.col(fracPowerParaUpPol.cols()-1).segment(0, matstack.u.size());
+  Eigen::ArrayXd::Map(&u[0], matstack.u.rows()-1) = matstack.u;
+
+  return Simulation::SimRes{u, powerPerp, powerParaUs, powerParaUp};
+}
+
 Simulation::Simulation(SimulationMode mode,
       const std::vector<Layer>& layers,
       const double dipolePosition,
