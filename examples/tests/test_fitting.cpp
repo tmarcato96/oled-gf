@@ -37,17 +37,14 @@ int main(int argc, char *argv[]) {
   double fwhm = 30;
   NormalDistribution dist{450, 700, wavelength, fwhm/2.355, 50};
   Spectrum<Distribution> spectrum{dist};
-  // Dipole distribution
   Distribution dipoleDist(0.0, 35e-9);
-  // Create Solver
+
   auto solver = std::make_unique<Fitting>(targetToFit, layers, 0.0, 456, 0.0, 80.0);
-  // Fit
   auto fitRes = solver->fitEmissionSubstrate();
   //for (size_t i = 0; i < fitRes.x.size(); ++i) {
   //  std::cout << fitRes.x[i] << " " << fitRes.yExp[i] << " " << fitRes.yFit[i] << "\n";
   //}
 
-  //plotting the results
   QApplication app(argc, argv);
   QMainWindow window;
 

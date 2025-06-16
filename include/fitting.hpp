@@ -147,8 +147,7 @@ class Fitting : public BaseSolver {
     ~Fitting() = default;
 
     struct FitRes{
-        std::vector<double> yExp;
-        std::vector<double> yFit;
+        std::vector<double> yExp, yFit;
         std::vector<double> x;
         Eigen::VectorXd optParams;
     };
