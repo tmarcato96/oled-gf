@@ -9,12 +9,12 @@ target_include_directories(GUIFunctions PRIVATE  "${PROJECT_SOURCE_DIR}/include"
 
 
 target_link_libraries(GUIFunctions PRIVATE OLEDFunctions
-                                           Qt::Qwt
-                                           Qt6::Widgets
-                                           Qt6::Svg
-                                           Qt6::Concurrent
-                                           Qt6::OpenGL
-                                           Qt6::PrintSupport)
+                                           PUBLIC Qt::Qwt
+                                           PUBLIC Qt6::Widgets
+                                           PUBLIC Qt6::Svg
+                                           PUBLIC Qt6::Concurrent
+                                           PUBLIC Qt6::OpenGL
+                                           PUBLIC Qt6::PrintSupport)
 
 
 target_include_directories(qtmain PRIVATE  "${PROJECT_SOURCE_DIR}/include"

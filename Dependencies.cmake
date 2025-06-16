@@ -1,5 +1,39 @@
 include(cmake/CPM.cmake)
 
+# Look for any Qt 6 version installed in common Qt installation root
+if(NOT DEFINED CMAKE_PREFIX_PATH)
+    set(DETECTED_QT_PATHS "")
+
+    if(WIN32)
+        file(GLOB QT_DIRS "C:/Qt/6*/mingw_64")
+        list(APPEND DETECTED_QT_PATHS ${QT_DIRS})
+    elseif(APPLE)
+        file(GLOB QT_DIRS
+            "$ENV{HOME}/Qt/6*/clang_64"
+            "/usr/local/opt/qt6/lib/cmake/Qt6"  # Homebrew Qt
+        )
+        list(APPEND DETECTED_QT_PATHS ${QT_DIRS})
+    elseif(UNIX)
+        file(GLOB QT_DIRS
+            "$ENV{HOME}/Qt/6*/gcc_64"
+            "/opt/Qt/6*/gcc_64"
+            "/usr/local/Qt-6*/gcc_64"
+            "/usr/local/lib/cmake/Qt6"
+            "/usr/lib/cmake/Qt6"
+        )
+        list(APPEND DETECTED_QT_PATHS ${QT_DIRS})
+    endif()
+
+    foreach(QT_PATH IN LISTS DETECTED_QT_PATHS)
+        if(EXISTS "${QT_PATH}/lib/cmake/Qt6")
+            list(APPEND CMAKE_PREFIX_PATH "${QT_PATH}")
+        endif()
+    endforeach()
+endif()
+
+
+find_package(Qt6 COMPONENTS Widgets Svg Concurrent OpenGL PrintSupport REQUIRED)
+
 function(oledgf_setup_dependencies)
 
 #option(CPM_USE_LOCAL_PACKAGES "Try `find_package` before downloading dependencies" ON)
@@ -24,9 +58,11 @@ CPMAddPackage(
 )
 
 CPMAddPackage(
-  NAME jsonsimplecpp
-  GITHUB_REPOSITORY tmarcato96/jsonsimplecpp
-  GIT_TAG main
+    NAME jsonsimplecpp
+    GITHUB_REPOSITORY tmarcato96/jsonsimplecpp
+    GIT_TAG main
 )
-    
+
+cpmaddpackage("gh:ZIMO-Elektronik/QtQwt@6.3.0")
+
 endfunction()
