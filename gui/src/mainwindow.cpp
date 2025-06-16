@@ -27,7 +27,7 @@ MainWindow::MainWindow()
     resize(1000, 800);   
     setWindowTitle("Perfectly Accurate Results (trust me bro)");
 
-    setupPlot();
+    setupPlot(plot);
     createMenus();
     createToolbar();
     createPreviewTabs();
@@ -169,22 +169,24 @@ void MainWindow::createPreviewTabs() {
     addDockWidget(Qt::LeftDockWidgetArea, dock);
 }
 
-void MainWindow::setupPlot()
+void MainWindow::setupPlot(QwtPlot* plot)
 {
-    plot = new QwtPlot(this);
-    plot->setTitle("Perfectly Accurate Plot");
-    plot->setCanvasBackground(Qt::white);
-    setCentralWidget(plot);
+    if(plot == nullptr) {
+        plot = new QwtPlot(this);
+        plot->setTitle("Perfectly Accurate Plot");
+        plot->setCanvasBackground(Qt::white);
+        setCentralWidget(plot);
 
-    curve = new QwtPlotCurve();
-    curve->setTitle("Sample Curve");
-    curve->setPen(Qt::blue, 2);
+        curve = new QwtPlotCurve();
+        curve->setTitle("Sample Curve");
+        curve->setPen(Qt::blue, 2);
 
-    // Example data points
-    QVector<double> xData = {0, 1, 2, 3, 4, 5};
-    QVector<double> yData = {0, 1, 4, 9, 16, 25};
-    curve->setSamples(xData, yData);
-    curve->attach(plot);
+        // Example data points
+        QVector<double> xData = {0, 1, 2, 3, 4, 5};
+        QVector<double> yData = {0, 1, 4, 9, 16, 25};
+        curve->setSamples(xData, yData);
+        curve->attach(plot);
+    }
 
     zoomer = new QwtPlotZoomer(plot->canvas());
     zoomer->setRubberBand(QwtPlotZoomer::RectRubberBand);

@@ -28,7 +28,7 @@ private slots:
     void onSave();
 
 private:
-    void setupPlot();
+    void setupPlot(QwtPlot* plot);
     void createMenus();
     void createToolbar();
     void createPreviewTabs();

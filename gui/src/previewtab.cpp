@@ -34,7 +34,6 @@ PreviewTab::PreviewTab(QMainWindow* targetWindow, const QString& label, QWidget*
 
     QTimer::singleShot(0, this, SLOT(updatePreview()));
 }
-
 void PreviewTab::updatePreview() {
     if (!_targetWindow) {
         _previewLab->setText("No target window");
