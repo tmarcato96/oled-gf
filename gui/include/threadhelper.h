@@ -13,7 +13,7 @@
 #include <QTimer>
 #include <QMutex>
 #include <QThread>
-
+#include <QPair>
 #include <QwtPlot>
 
 namespace UImethods {
@@ -34,44 +34,36 @@ namespace UImethods {
             void exportResults(const QString& savePath);
 
         signals:
-            void plotterReady(bool plotFlag);
-            void solverReady(const Data::SolverMode SolverMode);
+            void solverStatus(bool status);
             void errorSignal(const QString errorString);
 
         public:
-            Fitting::FitRes getFitPlotData(bool plotFlag);
-            Simulation::SimRes getSimPlotData(bool plotFlag);
+            Worker(std::string& filepath);
+
+            Fitting::FitRes getFitPlotData();
+            Simulation::SimRes getSimPlotData();
             Data::SolverMode getMode();
             bool solverAvail();
     };
 
     class ThreadManager : public QObject {
         Q_OBJECT
-        QThread workerThread;
-        Worker *worker;
-        QwtPlot *plot;
+        QThread _workerThread;
+        Worker *_worker;
+        QwtPlot *_plot;
 
+        void init();
         public:
-            ThreadManager() {
-                worker = new Worker;
-                worker->moveToThread(&workerThread);
-                connect(&workerThread, &QThread::finished, worker, &QObject::deleteLater);
-                connect(this, &ThreadManager::operate, worker, &Worker::startSolver);
-                connect(worker, &Worker::solverReady, this, &ThreadManager::handleResults);
-                connect(worker, &Worker::plotterReady, this, &ThreadManager::makePlot);
-                workerThread.start();
-            }
-            ~ThreadManager() {
-                workerThread.quit();
-                workerThread.wait();
-            }
+            ThreadManager(std::string& configFilepath);
+            ~ThreadManager();
+
+            QwtPlot* makePlot(bool polarFlag);
+
         public slots:
-            void handleResults(const QString &);
-            void makePlot(bool plotFlag);
+            void solverStatusRelay(bool status);
             
         signals:
-            void makePlotter();
-            void operate(const QString &);
+            void solverStatus(bool status);
             void errorSignal(const QString errorString);
     };
 }
