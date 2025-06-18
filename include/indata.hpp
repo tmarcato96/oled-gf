@@ -1,13 +1,10 @@
 #pragma once
 
 #include <string>
-#include <optional>
-#include <vector>
-#include <Eigen/Core>
 #include <fstream>
 
-#include <jsonsimplecpp\node.hpp>
 #include <jsonsimplecpp\parser.hpp>
+#include <jsonsimplecpp\node.hpp>
 
 #include <visitor.hpp>
 #include <fileutils.hpp>

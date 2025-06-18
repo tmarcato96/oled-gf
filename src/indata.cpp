@@ -2,6 +2,7 @@
 #include <iostream>
 #include <optional>
 #include <sstream>
+#include <string>
 #include <cctype>
 
 #include <jsonsimplecpp\node.hpp>
@@ -11,7 +12,7 @@
 #include <fitting.hpp>
 #include <simulation.hpp>
 #include <visitor.hpp>
-#include <indata.hpp>
+#include "indata.hpp"
 
 
 //import manager stuff
