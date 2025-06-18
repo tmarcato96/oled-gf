@@ -1,9 +1,9 @@
 #pragma once
 
-#include <indata.hpp>
 #include <basesolver.hpp>
 #include <fitting.hpp>
-
+#include <simulation.hpp>
+#include <indata.hpp>
 
 #include <set>
 #include <string>
@@ -16,21 +16,21 @@
 #include <QPair>
 #include <QwtPlot>
 
-namespace UImethods {
+namespace UIthreading {
 
     //workers
     class Worker : public QObject {
         Q_OBJECT
-        static std::set<std::string> _blacklist;
+        static std::set<QString> _blacklist;
         std::unique_ptr<BaseSolver> _solver;
-        std::string _filepath;
+        QString _filepath;
         Data::SolverMode _mode;
         QMutex _workerMutex;
 
         public slots:
             void startSolver();
             void restartSolver();
-            void restartSolver(const std::string& solverPath);
+            void restartSolver(const QString& solverPath);
             void exportResults(const QString& savePath);
 
         signals:
@@ -38,8 +38,7 @@ namespace UImethods {
             void errorSignal(const QString errorString);
 
         public:
-            Worker(std::string& filepath);
-
+            Worker(const QString& filepath);
             Fitting::FitRes getFitPlotData();
             Simulation::SimRes getSimPlotData();
             Data::SolverMode getMode();
@@ -50,11 +49,10 @@ namespace UImethods {
         Q_OBJECT
         QThread _workerThread;
         Worker *_worker;
-        QwtPlot *_plot;
 
         void init();
         public:
-            ThreadManager(std::string& configFilepath);
+            ThreadManager(const QString& configFilepath, QObject* parent=nullptr);
             ~ThreadManager();
 
             QwtPlot* makePlot(bool polarFlag);

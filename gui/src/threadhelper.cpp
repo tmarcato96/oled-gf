@@ -1,4 +1,4 @@
-#include <threadhelper.h>
+#include "threadhelper.h"
 
 #include <set>
 #include <string>
@@ -26,11 +26,11 @@
 #include <qwt_plot_zoomer.h>
 #include <qwt_plot_canvas.h>
 
-using namespace UImethods;
+using namespace UIthreading;
 
-std::set<std::string> Worker::_blacklist{};
+std::set<QString> Worker::_blacklist{};
 
-Worker::Worker(std::string& filepath) :
+Worker::Worker(const QString& filepath) :
     _filepath{filepath} 
     {
         emit solverStatus(0);
@@ -44,7 +44,7 @@ void Worker::startSolver() {
         return;
     }
     _blacklist.insert(_filepath);
-    auto importer = Data::ImportManager(_filepath).makeImporter();
+    auto importer = Data::ImportManager(_filepath.toStdString()).makeImporter();
     _solver = importer->solverFromFile(); 
     _solver->run(); //heavier computations
 
@@ -62,7 +62,7 @@ void Worker::restartSolver() {
         emit errorSignal("Start the solver first before attempting to restart!");
         return;
     }
-    auto importer = Data::ImportManager(_filepath).makeImporter();
+    auto importer = Data::ImportManager(_filepath.toStdString()).makeImporter();
     _solver = importer->solverFromFile(); //heavier computations
     _solver->run();
 
@@ -73,7 +73,7 @@ void Worker::restartSolver() {
     _workerMutex.unlock();
 }
 
-void Worker::restartSolver(const std::string& solverPath) {
+void Worker::restartSolver(const QString& solverPath) {
     _workerMutex.lock();
     if (_blacklist.find(_filepath) == _blacklist.end()) {
         emit errorSignal("Start the solver first before attempting to restart!");
@@ -84,7 +84,7 @@ void Worker::restartSolver(const std::string& solverPath) {
     _filepath = solverPath;
     _blacklist.insert(_filepath);
 
-    auto importer = Data::ImportManager(_filepath).makeImporter();
+    auto importer = Data::ImportManager(_filepath.toStdString()).makeImporter();
     _solver = importer->solverFromFile(); 
     _solver->run();//heavier computations
 
@@ -137,14 +137,16 @@ bool Worker::solverAvail() {
     else {return 1;}
 }
 
-ThreadManager::ThreadManager(std::string& configFilepath) {
+ThreadManager::ThreadManager(const QString& configFilepath, QObject* parent)
+    : QObject(parent)
+    {
     _worker = new Worker(configFilepath);
     _worker->moveToThread(&_workerThread);
     connect(&_workerThread, &QThread::finished, _worker, &QObject::deleteLater);
     connect(_worker, &Worker::solverStatus, this, &ThreadManager::solverStatusRelay);
     _workerThread.start();
     _worker->startSolver();
-}
+    }
 
 ThreadManager::~ThreadManager() {
     _workerThread.quit();
@@ -153,9 +155,11 @@ ThreadManager::~ThreadManager() {
 
 QwtPlot* ThreadManager::makePlot(bool polarFlag) {
     if(!_worker->solverAvail()) {
-        emit errorSignal("Start the solver before trying to _plot!");
+        emit errorSignal("Start the solver before trying to plot!");
         return nullptr;
     }
+    
+    auto plot = new QwtPlot();
     if(!polarFlag) {
         if(_worker->getMode() == Data::SolverMode::fitting){
             auto fitData = _worker->getFitPlotData();
@@ -164,12 +168,11 @@ QwtPlot* ThreadManager::makePlot(bool polarFlag) {
             QVector<double> yFit{fitData.yFit.begin(), fitData.yFit.end()};
             
             if(!polarFlag) {
-                _plot = new QwtPlot();
-                _plot->setTitle("Fitting Results");
-                _plot->setCanvas(new QwtPlotCanvas());
-                _plot->setCanvasBackground(Qt::white);
-                _plot->setAxisTitle(QwtPlot::xBottom, "X");
-                _plot->setAxisTitle(QwtPlot::yLeft, "Y");
+                plot->setTitle("Fitting Results");
+                plot->setCanvas(new QwtPlotCanvas());
+                plot->setCanvasBackground(Qt::white);
+                plot->setAxisTitle(QwtPlot::xBottom, "X");
+                plot->setAxisTitle(QwtPlot::yLeft, "Y");
                 
                 QwtPlotCurve *scatterCurve = new QwtPlotCurve("Exp");
                 QwtSymbol *symbol = new QwtSymbol(QwtSymbol::Triangle, QBrush(Qt::blue), QPen(Qt::black), QSize(8, 8));
@@ -178,20 +181,20 @@ QwtPlot* ThreadManager::makePlot(bool polarFlag) {
                 scatterCurve->setLegendAttribute(QwtPlotCurve::LegendShowSymbol, true);
                 scatterCurve->setLegendAttribute(QwtPlotCurve::LegendShowLine, false);
                 scatterCurve->setSamples(x, yExp);
-                scatterCurve->attach(_plot);
+                scatterCurve->attach(plot);
 
 
                 QwtPlotCurve *fitCurve = new QwtPlotCurve("Fit");
                 fitCurve->setLegendAttribute(QwtPlotCurve::LegendShowSymbol, false);
                 fitCurve->setLegendAttribute(QwtPlotCurve::LegendShowLine, true);
                 fitCurve->setSamples(x, yFit);
-                fitCurve->attach(_plot);
+                fitCurve->attach(plot);
 
-                QwtPlotZoomer *zoomer = new QwtPlotZoomer(_plot->canvas());
+                QwtPlotZoomer *zoomer = new QwtPlotZoomer(plot->canvas());
                 zoomer->setRubberBandPen(QColor(Qt::red));
                 zoomer->setTrackerPen(QColor(Qt::blue));
                 QwtLegend *legend = new QwtLegend();
-                _plot->insertLegend(legend);
+                plot->insertLegend(legend);
             }
         }
         
@@ -203,42 +206,41 @@ QwtPlot* ThreadManager::makePlot(bool polarFlag) {
             QVector<double> yParaUp{simData.yParaUpPol.begin(), simData.yParaUpPol.end()};
             QVector<double> yPerp{simData.yPerp.begin(), simData.yPerp.end()};
 
-            _plot = new QwtPlot();
-            _plot->setTitle("Simulation Results");
-            _plot->setCanvas(new QwtPlotCanvas());
-            _plot->setCanvasBackground(Qt::white);
-            _plot->setAxisTitle(QwtPlot::xBottom, "X");
-            _plot->setAxisTitle(QwtPlot::yLeft, "Y");
+            plot->setTitle("Simulation Results");
+            plot->setCanvas(new QwtPlotCanvas());
+            plot->setCanvasBackground(Qt::white);
+            plot->setAxisTitle(QwtPlot::xBottom, "X");
+            plot->setAxisTitle(QwtPlot::yLeft, "Y");
 
             QwtPlotCurve *paraUsCurve = new QwtPlotCurve("s-Para");
             paraUsCurve->setLegendAttribute(QwtPlotCurve::LegendShowSymbol, false);
             paraUsCurve->setLegendAttribute(QwtPlotCurve::LegendShowLine, true);
             paraUsCurve->setSamples(u, yParaUs);
-            paraUsCurve->attach(_plot);
+            paraUsCurve->attach(plot);
             
             QwtPlotCurve *paraUpCurve = new QwtPlotCurve("p-Para");
             paraUpCurve->setLegendAttribute(QwtPlotCurve::LegendShowSymbol, false);
             paraUpCurve->setLegendAttribute(QwtPlotCurve::LegendShowLine, true);
             paraUpCurve->setSamples(u, yParaUp);
-            paraUpCurve->attach(_plot);
+            paraUpCurve->attach(plot);
 
             QwtPlotCurve *perpCurve = new QwtPlotCurve("(p)-Perp");
             perpCurve->setLegendAttribute(QwtPlotCurve::LegendShowSymbol, false);
             perpCurve->setLegendAttribute(QwtPlotCurve::LegendShowLine, true);
             perpCurve->setSamples(u, yPerp);
-            perpCurve->attach(_plot);
+            perpCurve->attach(plot);
 
-            QwtPlotZoomer *zoomer = new QwtPlotZoomer(_plot->canvas());
+            QwtPlotZoomer *zoomer = new QwtPlotZoomer(plot->canvas());
             zoomer->setRubberBandPen(QColor(Qt::red));
             zoomer->setTrackerPen(QColor(Qt::blue));
             QwtLegend *legend = new QwtLegend();
-            _plot->insertLegend(legend);
+            plot->insertLegend(legend);
         }
     }
     else{
         return nullptr; //polar plot to be implemented soon
     }
-    return _plot;
+    return plot;
 }
 
 void ThreadManager::solverStatusRelay(bool status) {
