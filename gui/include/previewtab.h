@@ -4,20 +4,22 @@
 #include <QWidget>
 #include <QMainWindow>
 #include <QLabel>
+#include <qwt_plot.h>
 
 class PreviewTab : public QWidget {
     Q_OBJECT
 
     private:
-        QMainWindow* _targetWindow;
+        QWidget* _targetTab;
         QLabel* _previewLab;
         QPixmap _originalPixmap;
-    
+
     public slots:
         void updatePreview();
 
     public:
-        explicit PreviewTab(QMainWindow* targetWindow, const QString& label, QWidget* parent = nullptr);
+        explicit PreviewTab(QWidget* targetTab, const QString& label); //targetTab is the default parent
+        explicit PreviewTab(QWidget* targetTab, const QString& label, QWidget* parent);
         QSize sizeHint() const override;
         bool hasHeightForWidth() const override;
         int heightForWidth(int width) const override;

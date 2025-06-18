@@ -6,52 +6,52 @@
 #include <QTimer>
 #include <QMainWindow>
 
-PreviewTab::PreviewTab(QMainWindow* targetWindow, const QString& label, QWidget* parent)
-    : QWidget(parent), _targetWindow(targetWindow)
-{
-    QVBoxLayout* outerLayout = new QVBoxLayout(this);
-    outerLayout->setContentsMargins(0, 0, 0, 0);
+PreviewTab::PreviewTab(QWidget* targetTab, const QString& label, QWidget* parent)
+    : QWidget(parent), 
+      _targetTab(targetTab)
+    {
+        QVBoxLayout* outerLayout = new QVBoxLayout(this);
+        outerLayout->setContentsMargins(0, 0, 0, 0);
 
-    // wraps content in child widget to ensure top-alignment
-    QWidget* contentWidget = new QWidget(this);
-    QVBoxLayout* contentLayout = new QVBoxLayout(contentWidget);
-    contentLayout->setContentsMargins(0, 0, 0, 0);
+        // wraps content in child widget to ensure top-alignment
+        QWidget* contentWidget = new QWidget(this);
+        QVBoxLayout* contentLayout = new QVBoxLayout(contentWidget);
+        contentLayout->setContentsMargins(0, 0, 0, 0);
 
-    QLabel* nameLabel = new QLabel(label, this);
-    nameLabel->setAlignment(Qt::AlignCenter);
-    nameLabel->setStyleSheet("font-weight: bold; padding-bottom: 4px;");
-    contentLayout->addWidget(nameLabel);
+        QLabel* nameLabel = new QLabel(label, this);
+        nameLabel->setAlignment(Qt::AlignCenter);
+        nameLabel->setStyleSheet("font-weight: bold; padding-bottom: 4px;");
+        contentLayout->addWidget(nameLabel);
 
-    _previewLab = new QLabel("No Preview");
-    _previewLab->setAlignment(Qt::AlignCenter);
-    _previewLab->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-    _previewLab->setScaledContents(false);
-    contentLayout->addWidget(_previewLab);
+        _previewLab = new QLabel("No Preview");
+        _previewLab->setAlignment(Qt::AlignCenter);
+        _previewLab->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+        _previewLab->setScaledContents(false);
+        contentLayout->addWidget(_previewLab);
 
-    contentWidget->setLayout(contentLayout);
-    outerLayout->addWidget(contentWidget, 0, Qt::AlignTop);  //forces top-alignment
-    setLayout(outerLayout);
+        contentWidget->setLayout(contentLayout);
+        outerLayout->addWidget(contentWidget, 0, Qt::AlignTop);  //forces top-alignment
+        setLayout(outerLayout);
 
-    QTimer::singleShot(0, this, SLOT(updatePreview()));
+        QTimer::singleShot(0, this, SLOT(updatePreview()));
+    }
+
+PreviewTab::PreviewTab(QWidget* targetTab, const QString& label) {
+    PreviewTab(targetTab, label, targetTab);
 }
+
 void PreviewTab::updatePreview() {
-    if (!_targetWindow) {
-        _previewLab->setText("No target window");
+    if (!_targetTab || !_targetTab->isVisible()) {
+        _previewLab->setText("No target tab visible");
         return;
     }
 
-    QWidget* central = _targetWindow->centralWidget();
-    if (!central || !central->isVisible()) {
-        _previewLab->setText("Central widget not visible");
-        return;
-    }
-
-    if (central->size().isEmpty()) {
+    if (_targetTab->size().isEmpty()) {
         _previewLab->setText("Central widget has zero size");
         return;
     }
 
-    QPixmap pixmap = central->grab();
+    QPixmap pixmap = _targetTab->grab();
 
     if (pixmap.isNull()) {
         _previewLab->setText("Failed to capture pixmap");
