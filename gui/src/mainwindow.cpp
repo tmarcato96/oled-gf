@@ -1,7 +1,9 @@
 #include "mainwindow.h"
 #include <previewtab.h>
+#include <threadhelper.h>
 
 #include <QEvent>
+#include <QWidget>
 #include <QVBoxLayout>
 #include <QToolBar>
 #include <QMenuBar>
@@ -13,39 +15,104 @@
 #include <QwtPlotZoomer>
 #include <QPen>
 
-// Include Qwt headers (adjust paths if needed)
 #include <qwt_plot.h>
 #include <qwt_plot_curve.h>
 
-MainWindow::MainWindow()
-    : QMainWindow(nullptr),
-      plot(nullptr),
-      curve(nullptr),
-      exitAction(nullptr),
-      saveAction(nullptr)
-{
-    resize(1000, 800);   
-    setWindowTitle("Perfectly Accurate Results (trust me bro)");
+MonitoredTab::MonitoredTab(QWidget* parent) 
+    : QWidget(parent),
+      _previewTab{nullptr},
+      _thread{nullptr},
+      plot{nullptr}
+      {}
 
-    setupPlot(plot);
-    createMenus();
-    createToolbar();
-    createPreviewTabs();
-    newTab(this, "main tab");
+MonitoredTab::MonitoredTab(QString& configFilepath, QWidget* parent) 
+    : QWidget(parent),
+      _previewTab{nullptr},
+      _thread{new UIthreading::ThreadManager(configFilepath, this)}
+      {}
+
+void MonitoredTab::makeJob(const QString& configFilepath) {
+    if (_thread == nullptr) _thread = new UIthreading::ThreadManager(configFilepath, this);
 }
 
-void MainWindow::newTab(QMainWindow* subWindow, const QString& label) {
-    if (monitoredWindowsList.contains(subWindow))
-        return;
+void MonitoredTab::setPlot(bool polarFlag) {
+    plot = _thread->makePlot(polarFlag);
+    plot->setParent(this);
+}
 
-    monitoredWindowsList.append(subWindow);
+void MonitoredTab::setPreviewTab(PreviewTab* tab) {
+    _previewTab = tab;
+    _previewTab->updatePreview();
+}
 
-    PreviewTab* preview = new PreviewTab(subWindow, label);
-    _previewLayout->addWidget(preview);
+void MainWindow::showPlot(QwtPlot* plot)
+{
+    if(plot == nullptr) {
+        plot = new QwtPlot(this);
+        plot->setTitle("Perfectly Accurate Plot");
+        plot->setCanvasBackground(Qt::white);
+        setCentralWidget(plot);
 
-    if (auto monitored = qobject_cast<MonitoredWindow*>(subWindow)) {
-        monitored->setPreviewTab(preview);
+        auto curve = new QwtPlotCurve();
+        curve->setTitle("Sample Curve");
+        curve->setPen(Qt::blue, 2);
+
+        // Example data points
+        QVector<double> xData = {0, 1, 2, 3, 4, 5};
+        QVector<double> yData = {0, 1, 4, 9, 16, 25};
+        curve->setSamples(xData, yData);
+        curve->attach(plot);
+
+        auto zoomer = new QwtPlotZoomer(plot->canvas());
+        zoomer->setRubberBand(QwtPlotZoomer::RectRubberBand);
+        zoomer->setRubberBandPen(QPen(Qt::red));
+        zoomer->setTrackerMode(QwtPlotZoomer::AlwaysOn);
     }
+    _currentTab->plot = plot;
+    plot->replot();
+}
+
+void MonitoredTab::changeEvent(QEvent* event) {
+    if (event->type() == QEvent::WindowStateChange && _previewTab) {
+        _previewTab->updatePreview();
+    }
+    QWidget::changeEvent(event);
+}
+
+void MonitoredTab::showEvent(QShowEvent* event) {
+    QWidget::showEvent(event);
+    if (_previewTab) {
+        QTimer::singleShot(0, _previewTab, &PreviewTab::updatePreview);
+    }
+}
+
+MonitoredTab* MainWindow::newBlankTab(const QString& label) {
+    auto tab = new MonitoredTab(this);
+    _tabList.push_back(tab);
+    PreviewTab* preview = new PreviewTab(tab, label);
+    tab->setPreviewTab(preview);
+    _previewLayout->addWidget(preview);
+    
+    return tab;
+}
+
+MainWindow::MainWindow()
+    : QMainWindow(nullptr)
+    {   //create tab and display plot
+        resize(1000, 800);   
+        setWindowTitle("Perfectly Accurate Results (trust me bro)");
+
+        createMenus();
+        createToolbar();
+        createPreviewTabs();
+        showPlot(_currentTab->plot);
+    }
+
+
+MonitoredTab* MainWindow::newTabFromFile(const QString& label, const QString& configFilepath) {
+    auto tab = newBlankTab(label);
+    tab->makeJob(configFilepath);
+    return tab;
 }
 
 void MainWindow::createMenus()
@@ -128,9 +195,9 @@ void MainWindow::createToolbar()
     connect(exportAction, &QAction::triggered, this, &MainWindow::onExit);
     toolBar->addAction(exportAction);
 
-    auto importAction = new QAction(QIcon::fromTheme(Icon::DocumentOpen), "Import", this);
+    auto exitAction = new QAction(QIcon::fromTheme(Icon::DocumentOpen), "Import", this);
     connect(exitAction, &QAction::triggered, this, &MainWindow::onExit);
-    toolBar->addAction(importAction);
+    toolBar->addAction(exitAction);
     
     auto startAction = new QAction(QIcon::fromTheme(Icon::MediaPlaybackStart), "Start", this);
     connect(startAction, &QAction::triggered, this, &MainWindow::onExit);
@@ -158,7 +225,7 @@ void MainWindow::createPreviewTabs() {
     scrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
 
     QWidget* container = new QWidget(scrollArea);
-    container->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Minimum);  // <--- Important!
+    container->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Minimum);
 
     _previewLayout = new QVBoxLayout(container);
     _previewLayout->setSpacing(6);
@@ -167,33 +234,6 @@ void MainWindow::createPreviewTabs() {
     scrollArea->setWidget(container);
     dock->setWidget(scrollArea);
     addDockWidget(Qt::LeftDockWidgetArea, dock);
-}
-
-void MainWindow::setupPlot(QwtPlot* plot)
-{
-    if(plot == nullptr) {
-        plot = new QwtPlot(this);
-        plot->setTitle("Perfectly Accurate Plot");
-        plot->setCanvasBackground(Qt::white);
-        setCentralWidget(plot);
-
-        curve = new QwtPlotCurve();
-        curve->setTitle("Sample Curve");
-        curve->setPen(Qt::blue, 2);
-
-        // Example data points
-        QVector<double> xData = {0, 1, 2, 3, 4, 5};
-        QVector<double> yData = {0, 1, 4, 9, 16, 25};
-        curve->setSamples(xData, yData);
-        curve->attach(plot);
-    }
-
-    zoomer = new QwtPlotZoomer(plot->canvas());
-    zoomer->setRubberBand(QwtPlotZoomer::RectRubberBand);
-    zoomer->setRubberBandPen(QPen(Qt::red));
-    zoomer->setTrackerMode(QwtPlotZoomer::AlwaysOn);
-
-    plot->replot();
 }
 
 void MainWindow::onExit()
@@ -206,27 +246,4 @@ void MainWindow::onSave()
     qDebug() << "Save action triggered";
 
     // TODO: Implement saving plot image or data
-}
-
-MonitoredWindow::MonitoredWindow(QWidget* parent)
-    : QMainWindow(parent) 
-      {}
-
-void MonitoredWindow::setPreviewTab(PreviewTab* tab) {
-    _previewTab = tab;
-    _previewTab->updatePreview();
-}
-
-void MonitoredWindow::changeEvent(QEvent* event) {
-    if (event->type() == QEvent::WindowStateChange && _previewTab) {
-        _previewTab->updatePreview();
-    }
-    QMainWindow::changeEvent(event);
-}
-
-void MonitoredWindow::showEvent(QShowEvent* event) {
-    QMainWindow::showEvent(event);
-    if (_previewTab) {
-        QTimer::singleShot(0, _previewTab, &PreviewTab::updatePreview);
-    }
 }

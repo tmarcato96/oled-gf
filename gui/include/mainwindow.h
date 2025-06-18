@@ -10,53 +10,52 @@
 #include <qwt_plot_curve.h>
 #include <QwtPlotZoomer>
 
+#include <threadhelper.h>
 #include <previewtab.h>
 
-class QwtPlot;
-class QwtPlotCurve;
-
-class MainWindow : public QMainWindow //true main window
+class MonitoredTab : public QWidget
 {
     Q_OBJECT
-
-public:
-    MainWindow();
-    void newTab(QMainWindow* subWindow, const QString& label);
-
-private slots:
-    void onExit();
-    void onSave();
-
-private:
-    void setupPlot(QwtPlot* plot);
-    void createMenus();
-    void createToolbar();
-    void createPreviewTabs();
-
-    QwtPlot *plot;
-    QwtPlotCurve *curve;
-    QwtPlotZoomer *zoomer;
-
-    QTabWidget* _tabWidget;
-
-    QAction *exitAction;
-    QAction *saveAction;
-
-    QList<QMainWindow*> monitoredWindowsList;
-    QVBoxLayout* _previewLayout;
-};
-
-class MonitoredWindow : public QMainWindow
-{
-    Q_OBJECT
+    
+    PreviewTab* _previewTab; //keeps previewtab reference in raw pointer
+    UIthreading::ThreadManager* _thread;
 
     public:
-        MonitoredWindow(QWidget* parent = nullptr);
+        MonitoredTab() = delete; //helps avoid memory leaks
+        MonitoredTab(QWidget* parent = nullptr);
+        MonitoredTab(QString& configFilepath, QWidget* parent = nullptr);
+            
+        void makeJob(const QString& configFilepath);
         void setPreviewTab(PreviewTab* tab);
+        void setPlot(bool polarFlag);
+
+        QwtPlot *plot;
 
     protected:
         void changeEvent(QEvent* event) override;
         void showEvent(QShowEvent* event) override;
-    private:
-        PreviewTab* _previewTab; //keeps previewtab reference in raw pointer
+};
+
+class MainWindow : public QMainWindow //true main window
+{
+protected:
+    Q_OBJECT
+
+    void createMenus();
+    void createToolbar();
+    void createPreviewTabs();
+    void showPlot(QwtPlot* plot);
+
+    QList<MonitoredTab*> _tabList;
+    MonitoredTab* _currentTab;
+    QVBoxLayout* _previewLayout;
+
+public:
+    MainWindow();
+    MonitoredTab* newBlankTab(const QString& label="");
+    MonitoredTab* newTabFromFile(const QString& configFilepath, const QString& label="");
+
+protected slots:
+    void onExit();
+    void onSave();
 };
