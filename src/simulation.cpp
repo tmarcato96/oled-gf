@@ -84,16 +84,19 @@ void Simulation::init() {
 }
 
 
-Simulation::SimRes Simulation::powerModeDissipation() { //needs testing
-  std::vector<double> u(matstack.u.rows()), powerPerp(fracPowerPerpUpPol.cols()), 
-  powerParaUs(fracPowerParaUpPol.cols()), powerParaUp(fracPowerParaUpPol.cols());
+Simulation::SimRes Simulation::powerModeDissipation() {
+    const Eigen::Index N = matstack.u.rows();
+    auto dipoleLayer = getDipoleIndex()-1;
 
-  Eigen::ArrayXd::Map(&powerPerp[0], fracPowerPerpUpPol.cols()-1) = fracPowerPerpUpPol.col(fracPowerPerpUpPol.cols()-1).segment(0, matstack.u.size());
-  Eigen::ArrayXd::Map(&powerParaUs[0], fracPowerParaUsPol.cols()-1) = fracPowerParaUsPol.col(fracPowerParaUsPol.cols()-1).segment(0, matstack.u.size());
-  Eigen::ArrayXd::Map(&powerParaUp[0], fracPowerParaUpPol.cols()-1) = fracPowerParaUpPol.col(fracPowerParaUpPol.cols()-1).segment(0, matstack.u.size());
-  Eigen::ArrayXd::Map(&u[0], matstack.u.rows()-1) = matstack.u;
+    std::vector<double> u(N), powerPerp(N), powerParaUs(N), powerParaUp(N);
 
-  return Simulation::SimRes{u, powerPerp, powerParaUs, powerParaUp};
+    // Use Eigen::Map to copy Eigen arrays into std::vector
+    Eigen::Map<Eigen::ArrayXd>(powerPerp.data(), N) = fracPowerPerpUpPol.row(dipoleLayer);
+    Eigen::Map<Eigen::ArrayXd>(powerParaUs.data(), N) = fracPowerParaUsPol.row(dipoleLayer);
+    Eigen::Map<Eigen::ArrayXd>(powerParaUp.data(), N) = fracPowerParaUpPol.row(dipoleLayer);
+    Eigen::Map<Eigen::ArrayXd>(u.data(), N) = matstack.u;
+
+    return Simulation::SimRes{u, powerPerp, powerParaUs, powerParaUp};
 }
 
 Simulation::Simulation(SimulationMode mode,
