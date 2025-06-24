@@ -13,28 +13,7 @@
 #include <threadhelper.h>
 #include <previewtab.h>
 
-class MonitoredTab : public QWidget
-{
-    Q_OBJECT
-    
-    PreviewTab* _previewTab; //keeps previewtab reference in raw pointer
-    UIthreading::ThreadManager* _thread;
-
-    public:
-        MonitoredTab() = delete; //helps avoid memory leaks
-        MonitoredTab(QWidget* parent = nullptr);
-        MonitoredTab(QString& configFilepath, QWidget* parent = nullptr);
-            
-        void makeJob(const QString& configFilepath);
-        void setPreviewTab(PreviewTab* tab);
-        void setPlot(bool polarFlag);
-
-        QwtPlot *plot;
-
-    protected:
-        void changeEvent(QEvent* event) override;
-        void showEvent(QShowEvent* event) override;
-};
+class MonitoredTab;
 
 class MainWindow : public QMainWindow //true main window
 {
@@ -44,18 +23,64 @@ protected:
     void createMenus();
     void createToolbar();
     void createPreviewTabs();
-    void showPlot(QwtPlot* plot);
+    void displayCanvas();
 
     QList<MonitoredTab*> _tabList;
     MonitoredTab* _currentTab;
     QVBoxLayout* _previewLayout;
+    bool _plotStatus;
 
 public:
     MainWindow();
+    bool getPlotStatus();
+    PreviewTab* getPreviewTab();
     MonitoredTab* newBlankTab(const QString& label="");
     MonitoredTab* newTabFromFile(const QString& configFilepath, const QString& label="");
 
 protected slots:
+    void onOpen();
+    void onNewTab();
+    void onLoad();
+    void onReload();
     void onExit();
     void onSave();
+
+    void savePlot();
+    void displayPlot();
+    void deletePlot();
+};
+
+class MonitoredTab : public QWidget
+{
+    Q_OBJECT
+    
+    PreviewTab* _previewTab; //keeps previewtab reference in raw pointer
+    UIthreading::ThreadManager* _thread;
+    QVBoxLayout* _layout;
+    bool _plotAvail;
+
+    friend PreviewTab* MainWindow::getPreviewTab();
+
+    public:
+        MonitoredTab() = delete; //helps avoid memory leaks
+        MonitoredTab(QWidget* parent = nullptr);
+        MonitoredTab(QString& configFilepath, QWidget* parent = nullptr);
+            
+        void setPreviewTab(PreviewTab* tab);
+
+        void makeJob(const QString& configFilepath);
+        void resetJob(const QString& configFilepath);
+        void resetJob();
+
+        bool plotAvail();
+        void makeCanvas();
+        void setPlot(bool polarFlag);
+        void saveToFile(const QString& savePath);
+
+        QwtPlot *plot;
+
+
+    protected:
+        void changeEvent(QEvent* event) override;
+        void showEvent(QShowEvent* event) override;
 };
