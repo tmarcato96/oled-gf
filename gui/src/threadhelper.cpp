@@ -31,7 +31,7 @@ using namespace UIthreading;
 std::set<QString> Worker::_blacklist{};
 
 Worker::Worker(const QString& filepath) :
-    _filepath{filepath} 
+    _filepath{filepath}
     {
         emit solverStatus(0);
     }
@@ -51,8 +51,8 @@ void Worker::startSolver() {
     if (importer->getSolverMode() == Data::SolverMode::fitting) _mode = Data::SolverMode::fitting;
     else { _mode = Data::SolverMode::simulation;}
 
-    emit solverStatus(1);
     _workerMutex.unlock();
+    emit solverStatus(1);
 }
 
 void Worker::restartSolver() {
@@ -69,8 +69,8 @@ void Worker::restartSolver() {
     if (importer->getSolverMode() == Data::SolverMode::fitting) _mode = Data::SolverMode::fitting;
     else { _mode = Data::SolverMode::simulation;}
 
-    emit solverStatus(1);
     _workerMutex.unlock();
+    emit solverStatus(1);
 }
 
 void Worker::restartSolver(const QString& solverPath) {
@@ -80,9 +80,7 @@ void Worker::restartSolver(const QString& solverPath) {
         return;
     }
     emit solverStatus(0);
-    _blacklist.erase(_filepath);
     _filepath = solverPath;
-    _blacklist.insert(_filepath);
 
     auto importer = Data::ImportManager(_filepath.toStdString()).makeImporter();
     _solver = importer->solverFromFile(); 
@@ -91,8 +89,8 @@ void Worker::restartSolver(const QString& solverPath) {
     if (importer->getSolverMode() == Data::SolverMode::fitting) _mode = Data::SolverMode::fitting;
     else { _mode = Data::SolverMode::simulation;}
 
-    emit solverStatus(1);
     _workerMutex.unlock();
+    emit solverStatus(1);
 }
 
 void Worker::exportResults(const QString& savePath) {
@@ -140,12 +138,11 @@ bool Worker::solverAvail() {
 ThreadManager::ThreadManager(const QString& configFilepath, QObject* parent)
     : QObject(parent)
     {
-    _worker = new Worker(configFilepath);
-    _worker->moveToThread(&_workerThread);
-    connect(&_workerThread, &QThread::finished, _worker, &QObject::deleteLater);
-    connect(_worker, &Worker::solverStatus, this, &ThreadManager::solverStatusRelay);
+    worker = new Worker(configFilepath);
+    worker->moveToThread(&_workerThread);
+    connect(&_workerThread, &QThread::finished, worker, &QObject::deleteLater);
     _workerThread.start();
-    _worker->startSolver();
+    worker->startSolver();
     }
 
 ThreadManager::~ThreadManager() {
@@ -154,15 +151,15 @@ ThreadManager::~ThreadManager() {
 }
 
 QwtPlot* ThreadManager::makePlot(bool polarFlag) {
-    if(!_worker->solverAvail()) {
+    if(!worker->solverAvail()) {
         emit errorSignal("Start the solver before trying to plot!");
         return nullptr;
     }
     
     auto plot = new QwtPlot();
     if(!polarFlag) {
-        if(_worker->getMode() == Data::SolverMode::fitting){
-            auto fitData = _worker->getFitPlotData();
+        if(worker->getMode() == Data::SolverMode::fitting){
+            auto fitData = worker->getFitPlotData();
             QVector<double> x{fitData.x.begin(), fitData.x.end()};
             QVector<double> yExp{fitData.yExp.begin(), fitData.yExp.end()};
             QVector<double> yFit{fitData.yFit.begin(), fitData.yFit.end()};
@@ -199,7 +196,7 @@ QwtPlot* ThreadManager::makePlot(bool polarFlag) {
         }
         
         else{
-            auto simData = _worker->getSimPlotData();
+            auto simData = worker->getSimPlotData();
             //there's no good way around this
             QVector<double> u{simData.u.begin(), simData.u.end()};
             QVector<double> yParaUs{simData.yParaUsPol.begin(), simData.yParaUsPol.end()};
@@ -215,18 +212,21 @@ QwtPlot* ThreadManager::makePlot(bool polarFlag) {
             QwtPlotCurve *paraUsCurve = new QwtPlotCurve("s-Para");
             paraUsCurve->setLegendAttribute(QwtPlotCurve::LegendShowSymbol, false);
             paraUsCurve->setLegendAttribute(QwtPlotCurve::LegendShowLine, true);
+            paraUsCurve->setPen(QPen(Qt::red));
             paraUsCurve->setSamples(u, yParaUs);
             paraUsCurve->attach(plot);
             
             QwtPlotCurve *paraUpCurve = new QwtPlotCurve("p-Para");
             paraUpCurve->setLegendAttribute(QwtPlotCurve::LegendShowSymbol, false);
             paraUpCurve->setLegendAttribute(QwtPlotCurve::LegendShowLine, true);
+            paraUpCurve->setPen(QPen(Qt::blue));
             paraUpCurve->setSamples(u, yParaUp);
             paraUpCurve->attach(plot);
 
             QwtPlotCurve *perpCurve = new QwtPlotCurve("(p)-Perp");
             perpCurve->setLegendAttribute(QwtPlotCurve::LegendShowSymbol, false);
             perpCurve->setLegendAttribute(QwtPlotCurve::LegendShowLine, true);
+            perpCurve->setPen(QPen(Qt::green));
             perpCurve->setSamples(u, yPerp);
             perpCurve->attach(plot);
 
@@ -241,8 +241,4 @@ QwtPlot* ThreadManager::makePlot(bool polarFlag) {
         return nullptr; //polar plot to be implemented soon
     }
     return plot;
-}
-
-void ThreadManager::solverStatusRelay(bool status) {
-    emit solverStatus(status);
 }

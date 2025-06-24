@@ -27,38 +27,37 @@ namespace UIthreading {
         Data::SolverMode _mode;
         QMutex _workerMutex;
 
-        public slots:
-            void startSolver();
-            void restartSolver();
-            void restartSolver(const QString& solverPath);
-            void exportResults(const QString& savePath);
-
         signals:
             void solverStatus(bool status);
             void errorSignal(const QString errorString);
 
         public:
             Worker(const QString& filepath);
+
             Fitting::FitRes getFitPlotData();
             Simulation::SimRes getSimPlotData();
             Data::SolverMode getMode();
+
             bool solverAvail();
+            void startSolver();
+            void restartSolver();
+            void restartSolver(const QString& configFilepath);
+
+            void exportResults(const QString& savePath); 
     };
 
     class ThreadManager : public QObject {
         Q_OBJECT
         QThread _workerThread;
-        Worker *_worker;
 
         void init();
         public:
+            Worker *worker;
+            
             ThreadManager(const QString& configFilepath, QObject* parent=nullptr);
             ~ThreadManager();
 
             QwtPlot* makePlot(bool polarFlag);
-
-        public slots:
-            void solverStatusRelay(bool status);
             
         signals:
             void solverStatus(bool status);
