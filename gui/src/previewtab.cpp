@@ -6,9 +6,9 @@
 #include <QTimer>
 #include <QMainWindow>
 
-PreviewTab::PreviewTab(QWidget* targetTab, const QString& label, QWidget* parent)
+PreviewTab::PreviewTab(QWidget* targetTabPlot, const QString& label, QWidget* parent)
     : QWidget(parent), 
-      _targetTab(targetTab)
+      _targetTab(targetTabPlot)
     {
         QVBoxLayout* outerLayout = new QVBoxLayout(this);
         outerLayout->setContentsMargins(0, 0, 0, 0);
@@ -36,9 +36,9 @@ PreviewTab::PreviewTab(QWidget* targetTab, const QString& label, QWidget* parent
         QTimer::singleShot(0, this, SLOT(updatePreview()));
     }
 
-PreviewTab::PreviewTab(QWidget* targetTab, const QString& label) {
-    PreviewTab(targetTab, label, targetTab);
-}
+PreviewTab::PreviewTab(QWidget* targetTabPlot, const QString& label) :
+    PreviewTab(targetTabPlot, label, targetTabPlot)
+    {}
 
 void PreviewTab::updatePreview() {
     if (!_targetTab || !_targetTab->isVisible()) {
@@ -47,7 +47,7 @@ void PreviewTab::updatePreview() {
     }
 
     if (_targetTab->size().isEmpty()) {
-        _previewLab->setText("Central widget has zero size");
+        _previewLab->setText("widget has zero size");
         return;
     }
 
@@ -59,7 +59,7 @@ void PreviewTab::updatePreview() {
     }
 
     _originalPixmap = pixmap; // save original unscaled pixmap
-    resizePreview();  // Refactor scaling logic
+    resizePreview();
 }
 
 bool PreviewTab::hasHeightForWidth() const {
@@ -83,7 +83,7 @@ QSize PreviewTab::sizeHint() const {
 
 void PreviewTab::resizeEvent(QResizeEvent* event) {
     QWidget::resizeEvent(event);
-    resizePreview();  // Respond to container size change
+    resizePreview();
 }
 
 void PreviewTab::resizePreview() {
@@ -97,4 +97,10 @@ void PreviewTab::resizePreview() {
         _previewLab->setFixedSize(scaled.size());
         updateGeometry();
     }
+}
+
+void PreviewTab::resetTargetTab(QWidget* targetTab, const QString& label){
+    _targetTab = targetTab;
+    _previewLab = new QLabel(label, this);
+    updatePreview();
 }

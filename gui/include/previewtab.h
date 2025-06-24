@@ -18,11 +18,14 @@ class PreviewTab : public QWidget {
         void updatePreview();
 
     public:
-        explicit PreviewTab(QWidget* targetTab, const QString& label); //targetTab is the default parent
+        explicit PreviewTab(QWidget* targetTab, const QString& label=""); //targetTab is the default parent
         explicit PreviewTab(QWidget* targetTab, const QString& label, QWidget* parent);
+
         QSize sizeHint() const override;
         bool hasHeightForWidth() const override;
         int heightForWidth(int width) const override;
         void resizeEvent(QResizeEvent* event) override;
         void resizePreview();
+
+        void resetTargetTab(QWidget* targetTab, const QString& label="");
 };
