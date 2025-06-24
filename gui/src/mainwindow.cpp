@@ -423,6 +423,10 @@ void MainWindow::savePlot()
 void MainWindow::displayPlot() {
     if(_currentTab->plotAvail()) {
         setCentralWidget(_currentTab);
+        _previewLayout->removeWidget(getPreviewTab());
+        PreviewTab* preview = new PreviewTab(_currentTab->plot);
+        _currentTab->setPreviewTab(preview);
+        _previewLayout->addWidget(preview);
         _currentTab->plot->replot();
     }
     else {
