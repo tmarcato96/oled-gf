@@ -1,6 +1,7 @@
 qt_add_executable(test_fitting test_fitting.cpp)
 target_link_libraries(test_fitting PUBLIC OLEDFunctions
-                                          GUIFunctions)
+                                          GUIFunctions
+                                    PRIVATE Qt::Qwt)
 
 qt_add_executable(test_barnes test_barnes.cpp)
 target_include_directories(test_barnes PUBLIC "${PROJECT_SOURCE_DIR}/include")

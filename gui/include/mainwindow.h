@@ -1,86 +1,85 @@
 #pragma once
 
-#include <QMainWindow>
 #include <QAction>
 #include <QEvent>
 #include <QList>
+#include <QMainWindow>
 #include <QVBoxLayout>
 
 #include <qwt_plot.h>
 #include <qwt_plot_curve.h>
-#include <QwtPlotZoomer>
+#include <qwt_plot_zoomer.h>
 
-#include <threadhelper.h>
 #include <previewtab.h>
+#include <threadhelper.h>
 
 class MonitoredTab;
 
-class MainWindow : public QMainWindow //true main window
+class MainWindow : public QMainWindow // true main window
 {
 protected:
-    Q_OBJECT
+  Q_OBJECT
 
-    void createMenus();
-    void createToolbar();
-    void createPreviewTabs();
-    void displayCanvas();
+  void createMenus();
+  void createToolbar();
+  void createPreviewTabs();
+  void displayCanvas();
 
-    QList<MonitoredTab*> _tabList;
-    MonitoredTab* _currentTab;
-    QVBoxLayout* _previewLayout;
-    bool _plotStatus;
+  QList<MonitoredTab*> _tabList;
+  MonitoredTab* _currentTab;
+  QVBoxLayout* _previewLayout;
+  bool _plotStatus;
 
 public:
-    MainWindow();
-    bool getPlotStatus();
-    PreviewTab* getPreviewTab();
-    MonitoredTab* newBlankTab(const QString& label="");
-    MonitoredTab* newTabFromFile(const QString& configFilepath, const QString& label="");
+  MainWindow();
+  bool getPlotStatus();
+  PreviewTab* getPreviewTab();
+  MonitoredTab* newBlankTab(const QString& label = "");
+  MonitoredTab* newTabFromFile(const QString& configFilepath, const QString& label = "");
 
 protected slots:
-    void onOpen();
-    void onNewTab();
-    void onLoad();
-    void onReload();
-    void onExit();
-    void onSave();
+  void onOpen();
+  void onNewTab();
+  void onLoad();
+  void onReload();
+  void onExit();
+  void onSave();
 
-    void savePlot();
-    void displayPlot();
-    void deletePlot();
+  void savePlot();
+  void displayPlot();
+  void deletePlot();
 };
 
 class MonitoredTab : public QWidget
 {
-    Q_OBJECT
-    
-    PreviewTab* _previewTab; //keeps previewtab reference in raw pointer
-    UIthreading::ThreadManager* _thread;
-    QVBoxLayout* _layout;
-    bool _plotAvail;
+  Q_OBJECT
 
-    friend PreviewTab* MainWindow::getPreviewTab();
+  PreviewTab* _previewTab; // keeps previewtab reference in raw pointer
+  UIthreading::ThreadManager* _thread;
+  QVBoxLayout* _layout;
+  bool _plotAvail;
 
-    public:
-        MonitoredTab() = delete; //helps avoid memory leaks
-        MonitoredTab(QWidget* parent = nullptr);
-        MonitoredTab(QString& configFilepath, QWidget* parent = nullptr);
-            
-        void setPreviewTab(PreviewTab* tab);
+  friend PreviewTab* MainWindow::getPreviewTab();
 
-        void makeJob(const QString& configFilepath);
-        void resetJob(const QString& configFilepath);
-        void resetJob();
+public:
+  MonitoredTab() = delete; // helps avoid memory leaks
+  MonitoredTab(QWidget* parent = nullptr);
+  MonitoredTab(QString& configFilepath, QWidget* parent = nullptr);
 
-        bool plotAvail();
-        void makeCanvas();
-        void setPlot(bool polarFlag);
-        void saveToFile(const QString& savePath);
+  void setPreviewTab(PreviewTab* tab);
 
-        QwtPlot *plot;
+  void makeJob(const QString& configFilepath);
+  void resetJob(const QString& configFilepath);
+  void resetJob();
 
+  bool plotAvail();
+  void makeCanvas();
+  void setPlot(bool polarFlag);
+  void saveToFile(const QString& savePath);
 
-    protected:
-        void changeEvent(QEvent* event) override;
-        void showEvent(QShowEvent* event) override;
+  QwtPlot* plot;
+
+protected:
+  void changeEvent(QEvent* event) override;
+  void showEvent(QShowEvent* event) override;
 };

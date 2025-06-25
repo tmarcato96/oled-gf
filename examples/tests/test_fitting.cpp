@@ -1,26 +1,26 @@
 #include <cmath>
 #include <filesystem>
-#include <format>
 #include <fstream>
 #include <iostream>
 #include <string>
 #include <vector>
 
 #include <Eigen/Core>
-#include <matlayer.hpp>
 #include <fitting.hpp>
+#include <matlayer.hpp>
 
 #include <QApplication>
 #include <QMainWindow>
 #include <qvector.h>
-#include <qwt_plot.h>
 #include <qwt_legend.h>
-#include <qwt_plot_curve.h>
-#include <qwt_symbol.h>
-#include <qwt_plot_zoomer.h>
+#include <qwt_plot.h>
 #include <qwt_plot_canvas.h>
+#include <qwt_plot_curve.h>
+#include <qwt_plot_zoomer.h>
+#include <qwt_symbol.h>
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[])
+{
   // Set up stack
   double wavelength = 456;
   std::vector<Layer> layers;
@@ -31,19 +31,19 @@ int main(int argc, char *argv[]) {
   layers.emplace_back(Material(1.52, 0.0), -1.0);
 
   // Fitting filepath
-  //const std::string targetToFit("/src/examples/data/setfos_simple_spectrum_isotropic.txt");
+  // const std::string targetToFit("/src/examples/data/setfos_simple_spectrum_isotropic.txt");
   const std::string targetToFit("C:\\Users\\mnouman\\oled-gf\\examples\\data\\3ML_processed.txt");
   // Spectrum
   double fwhm = 30;
-  NormalDistribution dist{450, 700, wavelength, fwhm/2.355, 50};
+  NormalDistribution dist{450, 700, wavelength, fwhm / 2.355, 50};
   Spectrum<Distribution> spectrum{dist};
   Distribution dipoleDist(0.0, 35e-9);
 
   auto solver = std::make_unique<Fitting>(targetToFit, layers, 0.0, 456, 0.0, 80.0);
   auto fitRes = solver->fitEmissionSubstrate();
-  //for (size_t i = 0; i < fitRes.x.size(); ++i) {
-  //  std::cout << fitRes.x[i] << " " << fitRes.yExp[i] << " " << fitRes.yFit[i] << "\n";
-  //}
+  // for (size_t i = 0; i < fitRes.x.size(); ++i) {
+  //   std::cout << fitRes.x[i] << " " << fitRes.yExp[i] << " " << fitRes.yFit[i] << "\n";
+  // }
 
   QApplication app(argc, argv);
   QMainWindow window;
@@ -58,9 +58,9 @@ int main(int argc, char *argv[]) {
   QVector<double> xData(fitRes.x.begin(), fitRes.x.end());
   QVector<double> yExpData(fitRes.yExp.begin(), fitRes.yExp.end());
   QVector<double> yFitData(fitRes.yFit.begin(), fitRes.yFit.end());
-  
-  QwtPlotCurve *scatterCurve = new QwtPlotCurve("Exp");
-  QwtSymbol *symbol = new QwtSymbol(QwtSymbol::Triangle, QBrush(Qt::blue), QPen(Qt::black), QSize(8, 8));
+
+  QwtPlotCurve* scatterCurve = new QwtPlotCurve("Exp");
+  QwtSymbol* symbol = new QwtSymbol(QwtSymbol::Triangle, QBrush(Qt::blue), QPen(Qt::black), QSize(8, 8));
   scatterCurve->setSymbol(symbol);
   scatterCurve->setStyle(QwtPlotCurve::NoCurve); // No connecting line
   scatterCurve->setLegendAttribute(QwtPlotCurve::LegendShowSymbol, true);
@@ -68,17 +68,16 @@ int main(int argc, char *argv[]) {
   scatterCurve->setSamples(xData, yExpData);
   scatterCurve->attach(plot);
 
-
-  QwtPlotCurve *fitCurve = new QwtPlotCurve("Fit");
+  QwtPlotCurve* fitCurve = new QwtPlotCurve("Fit");
   fitCurve->setLegendAttribute(QwtPlotCurve::LegendShowSymbol, false);
   fitCurve->setLegendAttribute(QwtPlotCurve::LegendShowLine, true);
   fitCurve->setSamples(xData, yFitData);
   fitCurve->attach(plot);
 
-  QwtPlotZoomer *zoomer = new QwtPlotZoomer(plot->canvas());
+  QwtPlotZoomer* zoomer = new QwtPlotZoomer(plot->canvas());
   zoomer->setRubberBandPen(QColor(Qt::red));
   zoomer->setTrackerPen(QColor(Qt::blue));
-  QwtLegend *legend = new QwtLegend();
+  QwtLegend* legend = new QwtLegend();
   plot->insertLegend(legend);
 
   window.setCentralWidget(plot);

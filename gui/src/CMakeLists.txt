@@ -9,7 +9,8 @@ target_include_directories(GUIFunctions PRIVATE  "${PROJECT_SOURCE_DIR}/include"
 
 
 target_link_libraries(GUIFunctions PRIVATE OLEDFunctions
-                                           PUBLIC Qt::Qwt
+                                           PRIVATE Qt::Qwt
+                                           PUBLIC Qt6::Core
                                            PUBLIC Qt6::Widgets
                                            PUBLIC Qt6::Svg
                                            PUBLIC Qt6::Concurrent
@@ -20,4 +21,8 @@ target_link_libraries(GUIFunctions PRIVATE OLEDFunctions
 target_include_directories(qtmain PRIVATE  "${PROJECT_SOURCE_DIR}/include"
                                           "${PROJECT_SOURCE_DIR}/gui/include")
 
-target_link_libraries(qtmain PRIVATE GUIFunctions)
+target_link_libraries(qtmain PRIVATE GUIFunctions
+                                     Qt::Qwt
+                             PUBLIC Eigen
+                                    jsonsimplecpp)
+                                

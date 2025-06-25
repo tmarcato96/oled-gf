@@ -1,114 +1,113 @@
 #pragma once
 
-#include <string>
 #include <fstream>
+#include <string>
 
-#include <jsonsimplecpp\parser.hpp>
-#include <jsonsimplecpp\node.hpp>
+#include <jsonsimplecpp/node.hpp>
+#include <jsonsimplecpp/parser.hpp>
 
-#include <visitor.hpp>
+#include <basesolver.hpp>
 #include <fileutils.hpp>
+#include <fitting.hpp>
 #include <forwardDecl.hpp>
 #include <matlayer.hpp>
-#include <basesolver.hpp>
-#include <fitting.hpp>
 #include <simulation.hpp>
+#include <visitor.hpp>
 
 namespace Data {
 
-    enum class SolverMode{simulation, fitting, automatic};
-    enum class FileFormat{CSV, JSON, automatic};
+  enum class SolverMode { simulation, fitting, automatic };
+  enum class FileFormat { CSV, JSON, automatic };
 
-    //filepolicy is Json::Parser<ConfigVisitor>
-    template <template<class> class ReaderType, class ReaderPolicy = ConfigVisitor>
-    class Reader {
-    private:
-        SolverMode _smode;
-        const std::string _filepath;
-        std::shared_ptr<ReaderPolicy> _visitor;
-        ReaderType<ReaderPolicy> _policy;
-        std::unique_ptr<Json::JsonNode<ReaderPolicy>> _rootPtr;
-    
-    public:
-        Reader(const std::string& filepath) :
-              _filepath{filepath},
-              _visitor{new ConfigVisitor()},
-              _policy{_filepath, _visitor}
+  // filepolicy is Json::Parser<ConfigVisitor>
+  template<template<class> class ReaderType, class ReaderPolicy = ConfigVisitor> class Reader
+  {
+  private:
+    SolverMode _smode;
+    const std::string _filepath;
+    std::shared_ptr<ReaderPolicy> _visitor;
+    ReaderType<ReaderPolicy> _policy;
+    std::unique_ptr<Json::JsonNode<ReaderPolicy>> _rootPtr;
 
-        {
-            if (!_visitor.get()) {
-                throw std::runtime_error("Visitor not initialized");
-            }
-            std::cout << _filepath << std::endl;
-           _policy.parse();
-           auto root = _policy.getJsonTree();
-           root->traverse();
-            if (_visitor->isSimulation()) _smode = SolverMode::simulation;
-            else _smode = SolverMode::fitting;
-        }
-    
-        SolverMode get_mode() {return _smode;}
-    
-        std::unique_ptr<BaseSolver> makeSolver() {
-            return _visitor->makeSolver();
-        }
-    };
+  public:
+    Reader(const std::string& filepath) :
+      _filepath{filepath},
+      _visitor{new ConfigVisitor()},
+      _policy{_filepath, _visitor}
 
-    class Importer {
-        protected:
+    {
+      if (!_visitor.get()) { throw std::runtime_error("Visitor not initialized"); }
+      std::cout << _filepath << std::endl;
+      _policy.parse();
+      auto root = _policy.getJsonTree();
+      root->traverse();
+      if (_visitor->isSimulation()) _smode = SolverMode::simulation;
+      else _smode = SolverMode::fitting;
+    }
 
-            Importer(const std::string& filepath);
-            Importer(const std::string& filepath, SolverMode mode);
-            const std::string& _filepath;
+    SolverMode get_mode() { return _smode; }
 
-            virtual void setSolverMode() = 0;
-            SolverMode _mode;
+    std::unique_ptr<BaseSolver> makeSolver() { return _visitor->makeSolver(); }
+  };
 
-        public:
-            virtual std::unique_ptr<BaseSolver> solverFromFile() = 0;
-            virtual SolverMode getSolverMode() = 0;
-            virtual ~Importer() = default;
-    };
+  class Importer
+  {
+  protected:
+    Importer(const std::string& filepath);
+    Importer(const std::string& filepath, SolverMode mode);
+    const std::string& _filepath;
 
-    class INIimporter : public Importer {
-        protected:
-            void setSolverMode() override;
-        
-        public:
-            std::unique_ptr<BaseSolver> solverFromFile() override;
-            virtual SolverMode getSolverMode() override;
-            INIimporter(const std::string& filepath);
-            INIimporter(const std::string& filepath, SolverMode mode);
-    };
+    virtual void setSolverMode() = 0;
+    SolverMode _mode;
 
-    class JSONimporter : public Importer {
-        private:
-            void setSolverMode() override;
-            Reader<Json::JsonParser, ConfigVisitor> _reader;
-        
-        public:
-            std::unique_ptr<BaseSolver> solverFromFile() override;
-            virtual SolverMode getSolverMode() override;
+  public:
+    virtual std::unique_ptr<BaseSolver> solverFromFile() = 0;
+    virtual SolverMode getSolverMode() = 0;
+    virtual ~Importer() = default;
+  };
 
-            JSONimporter(const std::string& filepath);
-            JSONimporter(const std::string& filepath, SolverMode mode);
-    };
+  class INIimporter : public Importer
+  {
+  protected:
+    void setSolverMode() override;
 
-    class ImportManager {
-        private:
-            const std::string _filepath;
-            std::ifstream _fin;
-            FileFormat _ftype;
-            SolverMode _smode;
-            
-            void autoSetFileFormat();
+  public:
+    std::unique_ptr<BaseSolver> solverFromFile() override;
+    virtual SolverMode getSolverMode() override;
+    INIimporter(const std::string& filepath);
+    INIimporter(const std::string& filepath, SolverMode mode);
+  };
 
-        public:
-            ImportManager(const std::string& filepath);
-            ImportManager(const std::string& filepath, FileFormat);
-            ImportManager(const std::string& filepath, SolverMode);
-            ImportManager(const std::string& filepath, FileFormat, SolverMode);
+  class JSONimporter : public Importer
+  {
+  private:
+    void setSolverMode() override;
+    Reader<Json::JsonParser, ConfigVisitor> _reader;
 
-            std::unique_ptr<Importer> makeImporter();
-    };
-}
+  public:
+    std::unique_ptr<BaseSolver> solverFromFile() override;
+    virtual SolverMode getSolverMode() override;
+
+    JSONimporter(const std::string& filepath);
+    JSONimporter(const std::string& filepath, SolverMode mode);
+  };
+
+  class ImportManager
+  {
+  private:
+    const std::string _filepath;
+    std::ifstream _fin;
+    FileFormat _ftype;
+    SolverMode _smode;
+
+    void autoSetFileFormat();
+
+  public:
+    ImportManager(const std::string& filepath);
+    ImportManager(const std::string& filepath, FileFormat);
+    ImportManager(const std::string& filepath, SolverMode);
+    ImportManager(const std::string& filepath, FileFormat, SolverMode);
+
+    std::unique_ptr<Importer> makeImporter();
+  };
+} // namespace Data

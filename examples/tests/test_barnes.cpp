@@ -5,7 +5,6 @@
 #include <simulation.hpp>
 
 #include <Eigen/Core>
-#include <matplot/matplot.h>
 
 int main()
 {
@@ -23,7 +22,7 @@ int main()
 
   // Spectrum
   const double fwhm = 30;
-  NormalDistribution dist{450, 700, wavelength, fwhm/2.355, 50};
+  NormalDistribution dist{450, 700, wavelength, fwhm / 2.355, 50};
   Spectrum<Distribution> spectrum{dist};
 
   // Create Solver
@@ -38,14 +37,4 @@ int main()
   Vector const& yParasPol = simulation->fracPowerParaUsPol.row(dipoleIndex - 1).head(u.size());
 
   std::cout << y.head(20) << '\n';
-
-  // Plot
-  matplot::semilogy(u, y)->line_width(2).color("red");
-  matplot::hold(matplot::on);
-  matplot::semilogy(u, yParapPol)->line_width(2).color("blue");
-  matplot::semilogy(u, yParasPol)->line_width(2).color("green");
-  matplot::xlim({0.0, 2.0});
-  matplot::xlabel("Normalized Wavevector");
-  matplot::ylabel("Dissipated Power");
-  matplot::show();
 }

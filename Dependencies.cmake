@@ -1,5 +1,10 @@
 include(cmake/CPM.cmake)
 
+if(APPLE)
+    # This is where Homebrew installs Qt6Config.cmake
+    list(PREPEND CMAKE_PREFIX_PATH "/usr/local/lib/cmake")
+endif()
+
 # Look for any Qt 6 version installed in common Qt installation root
 if(NOT DEFINED CMAKE_PREFIX_PATH)
     set(DETECTED_QT_PATHS "")
@@ -10,7 +15,6 @@ if(NOT DEFINED CMAKE_PREFIX_PATH)
     elseif(APPLE)
         file(GLOB QT_DIRS
             "$ENV{HOME}/Qt/6*/clang_64"
-            "/usr/local/opt/qt6/lib/cmake/Qt6"  # Homebrew Qt
         )
         list(APPEND DETECTED_QT_PATHS ${QT_DIRS})
     elseif(UNIX)
@@ -32,7 +36,7 @@ if(NOT DEFINED CMAKE_PREFIX_PATH)
 endif()
 
 
-find_package(Qt6 COMPONENTS Widgets Svg Concurrent OpenGL PrintSupport REQUIRED)
+find_package(Qt6 REQUIRED COMPONENTS Core Widgets Svg Concurrent OpenGL PrintSupport)
 
 function(oledgf_setup_dependencies)
 
@@ -50,12 +54,6 @@ if(Eigen_ADDED)
   add_library(Eigen INTERFACE IMPORTED)
   target_include_directories(Eigen INTERFACE ${Eigen_SOURCE_DIR})
 endif()
-
-CPMAddPackage(
-    NAME matplotplusplus
-    GITHUB_REPOSITORY alandefreitas/matplotplusplus
-    GIT_TAG origin/master
-)
 
 CPMAddPackage(
     NAME jsonsimplecpp
