@@ -18,6 +18,8 @@
 #include <QMessageBox>
 #include <QSettings>
 #include <QStandardPaths>
+#include <QStackedWidget>
+#include <QProcess>
 
 #include <QwtPlotZoomer>
 #include <QPen>
@@ -26,6 +28,7 @@
 #include <QImageWriter>
 #include <qwt_plot.h>
 #include <qwt_plot_curve.h>
+
 
 
 //monitored window stuff
@@ -116,38 +119,20 @@ void MonitoredTab::saveToFile(const QString& savePath) {
 
 
 //mainwindow stuff
-PreviewTab* MainWindow::getPreviewTab() {
-    return _currentTab->_previewTab;
-}
-
-void MainWindow::displayCanvas() {
-    if(_currentTab == nullptr || _currentTab->plot == nullptr) {
-        auto plot = new QwtPlot(this);
-        plot->setTitle("Perfectly Accurate Plot");
-        plot->setCanvasBackground(Qt::white);
-        setCentralWidget(plot);
-
-        auto curve = new QwtPlotCurve();
-        curve->setTitle("Sample Curve");
-        curve->setPen(Qt::blue, 2);
-
-        // Example data points
-        QVector<double> xData = {0, 1, 2, 3, 4, 5};
-        QVector<double> yData = {0, 1, 4, 9, 16, 25};
-        curve->setSamples(xData, yData);
-        curve->attach(plot);
-
-        auto zoomer = new QwtPlotZoomer(plot->canvas());
-        zoomer->setRubberBand(QwtPlotZoomer::RectRubberBand);
-        zoomer->setRubberBandPen(QPen(Qt::red));
-        zoomer->setTrackerMode(QwtPlotZoomer::AlwaysOn);
-        _plotStatus = 0;
+void MainWindow::refreshPreviewTab(MonitoredTab* tab) {
+    
+    for(const auto saveTab : _tabList) {
+        if(saveTab != tab) _tabList.push_back(tab);
     }
-    else { 
-        setCentralWidget(_currentTab);
-        _currentTab->plot->replot();
-        _plotStatus = 1;
-    }
+
+    _previewLayout->removeWidget(tab->_previewTab);
+    PreviewTab* preview = new PreviewTab(tab->plot);
+    tab->setPreviewTab(preview);
+    connect(preview, &PreviewTab::clicked, this, [this, tab]() {
+        _centralStack->setCurrentWidget(tab);
+        _currentTab = tab;
+    });
+    _previewLayout->addWidget(preview);
 }
 
 void MonitoredTab::changeEvent(QEvent* event) {
@@ -164,18 +149,23 @@ void MonitoredTab::showEvent(QShowEvent* event) {
     }
 }
 
-MonitoredTab* MainWindow::newBlankTab(const QString& label) {
-    auto tab = new MonitoredTab(this);
-    _tabList.push_back(tab);
-    PreviewTab* preview = new PreviewTab(tab->plot, label);
-    tab->setPreviewTab(preview);
-    _previewLayout->addWidget(preview);
-    _currentTab = tab;
+void MainWindow::newCurrentBlankTab(const QString& label) {
 
-    setCentralWidget(tab);
-    _plotStatus = 0;
-    
-    return tab;
+    auto* newTab = new MonitoredTab(this);
+    _centralStack->addWidget(newTab);
+
+    PreviewTab* preview = new PreviewTab(newTab->plot, label, this);
+    newTab->setPreviewTab(preview);
+
+    connect(preview, &PreviewTab::clicked, this, [this, newTab]() {
+        _centralStack->setCurrentWidget(newTab);
+        _currentTab = newTab;
+    });
+
+    _previewLayout->addWidget(preview);
+    _currentTab = newTab;
+    _centralStack->setCurrentWidget(newTab);
+    _tabList.push_back(newTab);
 }
 
 MainWindow::MainWindow()
@@ -188,15 +178,16 @@ MainWindow::MainWindow()
         createMenus();
         createToolbar();      
         createPreviewTabs(); //takes care of _previewLayout
-        newBlankTab();
-        displayCanvas();
+        createCentralWidget();
+
+        newCurrentBlankTab();
+        createCanvas();
+
     }
 
-
-MonitoredTab* MainWindow::newTabFromFile(const QString& label, const QString& configFilepath) {
-    auto tab = newBlankTab(label);
-    tab->makeJob(configFilepath);
-    return tab;
+void MainWindow::newCurrentTabFromFile(const QString& configFilepath, const QString& label) {
+    newCurrentBlankTab(label);
+    _currentTab->makeJob(configFilepath);
 }
 
 void MainWindow::createMenus() {
@@ -205,14 +196,6 @@ void MainWindow::createMenus() {
 
     // File menu
     QMenu *fileMenu = menuBar->addMenu(tr("&File"));
-
-    auto newBlankJobAction = new QAction("new blank job", this);
-    connect(newBlankJobAction, &QAction::triggered, this, &MainWindow::onNewTab);
-    fileMenu->addAction(newBlankJobAction);
-
-    auto newJobAction = new QAction("new job", this);
-    connect(newJobAction, &QAction::triggered, this, &MainWindow::onOpen);
-    fileMenu->addAction(newJobAction);
 
     auto loadAction = new QAction("load", this);
     connect(loadAction, &QAction::triggered, this, &MainWindow::onLoad);
@@ -225,6 +208,15 @@ void MainWindow::createMenus() {
 
    //Job menu
     QMenu *jobMenu = menuBar->addMenu(tr("&Job"));
+
+    auto newBlankJobAction = new QAction("new blank job", this);
+    connect(newBlankJobAction, &QAction::triggered, this, &MainWindow::onNewTab);
+    jobMenu->addAction(newBlankJobAction);
+
+    auto newJobAction = new QAction("new job", this);
+    connect(newJobAction, &QAction::triggered, this, &MainWindow::onOpen);
+    jobMenu->addAction(newJobAction);
+
 
     auto restartJobAction = new QAction("restart job", this);
     connect(restartJobAction, &QAction::triggered, this, &MainWindow::onReload);
@@ -268,9 +260,9 @@ void MainWindow::createToolbar()
     connect(exportAction, &QAction::triggered, this, &MainWindow::onSave);
     toolBar->addAction(exportAction);
 
-    auto exitAction = new QAction(QIcon::fromTheme(Icon::DocumentOpen), "Import", this);
-    connect(exitAction, &QAction::triggered, this, &MainWindow::onOpen);
-    toolBar->addAction(exitAction);
+    auto importAction = new QAction(QIcon::fromTheme(Icon::DocumentOpen), "Import", this);
+    connect(importAction, &QAction::triggered, this, &MainWindow::onOpen);
+    toolBar->addAction(importAction);
     
     auto startAction = new QAction(QIcon::fromTheme(Icon::MediaPlaybackStart), "Start Plot", this);
     connect(startAction, &QAction::triggered, this, &MainWindow::displayPlot);
@@ -284,7 +276,6 @@ void MainWindow::createToolbar()
     connect(helpAction, &QAction::triggered, this, &MainWindow::onExit);
     toolBar->addAction(helpAction);
 }
-
 
 void MainWindow::createPreviewTabs() {
     QDockWidget* dock = new QDockWidget("Preview Sidebar", this);
@@ -309,10 +300,44 @@ void MainWindow::createPreviewTabs() {
     addDockWidget(Qt::LeftDockWidgetArea, dock);
 }
 
+void MainWindow::createCentralWidget() {
+    _centralStack = new QStackedWidget(this);
+    setCentralWidget(_centralStack);
+}
+
+void MainWindow::createCanvas() {
+    if(_currentTab->plot == nullptr) {
+
+        _currentTab->plot = new QwtPlot(this);
+        _currentTab->plot->setTitle("Perfectly Accurate Plot");
+        _currentTab->plot->setCanvasBackground(Qt::white);
+
+        auto curve = new QwtPlotCurve();
+        curve->setTitle("Sample Curve");
+        curve->setPen(Qt::blue, 2);
+
+        // Example data points
+        QVector<double> xData = {0, 1, 2, 3, 4, 5};
+        QVector<double> yData = {0, 1, 4, 9, 16, 25};
+        curve->setSamples(xData, yData);
+        curve->attach(_currentTab->plot);
+
+        auto zoomer = new QwtPlotZoomer(_currentTab->plot->canvas());
+        zoomer->setRubberBand(QwtPlotZoomer::RectRubberBand);
+        zoomer->setRubberBandPen(QPen(Qt::red));
+        zoomer->setTrackerMode(QwtPlotZoomer::AlwaysOn);
+        _plotStatus = 0;
+    }
+    else { 
+        _currentTab->plot->replot(); //updates plot
+        _plotStatus = 1;
+    }
+        _centralStack->setCurrentWidget(_currentTab);
+}
+
 void MainWindow::onExit() {
     close();
 }
-
 
 void MainWindow::onOpen() {
     QSettings settings("SegFault Inc.", "OLEDgf");
@@ -323,13 +348,13 @@ void MainWindow::onOpen() {
     if (!filePath.isEmpty()) {
         settings.setValue("lastOpenDir", QFileInfo(filePath).absolutePath());
         // open the file
-        if(_plotStatus) newTabFromFile(filePath);
+        if(_plotStatus) newCurrentTabFromFile(filePath);
         else { _currentTab->resetJob(filePath);}
     }
 }
 
 void MainWindow::onNewTab() {
-    newBlankTab();
+    newCurrentBlankTab();
 }
 
 void MainWindow::onLoad() {
@@ -421,14 +446,7 @@ void MainWindow::savePlot()
 }
 
 void MainWindow::displayPlot() {
-    if(_currentTab->plotAvail()) {
-        setCentralWidget(_currentTab);
-        _previewLayout->removeWidget(getPreviewTab());
-        PreviewTab* preview = new PreviewTab(_currentTab->plot);
-        _currentTab->setPreviewTab(preview);
-        _previewLayout->addWidget(preview);
-        _currentTab->plot->replot();
-    }
+    if (_currentTab->plotAvail()) refreshPreviewTab(_currentTab);
     else {
         QMessageBox::warning(this, tr("Unspecified plot"), tr("Please specify plot type first!"));
     }
@@ -436,11 +454,6 @@ void MainWindow::displayPlot() {
 
 void MainWindow::deletePlot() {
     _currentTab->makeCanvas();
-    setCentralWidget(_currentTab);
-    _previewLayout->removeWidget(getPreviewTab());
-    PreviewTab* preview = new PreviewTab(_currentTab->plot); 
-    _currentTab->setPreviewTab(preview);
-    _previewLayout->addWidget(preview);
-
+    refreshPreviewTab(_currentTab);
     _plotStatus = 0;
 }

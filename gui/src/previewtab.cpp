@@ -3,6 +3,7 @@
 #include <QApplication>
 #include <QVBoxLayout>
 #include <QPixmap>
+#include <QMouseEvent>
 #include <QTimer>
 #include <QMainWindow>
 
@@ -10,6 +11,7 @@ PreviewTab::PreviewTab(QWidget* targetTabPlot, const QString& label, QWidget* pa
     : QWidget(parent), 
       _targetTab(targetTabPlot)
     {
+        setObjectName("previewTab");
         QVBoxLayout* outerLayout = new QVBoxLayout(this);
         outerLayout->setContentsMargins(0, 0, 0, 0);
 
@@ -19,7 +21,7 @@ PreviewTab::PreviewTab(QWidget* targetTabPlot, const QString& label, QWidget* pa
         contentLayout->setContentsMargins(0, 0, 0, 0);
 
         QLabel* nameLabel = new QLabel(label, this);
-        nameLabel->setAlignment(Qt::AlignCenter);
+        nameLabel->setAlignment(Qt::AlignTop);
         nameLabel->setStyleSheet("font-weight: bold; padding-bottom: 4px;");
         contentLayout->addWidget(nameLabel);
 
@@ -27,6 +29,7 @@ PreviewTab::PreviewTab(QWidget* targetTabPlot, const QString& label, QWidget* pa
         _previewLab->setAlignment(Qt::AlignCenter);
         _previewLab->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
         _previewLab->setScaledContents(false);
+        _previewLab->setAttribute(Qt::WA_TransparentForMouseEvents);
         contentLayout->addWidget(_previewLab);
 
         contentWidget->setLayout(contentLayout);
@@ -37,8 +40,8 @@ PreviewTab::PreviewTab(QWidget* targetTabPlot, const QString& label, QWidget* pa
     }
 
 PreviewTab::PreviewTab(QWidget* targetTabPlot, const QString& label) :
-    PreviewTab(targetTabPlot, label, targetTabPlot)
-    {}
+    PreviewTab(targetTabPlot, label, nullptr)
+    {setObjectName("previewTab");}
 
 void PreviewTab::updatePreview() {
     if (!_targetTab || !_targetTab->isVisible()) {
@@ -99,8 +102,21 @@ void PreviewTab::resizePreview() {
     }
 }
 
-void PreviewTab::resetTargetTab(QWidget* targetTab, const QString& label){
+void PreviewTab::resetTargetTab(QWidget* targetTab, const QString& label) {
     _targetTab = targetTab;
-    _previewLab = new QLabel(label, this);
+    _originalPixmap = QPixmap();  // Clear cached preview
+    if (_previewLab)
+        _previewLab->clear();
     updatePreview();
+}
+
+void PreviewTab::mousePressEvent(QMouseEvent* event) {
+    emit clicked();
+
+    setStyleSheet("#previewTab { border: 4px solid #4488ff; }");
+    QTimer::singleShot(200, this, [this]() {
+        setStyleSheet(""); 
+    });
+
+    QWidget::mousePressEvent(event);
 }

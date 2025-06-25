@@ -4,7 +4,8 @@
 #include <QWidget>
 #include <QMainWindow>
 #include <QLabel>
-#include <qwt_plot.h>
+#include <QMouseEvent>
+#include <QPixmap>
 
 class PreviewTab : public QWidget {
     Q_OBJECT
@@ -16,6 +17,9 @@ class PreviewTab : public QWidget {
 
     public slots:
         void updatePreview();
+    
+    protected:
+        void mousePressEvent(QMouseEvent* event) override;
 
     public:
         explicit PreviewTab(QWidget* targetTab, const QString& label=""); //targetTab is the default parent
@@ -28,4 +32,8 @@ class PreviewTab : public QWidget {
         void resizePreview();
 
         void resetTargetTab(QWidget* targetTab, const QString& label="");
+    
+    signals:
+        void clicked();
+
 };

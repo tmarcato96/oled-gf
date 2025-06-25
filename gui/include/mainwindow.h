@@ -5,6 +5,7 @@
 #include <QEvent>
 #include <QList>
 #include <QVBoxLayout>
+#include <QStackedWidget>
 
 #include <qwt_plot.h>
 #include <qwt_plot_curve.h>
@@ -23,19 +24,23 @@ protected:
     void createMenus();
     void createToolbar();
     void createPreviewTabs();
-    void displayCanvas();
+    void createCentralWidget();
+    void createCanvas();
 
     QList<MonitoredTab*> _tabList;
+    QStackedWidget* _centralStack;
     MonitoredTab* _currentTab;
     QVBoxLayout* _previewLayout;
     bool _plotStatus;
 
 public:
     MainWindow();
-    bool getPlotStatus();
+
     PreviewTab* getPreviewTab();
-    MonitoredTab* newBlankTab(const QString& label="");
-    MonitoredTab* newTabFromFile(const QString& configFilepath, const QString& label="");
+    void refreshPreviewTab(MonitoredTab* tab); //safe(r) tab refresh
+
+    void newCurrentBlankTab(const QString& label="");
+    void newCurrentTabFromFile(const QString& configFilepath, const QString& label="");
 
 protected slots:
     void onOpen();
@@ -59,7 +64,7 @@ class MonitoredTab : public QWidget
     QVBoxLayout* _layout;
     bool _plotAvail;
 
-    friend PreviewTab* MainWindow::getPreviewTab();
+    friend void MainWindow::refreshPreviewTab(MonitoredTab* tab);
 
     public:
         MonitoredTab() = delete; //helps avoid memory leaks
@@ -78,7 +83,6 @@ class MonitoredTab : public QWidget
         void saveToFile(const QString& savePath);
 
         QwtPlot *plot;
-
 
     protected:
         void changeEvent(QEvent* event) override;
