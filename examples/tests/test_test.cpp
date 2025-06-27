@@ -26,13 +26,15 @@ int main()
 
   // Spectrum
   // THINGS TO DO: MOVE SIMULATION CONSTRUCTORS, CREATE NEW UNIFORM SPECTRUM MODE
-  const double wavelength = 535;
-  // DipoleDistribution dipolePositions{};
-  // dipolePositions.dipolePositions = Vector::LinSpaced(11, 0, 20e-9);
+  double wavelength = 535;
 
   // Create Solver
-  auto simulation = std::make_unique<Simulation>(
-    SimulationMode::ModeDissipation, layers, 0.0, wavelength, 0.0, std::cos(std::complex<double>(0.0, 1.8)).real());
+  auto simulation = std::make_unique<Simulation>(SimulationMode::ModeDissipation,
+    layers,
+    0.0,
+    Spectrum<Distribution>(wavelength),
+    0.0,
+    std::cos(std::complex<double>(0.0, 1.8)).real());
   simulation->run();
   auto dipoleIndex = simulation->getDipoleIndex();
 

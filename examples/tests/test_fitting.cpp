@@ -43,7 +43,7 @@ int main(int argc, char* argv[])
   Spectrum<Distribution> spectrum{dist};
   Distribution dipoleDist(0.0, 35e-9);
 
-  auto solver = std::make_unique<Fitting>(fitPath.string(), layers, 0.0, 456, 0.0, 80.0);
+  auto solver = std::make_unique<Fitting>(fitPath.string(), layers, 0.0, Spectrum<Distribution>(wavelength), 0.0, 80.0);
   auto fitRes = solver->fitEmissionSubstrate();
   // for (size_t i = 0; i < fitRes.x.size(); ++i) {
   //   std::cout << fitRes.x[i] << " " << fitRes.yExp[i] << " " << fitRes.yFit[i] << "\n";

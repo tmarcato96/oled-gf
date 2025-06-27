@@ -7,51 +7,15 @@
 #include <unsupported/Eigen/NonLinearOptimization>
 #include <vector>
 
-#include "basesolver.hpp"
-#include "fitting.hpp"
 #include "indata.hpp"
 #include "linalg.hpp"
 #include "matlayer.hpp"
+#include <fitting.hpp>
 
 Fitting::Fitting(const std::string& fittingFilePath,
   const std::vector<Layer>& layers,
   const double dipolePosition,
-  const double wavelength,
-  const double sweepStart,
-  const double sweepStop) :
-  BaseSolver(layers, dipolePosition, wavelength, sweepStart, sweepStop)
-{
-  init(std::move(fittingFilePath));
-}
-
-Fitting::Fitting(Matrix& fitData,
-  const std::vector<Layer>& layers,
-  const double dipolePosition,
-  const double wavelength,
-  const double sweepStart,
-  const double sweepStop) :
-  BaseSolver(layers, dipolePosition, wavelength, sweepStart, sweepStop),
-  intensityData{fitData}
-{
-  std::string empty{};
-  init(empty);
-}
-
-Fitting::Fitting(const std::string& fittingFilePath,
-  const std::vector<Layer>& layers,
-  const double dipolePosition,
-  const std::string& spectrumFile,
-  const double sweepStart,
-  const double sweepStop) :
-  BaseSolver(layers, dipolePosition, spectrumFile, sweepStart, sweepStop)
-{
-  init(std::move(fittingFilePath));
-}
-
-Fitting::Fitting(const std::string& fittingFilePath,
-  const std::vector<Layer>& layers,
-  const double dipolePosition,
-  const Spectrum<Distribution>& spectrum,
+  Spectrum<Distribution> spectrum,
   const double sweepStart,
   const double sweepStop) :
   BaseSolver(layers, dipolePosition, spectrum, sweepStart, sweepStop)
@@ -62,7 +26,7 @@ Fitting::Fitting(const std::string& fittingFilePath,
 Fitting::Fitting(const Matrix& fitData,
   const std::vector<Layer>& layers,
   const double dipolePosition,
-  const Spectrum<Distribution>& spectrum,
+  Spectrum<Distribution> spectrum,
   const double sweepStart,
   const double sweepStop) :
   BaseSolver(layers, dipolePosition, spectrum, sweepStart, sweepStop),
@@ -75,31 +39,7 @@ Fitting::Fitting(const Matrix& fitData,
 Fitting::Fitting(const std::string& fittingFilePath,
   const std::vector<Layer>& layers,
   const Distribution& dipoleDist,
-  const double wavelength,
-  const double sweepStart,
-  const double sweepStop) :
-  BaseSolver(layers, dipoleDist, wavelength, sweepStart, sweepStop)
-{
-  init(std::move(fittingFilePath));
-}
-
-Fitting::Fitting(const Matrix& fitData,
-  const std::vector<Layer>& layers,
-  const Distribution& dipoleDist,
-  const double wavelength,
-  const double sweepStart,
-  const double sweepStop) :
-  BaseSolver(layers, dipoleDist, wavelength, sweepStart, sweepStop),
-  intensityData{fitData}
-{
-  std::string empty{};
-  init(empty);
-}
-
-Fitting::Fitting(const std::string& fittingFilePath,
-  const std::vector<Layer>& layers,
-  const Distribution& dipoleDist,
-  const Spectrum<Distribution>& spectrum,
+  Spectrum<Distribution> spectrum,
   const double sweepStart,
   const double sweepStop) :
   BaseSolver(layers, dipoleDist, spectrum, sweepStart, sweepStop)
@@ -110,7 +50,7 @@ Fitting::Fitting(const std::string& fittingFilePath,
 Fitting::Fitting(const Matrix& fitData,
   const std::vector<Layer>& layers,
   const Distribution& dipoleDist,
-  const Spectrum<Distribution>& spectrum,
+  Spectrum<Distribution> spectrum,
   const double sweepStart,
   const double sweepStop) :
   BaseSolver(layers, dipoleDist, spectrum, sweepStart, sweepStop),
