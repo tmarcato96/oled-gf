@@ -225,7 +225,7 @@ Fitting::FitRes Fitting::fitEmissionSubstrate()
   Eigen::VectorXd fitParams(2);
   // Initial guess
   fitParams(0) = 1.0;
-  fitParams(1) = 0.19;
+  fitParams(1) = 0.34;
 
   Eigen::LevenbergMarquardt<ResFunctorNumericalDiff> lm(residual);
   lm.parameters.maxfev = 2000;

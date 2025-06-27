@@ -21,6 +21,10 @@
 
 int main(int argc, char* argv[])
 {
+#ifndef PROJECT_ROOT
+#error "PROJECT_ROOT is not defined. Define it via CMake with target_compile_definitions."
+#endif
+
   // Set up stack
   double wavelength = 456;
   std::vector<Layer> layers;
@@ -31,15 +35,15 @@ int main(int argc, char* argv[])
   layers.emplace_back(Material(1.52, 0.0), -1.0);
 
   // Fitting filepath
-  // const std::string targetToFit("/src/examples/data/setfos_simple_spectrum_isotropic.txt");
-  const std::string targetToFit("C:\\Users\\mnouman\\oled-gf\\examples\\data\\3ML_processed.txt");
+  const std::filesystem::path rootPath = PROJECT_ROOT;
+  const std::filesystem::path fitPath = rootPath / "examples/data/3ML_processed.txt";
   // Spectrum
   double fwhm = 30;
   NormalDistribution dist{450, 700, wavelength, fwhm / 2.355, 50};
   Spectrum<Distribution> spectrum{dist};
   Distribution dipoleDist(0.0, 35e-9);
 
-  auto solver = std::make_unique<Fitting>(targetToFit, layers, 0.0, 456, 0.0, 80.0);
+  auto solver = std::make_unique<Fitting>(fitPath.string(), layers, 0.0, 456, 0.0, 80.0);
   auto fitRes = solver->fitEmissionSubstrate();
   // for (size_t i = 0; i < fitRes.x.size(); ++i) {
   //   std::cout << fitRes.x[i] << " " << fitRes.yExp[i] << " " << fitRes.yFit[i] << "\n";

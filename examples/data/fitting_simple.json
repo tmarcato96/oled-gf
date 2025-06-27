@@ -1,0 +1,36 @@
+{ 
+	"layer1": {
+			"thickness":-1.0,
+			"emitter":	0,
+			"material":	[1.0, 0.0]
+		},
+
+	"layer2": {
+			"thickness":35e-9,
+			"emitter":	1,
+			"material":	[1.7, 0.0]
+		},
+
+	"layer3": {
+			"thickness":5000e-9,
+			"emitter":	0,
+			"material":	[1.52, 0.0]
+		},
+
+	"layer4": {
+			"thickness":-1.0,
+			"emitter":	0,
+			"material":	[1.52, 0.0]
+		},
+
+	"sweep": {
+			"start": 0,
+			"stop": 90.0
+		},
+
+	"dipole": 0,
+
+    "fitData": "/Users/tommaso/Desktop/C++/OLED/oled-gf/examples/data/3ML_processed.txt",
+
+	"spectrum": 456	
+}
