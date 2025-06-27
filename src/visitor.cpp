@@ -86,7 +86,7 @@ void ConfigVisitor::fillBaseField() {
     if (std::holds_alternative<std::string>(_helperQueue.front())) {
       auto subfield = std::get<std::string>(return_pop(_helperQueue));
       if (subfield.contains('/') || subfield.contains('\\')) {
-        _fitData = Data::loadFromFile(subfield, 2);
+        _fitData = Data::loadFromFile(subfield, 2, '\t');
       }
       else{throw std::runtime_error("misformatted path to intensities!");}
     }

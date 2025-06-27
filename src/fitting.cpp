@@ -158,7 +158,7 @@ void Fitting::init(const std::string& fittingFile) {
   std::cout << "-----------------------------------------------------------------\n"
             << "\n\n";
 
-  if (!fittingFile.empty()) intensityData = Data::loadFromFile(fittingFile, 2);
+  if (!fittingFile.empty()) intensityData = Data::loadFromFile(fittingFile, 2, '\t');
   else if (intensityData.size() == 0) throw std::runtime_error("fitting data improperly initialized!");
   this->discretize();
   run();
