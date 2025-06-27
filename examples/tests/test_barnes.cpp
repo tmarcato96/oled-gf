@@ -3,9 +3,8 @@
 #include <basesolver.hpp>
 #include <matlayer.hpp>
 #include <simulation.hpp>
-
+#include <memory>
 #include <Eigen/Core>
-#include <matplot/matplot.h>
 
 int main()
 {
@@ -39,13 +38,4 @@ int main()
 
   std::cout << y.head(20) << '\n';
 
-  // Plot
-  matplot::semilogy(u, y)->line_width(2).color("red");
-  matplot::hold(matplot::on);
-  matplot::semilogy(u, yParapPol)->line_width(2).color("blue");
-  matplot::semilogy(u, yParasPol)->line_width(2).color("green");
-  matplot::xlim({0.0, 2.0});
-  matplot::xlabel("Normalized Wavevector");
-  matplot::ylabel("Dissipated Power");
-  matplot::show();
 }

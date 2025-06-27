@@ -6,9 +6,9 @@
 #include <simulation.hpp>
 #include <outdata.hpp>
 #include <indata.hpp>
+#include <memory>
 
 #include <Eigen/Core>
-#include <matplot/matplot.h>
 
 int main()
 {

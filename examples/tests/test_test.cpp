@@ -1,5 +1,6 @@
 #include <iostream>
 #include <fstream>
+#include <memory>
 
 #include <basesolver.hpp>
 #include <matlayer.hpp>
@@ -7,7 +8,6 @@
 #include <outdata.hpp>
 
 #include <Eigen/Core>
-#include <matplot/matplot.h>
 
 int main()
 {

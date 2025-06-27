@@ -4,6 +4,7 @@
 #include <fstream>
 #include <iostream>
 #include <string>
+#include <memory>
 #include <vector>
 
 #include <Eigen/Core>
@@ -22,6 +23,7 @@
 
 int main(int argc, char *argv[]) {
   // Set up stack
+  std::cout<<"test";
   double wavelength = 456;
   std::vector<Layer> layers;
 

@@ -5,6 +5,7 @@
 #include <complex>
 #include <functional>
 #include <format>
+#include <fstream>
 #include <initializer_list>
 #include <iostream>
 #include <iterator>
@@ -16,7 +17,6 @@
 
 #include <Eigen/Core>
 
-#include <matplot/matplot.h>
 
 
 void saveToText(const std::string& filename, char delimiter, std::initializer_list<Vector> arrays) {
@@ -26,7 +26,7 @@ void saveToText(const std::string& filename, char delimiter, std::initializer_li
   }
   else {throw std::runtime_error("All arrays must have same size");}
 
-  std::ofstream file(filename);
+  std::ofstream file{filename};
   if (file.is_open()) {
     for (Eigen::Index i=0; i < end; ++i) {
       for (const auto& array: arrays) {
@@ -71,17 +71,4 @@ int main()
   thetaGlassDeg = thetaGlass * 180 / M_PI;
   //saveToText("OLED_angle_dependent.csv", ',', {thetaGlassDeg, powerPerpAngleGlass, powerParapPolAngleGlass, powerParasPolAngleGlass});
 
-  matplot::figure();
-  matplot::plot(thetaGlassDeg, powerPerpAngleGlass, "-o");
-  matplot::hold(matplot::on);
-  matplot::plot(thetaGlassDeg, powerParapPolAngleGlass, "-o");
-  matplot::plot(thetaGlassDeg, powerParasPolAngleGlass, "-o");
-  
-  matplot::figure();
-  matplot::polarplot(thetaGlass, powerPerpAngleGlass, "-")->line_width(2);
-  matplot::hold(matplot::on);
-  matplot::polarplot(thetaGlass, powerParapPolAngleGlass, "-")->line_width(2);
-  matplot::polarplot(thetaGlass, powerParasPolAngleGlass, "-")->line_width(2);
-
-  matplot::show();
 }

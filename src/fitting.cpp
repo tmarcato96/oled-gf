@@ -6,7 +6,6 @@
 #include <iostream>
 #include <numeric>
 #include <vector>
-#include <matplot/matplot.h>
 
 #include "indata.hpp"
 #include "fitting.hpp"
