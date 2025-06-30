@@ -52,12 +52,6 @@ if(Eigen_ADDED)
 endif()
 
 CPMAddPackage(
-    NAME matplotplusplus
-    GITHUB_REPOSITORY alandefreitas/matplotplusplus
-    GIT_TAG origin/master
-)
-
-CPMAddPackage(
     NAME jsonsimplecpp
     GITHUB_REPOSITORY tmarcato96/jsonsimplecpp
     GIT_TAG main
