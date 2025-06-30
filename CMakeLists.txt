@@ -15,10 +15,6 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 set(CMAKE_TRY_COMPILE_TARGET_TYPE "STATIC_LIBRARY")
 
-project(oledgf
-        VERSION 0.1
-        LANGUAGES CXX)
-
 include(cmake/PreventInSourceBuilds.cmake)
 include(Dependencies.cmake)
 include(ProjectOptions.cmake)

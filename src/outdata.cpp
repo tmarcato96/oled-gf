@@ -1,12 +1,11 @@
 #include <fstream>
-#include <ostream>
 #include <iostream>
-#include <format>
+#include <ostream>
 #include <sstream>
 
+#include <basesolver.hpp>
 #include <forwardDecl.hpp>
 #include <jsonsimplecpp/node.hpp>
-#include <basesolver.hpp>
 #include <outdata.hpp>
 
 using JsonNode = Json::JsonNode<Json::PrintVisitor>;
@@ -19,38 +18,41 @@ Data::Results::Results(const BaseSolver& solver) :
   powerUpPerp{solver.fracPowerPerpUpPol},
   powerUpPara{solver.fracPowerParaUpPol},
   powerUsPara{solver.fracPowerParaUsPol}
-  {}
+{}
 
-std::string Data::Results::vecToString(const Vector& vec) {
+std::string Data::Results::vecToString(const Vector& vec)
+{
   std::stringstream ss;
   ss << vec;
   return ss.str();
 }
 
-std::string Data::Results::layerToString(const Matrix& mat, Eigen::Index layerNum) {
-    std::stringstream ss;
-    ss << mat(layerNum, Eigen::all);
-    return ss.str();
+std::string Data::Results::layerToString(const Matrix& mat, Eigen::Index layerNum)
+{
+  std::stringstream ss;
+  ss << mat(layerNum, Eigen::all);
+  return ss.str();
 }
 
-void Data::Exporter::print() {
-    _root.print();
-}
+void Data::Exporter::print() { _root.print(); }
 
 Data::Exporter::Exporter(const BaseSolver& solver, std::ostream& sout) :
   _results{solver},
   _visitor{new Json::PrintVisitor(sout)}
-  {makeTree();}
+{
+  makeTree();
+}
 
-void Data::Exporter::makeTree() {
+void Data::Exporter::makeTree()
+{
 
   std::string layerUpPerp, layerUpPara, layerUsPara, u;
   std::unique_ptr<JsonNode> alphaVal(new JsonNode{_results.alpha, _visitor});
   std::unique_ptr<JsonObject> rootObj(new JsonObject());
   (*rootObj)["alpha"] = std::move(alphaVal);
 
-  for(Eigen::Index layerIdx = 0; layerIdx < _results.powerUpPerp.rows(); layerIdx++) {
-    std::string layer = std::format("layer {}", size_t(layerIdx));
+  for (Eigen::Index layerIdx = 0; layerIdx < _results.powerUpPerp.rows(); layerIdx++) {
+    std::string layer = "layer" + std::to_string(static_cast<size_t>(layerIdx));
 
     layerUpPerp = _results.layerToString(_results.powerUpPerp, layerIdx);
     layerUpPara = _results.layerToString(_results.powerUpPara, layerIdx);

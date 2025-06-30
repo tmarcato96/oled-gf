@@ -4,8 +4,6 @@
 #include <cmath>
 #include <complex>
 #include <functional>
-#include <format>
-#include <fstream>
 #include <initializer_list>
 #include <iostream>
 #include <iterator>
@@ -16,27 +14,6 @@
 #include <simulation.hpp>
 
 #include <Eigen/Core>
-
-
-
-void saveToText(const std::string& filename, char delimiter, std::initializer_list<Vector> arrays) {
-  Eigen::Index end;
-  if (std::all_of(arrays.begin(), arrays.end(), [first = arrays.begin()](const Vector& array){return array.size()==first->size();})) {
-   end = arrays.begin()->size();
-  }
-  else {throw std::runtime_error("All arrays must have same size");}
-
-  std::ofstream file{filename};
-  if (file.is_open()) {
-    for (Eigen::Index i=0; i < end; ++i) {
-      for (const auto& array: arrays) {
-        file << std::format("{:5}", array(i)) << delimiter;
-      }
-      file << std::endl;
-    }
-  }
-  else {throw std::runtime_error("Unable to open file");}
-}
 
 int main()
 {
@@ -52,10 +29,9 @@ int main()
   layers.emplace_back(Material(1.52, 0.0), 5000e-9);
   layers.emplace_back(Material(1.52, 0.0), -1.0);
 
-
   // Spectrum
   const double fwhm = 30;
-  NormalDistribution dist{450, 700, wavelength, fwhm/2.355, 50};
+  NormalDistribution dist{450, 700, wavelength, fwhm / 2.355, 50};
   Spectrum<Distribution> spectrum{dist};
 
   // Create Solver
@@ -64,11 +40,12 @@ int main()
   simulation->run();
   // Polar figure
   Eigen::ArrayXd thetaGlass, powerPerpAngleGlass, powerParasPolAngleGlass, powerParapPolAngleGlass;
-  simulation->calculateEmissionSubstrate(thetaGlass, powerPerpAngleGlass, powerParapPolAngleGlass, powerParasPolAngleGlass);
+  simulation->calculateEmissionSubstrate(
+    thetaGlass, powerPerpAngleGlass, powerParapPolAngleGlass, powerParasPolAngleGlass);
 
   // Save to file
   Vector thetaGlassDeg(thetaGlass.size());
   thetaGlassDeg = thetaGlass * 180 / M_PI;
-  //saveToText("OLED_angle_dependent.csv", ',', {thetaGlassDeg, powerPerpAngleGlass, powerParapPolAngleGlass, powerParasPolAngleGlass});
-
+  // saveToText("OLED_angle_dependent.csv", ',', {thetaGlassDeg, powerPerpAngleGlass, powerParapPolAngleGlass,
+  // powerParasPolAngleGlass});
 }

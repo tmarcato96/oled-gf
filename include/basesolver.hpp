@@ -8,52 +8,58 @@
 !*/
 #pragma once
 
-#include <vector>
 #include <string>
+#include <vector>
 
 #include <Eigen/Core>
 #include <forwardDecl.hpp>
 #include <matlayer.hpp>
 #include <sstream>
 
-struct Distribution { //Linear distribution
+struct Distribution
+{ // Linear distribution
 
   double lBound;
   double hBound;
-  Vector positions;
+  Vector values;
 
-  Distribution(double xLeft, double xRight, size_t numPoints=20);
+  Distribution(double xLeft, double xRight, size_t numPoints = 20);
+  Distribution(double value);
   Distribution() = default;
-
 };
 
-struct NormalDistribution : public Distribution {
+struct NormalDistribution : public Distribution
+{
 
-  NormalDistribution(double xmin, double xmax, double x0, double sigma, size_t NumPoints=20);
-
+  NormalDistribution(double xmin, double xmax, double x0, double sigma, size_t NumPoints = 20);
 };
 
-template <typename DistType> 
-struct Spectrum {
-  
-  public:
-    Matrix spectrum;
-    DistType distr;
+template<typename DistType> struct Spectrum
+{
 
-    Spectrum(DistType& dist) {
-      distr = dist;
-      make_spectrum();
-    }
+public:
+  Matrix spectrum;
+  DistType distr;
 
-    Spectrum() = default;
+  Spectrum(DistType dist) :
+    distr(std::move(dist))
+  {
+    make_spectrum();
+  }
 
-  protected:
-    void make_spectrum() {
-      size_t numPoints = distr.positions.size();
+  Spectrum() = default;
+
+protected:
+  void make_spectrum()
+  {
+    size_t numPoints = distr.values.size();
+    if (numPoints > 1) {
       spectrum.resize(numPoints, 2);
-      spectrum.col(0) = distr.positions;
+      spectrum.col(0) = distr.values;
       spectrum.col(1) = Eigen::ArrayXd::LinSpaced(numPoints, distr.lBound, distr.hBound);
     }
+    else spectrum = Matrix::Constant(1, 2, distr.values(0));
+  }
 };
 
 //! A Struct to contain all the Green's Function coefficients.
@@ -85,44 +91,19 @@ struct SolverCoefficients
 class BaseSolver
 {
 protected:
+  BaseSolver(const std::vector<Layer>& Layer,
+    const double dipolePosition,
+    Spectrum<Distribution> spectrum,
+    const double sweepStart,
+    const double sweepStop,
+    const double alpha = 1.0 / 3.0);
+
   BaseSolver(const std::vector<Layer>& layers,
-    const double dipolePosition,
-    const double wavelength,
-    const double sweepStart,
-    const double sweepStop,
-    const double alpha=1.0/3.0);
-  /*!< BaseSolver class constructor, the constructor takes a (std) vector of class Material containing the materials of
-  the stack to be simulated, a (std) vector of layer thicknesses with matching indices, the index of the dipole layer,
-  the dipole position within the stack and the chosen wavelength to be used for the essential calculations needed for
-  both Simulation and Fitting.*/
-  
-  BaseSolver(const std::vector<Layer>& layers,
-    const double dipolePosition,
-    const std::string& spectrumFile,
-    const double sweepStart,
-    const double sweepStop,
-    const double alpha=1.0/3.0);
-
-BaseSolver(const std::vector<Layer>& Layer,
-    const double dipolePosition,
-    const Spectrum<Distribution>& spectrum,
-    const double sweepStart,
-    const double sweepStop,
-    const double alpha=1.0/3.0);
-
-BaseSolver(const std::vector<Layer>& Layer,
     const Distribution& dipoleDist,
-    const double wavelength,
+    Spectrum<Distribution> spectrum,
     const double sweepStart,
     const double sweepStop,
-    const double alpha=1.0/3.0);
-
-BaseSolver(const std::vector<Layer>& layers,
-    const Distribution& dipoleDist,
-    const Spectrum<Distribution>& spectrum,
-    const double sweepStart,
-    const double sweepStop,
-    const double alpha=1.0/3.0);
+    const double alpha = 1.0 / 3.0);
 
   std::vector<Layer> layers;
   Eigen::Index dipoleLayer;
@@ -202,13 +183,13 @@ public:
   using CMPLX = std::complex<double>;
 
   virtual ~BaseSolver() = default;
-  
+
   Vector const& getInPlaneWavevector() const;
   Matrix const& getPowerUpPerp() const;
   Matrix const& getPowerUpPara() const;
   Matrix const& getPowerUsPara() const;
   Eigen::Index getDipoleIndex() const;
-  
+
   double alpha;
 
   CMatrix powerPerpUpPol;

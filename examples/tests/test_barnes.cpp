@@ -22,7 +22,7 @@ int main()
 
   // Spectrum
   const double fwhm = 30;
-  NormalDistribution dist{450, 700, wavelength, fwhm/2.355, 50};
+  NormalDistribution dist{450, 700, wavelength, fwhm / 2.355, 50};
   Spectrum<Distribution> spectrum{dist};
 
   // Create Solver
@@ -37,5 +37,4 @@ int main()
   Vector const& yParasPol = simulation->fracPowerParaUsPol.row(dipoleIndex - 1).head(u.size());
 
   std::cout << y.head(20) << '\n';
-
 }

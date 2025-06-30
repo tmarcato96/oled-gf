@@ -1,11 +1,10 @@
-#include <iostream>
 #include <fstream>
-#include <memory>
+#include <iostream>
 
 #include <basesolver.hpp>
 #include <matlayer.hpp>
-#include <simulation.hpp>
 #include <outdata.hpp>
+#include <simulation.hpp>
 
 #include <Eigen/Core>
 
@@ -27,13 +26,15 @@ int main()
 
   // Spectrum
   // THINGS TO DO: MOVE SIMULATION CONSTRUCTORS, CREATE NEW UNIFORM SPECTRUM MODE
-  const double wavelength = 535;
-  // DipoleDistribution dipolePositions{};
-  // dipolePositions.dipolePositions = Vector::LinSpaced(11, 0, 20e-9);
+  double wavelength = 535;
 
   // Create Solver
-  auto simulation = std::make_unique<Simulation>(
-    SimulationMode::ModeDissipation, layers, 0.0, wavelength, 0.0, std::cos(std::complex<double>(0.0, 1.8)).real());
+  auto simulation = std::make_unique<Simulation>(SimulationMode::ModeDissipation,
+    layers,
+    0.0,
+    Spectrum<Distribution>(wavelength),
+    0.0,
+    std::cos(std::complex<double>(0.0, 1.8)).real());
   simulation->run();
   auto dipoleIndex = simulation->getDipoleIndex();
 
@@ -46,14 +47,4 @@ int main()
   std::ofstream output("C:\\Users\\mnouman\\oled-gf\\mat\\segfault.json");
   Data::Exporter exporter(*simulation, output);
   exporter.print();
-
-  // Plot
-  //matplot::semilogy(u, y)->line_width(2).color("red");
-  //matplot::hold(matplot::on);
-  //matplot::semilogy(u, yParapPol)->line_width(2).color("blue");
-  //matplot::semilogy(u, yParasPol)->line_width(2).color("green");
-  //matplot::xlim({0.0, 2.0});
-  //matplot::xlabel("Normalized Wavevector");
-  //matplot::ylabel("Dissipated Power");
-  //matplot::show();
 }
