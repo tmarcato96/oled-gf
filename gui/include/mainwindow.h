@@ -51,7 +51,8 @@ protected slots:
   void onSave();
 
   void savePlot();
-  void displayPlot();
+  void displayPlot(Data::SolverMode calledMode);
+  void displayPolarPlot();
   void deletePlot();
 };
 
@@ -64,7 +65,7 @@ class MonitoredTab : public QWidget
   QVBoxLayout* _layout;
   bool _plotAvail;
 
-  friend void MainWindow::refreshPreviewTab(MonitoredTab* tab);
+  friend class MainWindow;
 
 public:
   MonitoredTab() = delete; // helps avoid memory leaks

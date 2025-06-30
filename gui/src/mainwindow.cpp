@@ -225,14 +225,18 @@ void MainWindow::createMenus() {
     //Plot
     QMenu *plotMenu = menuBar->addMenu(tr("&Plot"));
 
+    auto fitPlotAction = new QAction("show fitting plot", this);
+    connect(fitPlotAction, &QAction::triggered, this,[this](){
+                                                        displayPlot(Data::SolverMode::fitting);});
+    plotMenu->addAction(fitPlotAction);
+
     auto plotDisAction = new QAction("show dissipation plot", this);
-    connect(plotDisAction, &QAction::triggered, this, [this]{_currentTab->setPlot(0);
-                                                             displayPlot();});
+    connect(plotDisAction, &QAction::triggered, this, [this](){
+                                                        displayPlot(Data::SolverMode::simulation);});
     plotMenu->addAction(plotDisAction);
 
     auto plotPolarAction = new QAction("show polar plot", this);
-    connect(plotPolarAction, &QAction::triggered, this, [this]{_currentTab->setPlot(1);
-                                                               displayPlot();});
+    connect(plotPolarAction, &QAction::triggered, this, displayPolarPlot);
     plotMenu->addAction(plotPolarAction);
 
     QMenu *colorPlotSubMenu =  plotMenu->addMenu("color");
@@ -265,7 +269,8 @@ void MainWindow::createToolbar()
     toolBar->addAction(importAction);
     
     auto startAction = new QAction(QIcon::fromTheme(Icon::MediaPlaybackStart), "Start Plot", this);
-    connect(startAction, &QAction::triggered, this, &MainWindow::displayPlot);
+    connect(startAction, &QAction::triggered, this, [this](){auto solverMode = this->_currentTab->_thread->worker->getMode();
+                                                             displayPlot(solverMode);});
     toolBar->addAction(startAction);
 
     auto stopAction = new QAction(QIcon::fromTheme(Icon::MediaPlaybackStop), "Stop Plot", this);
@@ -445,10 +450,20 @@ void MainWindow::savePlot()
     }
 }
 
-void MainWindow::displayPlot() {
-    if (_currentTab->plotAvail()) refreshPreviewTab(_currentTab);
+void MainWindow::displayPlot(Data::SolverMode calledMode) {
+    if(_currentTab->_thread == nullptr) QMessageBox::warning(this, tr("missing job"), tr("Please start a job first!"));
+    else if (_currentTab->_thread->worker->getMode() != calledMode) QMessageBox::warning(this, tr("job mode mismatch"), tr("The plot type selected does not match the job mode!"));
     else {
-        QMessageBox::warning(this, tr("Unspecified plot"), tr("Please specify plot type first!"));
+        _currentTab->setPlot(0);
+        refreshPreviewTab(_currentTab);
+    }
+}
+
+void MainWindow::displayPolarPlot() {
+    if(_currentTab->_thread == nullptr) QMessageBox::warning(this, tr("missing job"), tr("Please start a job first!"));
+    else {
+        _currentTab->setPlot(1);
+        refreshPreviewTab(_currentTab);
     }
 }
 
