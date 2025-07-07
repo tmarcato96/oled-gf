@@ -15,6 +15,8 @@
 #include <QThread>
 #include <QPair>
 #include <QwtPlot>
+#include <qwt_series_data.h>
+#include <qwt_point_polar.h>
 
 namespace UIthreading {
 
@@ -57,10 +59,25 @@ namespace UIthreading {
             ThreadManager(const QString& configFilepath, QObject* parent=nullptr);
             ~ThreadManager();
 
-            QwtPlot* makePlot(bool polarFlag);
+            QFrame* makePlot(bool polarFlag);
             
         signals:
             void solverStatus(bool status);
             void errorSignal(const QString errorString);
+    };
+
+    class PolarData : public QwtSeriesData<QwtPointPolar>
+    {
+        public:
+            PolarData();
+            PolarData(const QVector<QwtPointPolar>& points);
+
+            virtual size_t size() const override;
+            virtual QwtPointPolar sample(size_t i) const override;
+            virtual QRectF boundingRect() const override;
+            void push_back(QwtPointPolar elem);
+            
+        private:
+            QVector<QwtPointPolar> _points;
     };
 }

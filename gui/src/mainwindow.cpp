@@ -28,20 +28,22 @@
 #include <QImageWriter>
 #include <qwt_plot.h>
 #include <qwt_plot_curve.h>
+#include <qwt_polar_plot.h>
 
 
 
 //monitored window stuff
 void MonitoredTab::makeCanvas() {
-    plot = new QwtPlot(this);
-    plot->setTitle("Perfectly Accurate Plot");
-    plot->setCanvasBackground(Qt::white);
+    auto emptyPlot = new QwtPlot(this);
+    emptyPlot->setTitle("Perfectly Accurate Plot");
+    emptyPlot->setCanvasBackground(Qt::white);
 
-    auto zoomer = new QwtPlotZoomer(plot->canvas());
+    auto zoomer = new QwtPlotZoomer(emptyPlot->canvas());
     zoomer->setRubberBand(QwtPlotZoomer::RectRubberBand);
     zoomer->setRubberBandPen(QPen(Qt::red));
     zoomer->setTrackerMode(QwtPlotZoomer::AlwaysOn);
 
+    plot = emptyPlot;
     if(_layout==nullptr) {
         _layout = new QVBoxLayout(this);
         _layout->setContentsMargins(0, 0, 0, 0);
@@ -94,11 +96,11 @@ bool MonitoredTab::plotAvail() {
 }
 
 void MonitoredTab::setPlot(bool polarFlag) {
-    if (_thread == nullptr) return; //maybe displaying sth would be nice
+    if (_thread == nullptr) return;                     //maybe displaying sth would be nice
     while (QLayoutItem* item = _layout->takeAt(0)) {
         if (QWidget* widget = item->widget()) {
             widget->setParent(nullptr);
-            widget->deleteLater(); 
+            widget->deleteLater();
         }
     }
     plot = _thread->makePlot(polarFlag);
@@ -269,8 +271,9 @@ void MainWindow::createToolbar()
     toolBar->addAction(importAction);
     
     auto startAction = new QAction(QIcon::fromTheme(Icon::MediaPlaybackStart), "Start Plot", this);
-    connect(startAction, &QAction::triggered, this, [this](){auto solverMode = this->_currentTab->_thread->worker->getMode();
-                                                             displayPlot(solverMode);});
+    connect(startAction, &QAction::triggered, this, [this](){if (this->_currentTab->_thread != nullptr) {
+                                                             auto solverMode = this->_currentTab->_thread->worker->getMode();
+                                                             displayPlot(solverMode);}});
     toolBar->addAction(startAction);
 
     auto stopAction = new QAction(QIcon::fromTheme(Icon::MediaPlaybackStop), "Stop Plot", this);
@@ -312,10 +315,10 @@ void MainWindow::createCentralWidget() {
 
 void MainWindow::createCanvas() {
     if(_currentTab->plot == nullptr) {
-
-        _currentTab->plot = new QwtPlot(this);
-        _currentTab->plot->setTitle("Perfectly Accurate Plot");
-        _currentTab->plot->setCanvasBackground(Qt::white);
+        auto failurePlot = new QwtPlot(this);
+        failurePlot = new QwtPlot(this);
+        failurePlot->setTitle("Backup Plot (tab failure)");
+        failurePlot->setCanvasBackground(Qt::white);
 
         auto curve = new QwtPlotCurve();
         curve->setTitle("Sample Curve");
@@ -325,17 +328,22 @@ void MainWindow::createCanvas() {
         QVector<double> xData = {0, 1, 2, 3, 4, 5};
         QVector<double> yData = {0, 1, 4, 9, 16, 25};
         curve->setSamples(xData, yData);
-        curve->attach(_currentTab->plot);
+        curve->attach(failurePlot);
 
-        auto zoomer = new QwtPlotZoomer(_currentTab->plot->canvas());
+        auto zoomer = new QwtPlotZoomer(failurePlot->canvas());
         zoomer->setRubberBand(QwtPlotZoomer::RectRubberBand);
         zoomer->setRubberBandPen(QPen(Qt::red));
         zoomer->setTrackerMode(QwtPlotZoomer::AlwaysOn);
         _plotStatus = 0;
     }
-    else { 
-        _currentTab->plot->replot(); //updates plot
-        _plotStatus = 1;
+    else {
+        if(auto plot = dynamic_cast<QwtPlot*> (_currentTab->plot)){
+            plot->replot(); //updates plot
+            _plotStatus = 1;
+        }
+        else if (auto plot = dynamic_cast<QwtPolarPlot*> (_currentTab->plot))
+            plot->replot();
+            _plotStatus = 1;
     }
         _centralStack->setCurrentWidget(_currentTab);
 }

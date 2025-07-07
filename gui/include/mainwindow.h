@@ -83,7 +83,7 @@ public:
   void setPlot(bool polarFlag);
   void saveToFile(const QString& savePath);
 
-  QwtPlot* plot;
+  QFrame* plot;
 
 protected:
   void changeEvent(QEvent* event) override;

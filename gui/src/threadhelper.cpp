@@ -1,3 +1,4 @@
+#define _USE_MATH_DEFINES
 #include "threadhelper.h"
 
 #include <set>
@@ -25,6 +26,15 @@
 #include <qwt_symbol.h>
 #include <qwt_plot_zoomer.h>
 #include <qwt_plot_canvas.h>
+
+#include <qwt_point_polar.h>
+#include <qwt_polar_curve.h>
+#include <qwt_polar_canvas.h>
+#include <qwt_polar_grid.h>
+#include <qwt_polar_marker.h>
+#include <qwt_polar_renderer.h>
+#include <qwt_series_data.h>
+
 
 using namespace UIthreading;
 
@@ -150,54 +160,55 @@ ThreadManager::~ThreadManager() {
     _workerThread.wait();
 }
 
-QwtPlot* ThreadManager::makePlot(bool polarFlag) {
+QFrame* ThreadManager::makePlot(bool polarFlag) {
     if(!worker->solverAvail()) {
         emit errorSignal("Start the solver before trying to plot!");
         return nullptr;
     }
     
-    auto plot = new QwtPlot();
-    if(!polarFlag) {
-        if(worker->getMode() == Data::SolverMode::fitting){
-            auto fitData = worker->getFitPlotData();
-            QVector<double> x{fitData.x.begin(), fitData.x.end()};
-            QVector<double> yExp{fitData.yExp.begin(), fitData.yExp.end()};
-            QVector<double> yFit{fitData.yFit.begin(), fitData.yFit.end()};
-            
-            if(!polarFlag) {
-                plot->setTitle("Fitting Results");
-                plot->setCanvas(new QwtPlotCanvas());
-                plot->setCanvasBackground(Qt::white);
-                plot->setAxisTitle(QwtPlot::xBottom, "X");
-                plot->setAxisTitle(QwtPlot::yLeft, "Y");
-                
-                QwtPlotCurve *scatterCurve = new QwtPlotCurve("Exp");
-                QwtSymbol *symbol = new QwtSymbol(QwtSymbol::Triangle, QBrush(Qt::blue), QPen(Qt::black), QSize(8, 8));
-                scatterCurve->setSymbol(symbol);
-                scatterCurve->setStyle(QwtPlotCurve::NoCurve); // No connecting line
-                scatterCurve->setLegendAttribute(QwtPlotCurve::LegendShowSymbol, true);
-                scatterCurve->setLegendAttribute(QwtPlotCurve::LegendShowLine, false);
-                scatterCurve->setSamples(x, yExp);
-                scatterCurve->attach(plot);
-
-
-                QwtPlotCurve *fitCurve = new QwtPlotCurve("Fit");
-                fitCurve->setLegendAttribute(QwtPlotCurve::LegendShowSymbol, false);
-                fitCurve->setLegendAttribute(QwtPlotCurve::LegendShowLine, true);
-                fitCurve->setSamples(x, yFit);
-                fitCurve->attach(plot);
-
-                QwtPlotZoomer *zoomer = new QwtPlotZoomer(plot->canvas());
-                zoomer->setRubberBandPen(QColor(Qt::red));
-                zoomer->setTrackerPen(QColor(Qt::blue));
-                QwtLegend *legend = new QwtLegend();
-                plot->insertLegend(legend);
-            }
-        }
+    if(worker->getMode() == Data::SolverMode::fitting) {
+        auto plot = new QwtPlot();
+        auto fitData = worker->getFitPlotData();
+        QVector<double> x{fitData.x.begin(), fitData.x.end()};
+        QVector<double> yExp{fitData.yExp.begin(), fitData.yExp.end()};
+        QVector<double> yFit{fitData.yFit.begin(), fitData.yFit.end()};
         
-        else{
-            auto simData = worker->getSimPlotData();
-            //there's no good way around this
+        plot->setTitle("Fitting Results");
+        plot->setCanvas(new QwtPlotCanvas());
+        plot->setCanvasBackground(Qt::white);
+        plot->setAxisTitle(QwtPlot::xBottom, "X");
+        plot->setAxisTitle(QwtPlot::yLeft, "Y");
+        
+        QwtPlotCurve *scatterCurve = new QwtPlotCurve("Exp");
+        QwtSymbol *symbol = new QwtSymbol(QwtSymbol::Triangle, QBrush(Qt::blue), QPen(Qt::black), QSize(8, 8));
+        scatterCurve->setSymbol(symbol);
+        scatterCurve->setStyle(QwtPlotCurve::NoCurve); // No connecting line
+        scatterCurve->setLegendAttribute(QwtPlotCurve::LegendShowSymbol, true);
+        scatterCurve->setLegendAttribute(QwtPlotCurve::LegendShowLine, false);
+        scatterCurve->setSamples(x, yExp);
+        scatterCurve->attach(plot);
+
+
+        QwtPlotCurve *fitCurve = new QwtPlotCurve("Fit");
+        fitCurve->setLegendAttribute(QwtPlotCurve::LegendShowSymbol, false);
+        fitCurve->setLegendAttribute(QwtPlotCurve::LegendShowLine, true);
+        fitCurve->setSamples(x, yFit);
+        fitCurve->attach(plot);
+
+        QwtPlotZoomer *zoomer = new QwtPlotZoomer(plot->canvas());
+        zoomer->setRubberBandPen(QColor(Qt::red));
+        zoomer->setTrackerPen(QColor(Qt::blue));
+        QwtLegend *legend = new QwtLegend();
+        plot->insertLegend(legend);
+
+        return plot;
+    }        
+    else{
+        auto simData = worker->getSimPlotData();
+        //there's no good way around this
+
+        if(!polarFlag) {
+            auto plot = new QwtPlot();
             QVector<double> u{simData.u.begin(), simData.u.end()};
             QVector<double> yParaUs{simData.yParaUsPol.begin(), simData.yParaUsPol.end()};
             QVector<double> yParaUp{simData.yParaUpPol.begin(), simData.yParaUpPol.end()};
@@ -235,10 +246,66 @@ QwtPlot* ThreadManager::makePlot(bool polarFlag) {
             zoomer->setTrackerPen(QColor(Qt::blue));
             QwtLegend *legend = new QwtLegend();
             plot->insertLegend(legend);
+
+            return plot;
+        }
+        else{
+            QwtPolarPlot *polarPlot = new QwtPolarPlot();
+
+            //polar plot does not follow the same structure as QwtPlot
+            PolarData *paraUsPoints = new PolarData();
+            PolarData *paraUpPoints = new PolarData();
+            PolarData *perpPoints = new PolarData();
+
+            for(size_t i = 0; i < simData.x.size(); i++) {
+                double angle = simData.x[i]*180/M_PI;
+                paraUsPoints->push_back({angle, simData.yParaUsPol[i]});
+                paraUpPoints->push_back({angle, simData.yParaUsPol[i]});
+                perpPoints->push_back({angle, simData.yParaUsPol[i]});
+            }
+
+            QwtPolarCurve *paraUsCurve = new QwtPolarCurve("s-Para");
+            paraUsCurve->setLegendAttribute(QwtPolarCurve::LegendShowSymbol, false);
+            paraUsCurve->setLegendAttribute(QwtPolarCurve::LegendShowLine, true);
+            paraUsCurve->setPen(QPen(Qt::red));
+            paraUsCurve->setData(paraUsPoints);
+            paraUsCurve->attach(polarPlot);
+    
+            QwtPolarCurve *paraUpCurve = new QwtPolarCurve("p-Para");
+            paraUpCurve->setLegendAttribute(QwtPolarCurve::LegendShowSymbol, false);
+            paraUpCurve->setLegendAttribute(QwtPolarCurve::LegendShowLine, true);
+            paraUpCurve->setPen(QPen(Qt::green));
+            paraUpCurve->setData(paraUpPoints);
+            paraUpCurve->attach(polarPlot);
+
+            QwtPolarCurve *perpCurve = new QwtPolarCurve("(p)-Perp");
+            perpCurve->setLegendAttribute(QwtPolarCurve::LegendShowSymbol, false);
+            perpCurve->setLegendAttribute(QwtPolarCurve::LegendShowLine, true);
+            perpCurve->setPen(QPen(Qt::blue));
+            perpCurve->setData(perpPoints);
+            perpCurve->attach(polarPlot);
+
+            QwtPolarGrid* grid = new QwtPolarGrid();
+            grid->setPen(QPen(Qt::gray));
+            grid->attach(polarPlot);
+
+            return polarPlot;
         }
     }
-    else{
-        return nullptr; //polar plot to be implemented soon
-    }
-    return plot;
 }
+
+PolarData::PolarData(const QVector<QwtPointPolar>& points)
+    : _points{points}
+    {}
+
+PolarData::PolarData()
+    : _points{}
+    {}
+
+size_t PolarData::size() const {return _points.size();}
+
+QwtPointPolar PolarData::sample(size_t i) const {return _points[i];}
+
+QRectF PolarData::boundingRect() const {return QRectF();}
+
+void PolarData::push_back(QwtPointPolar elem) {_points.push_back(elem);}
