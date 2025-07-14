@@ -20,7 +20,8 @@ template<typename... Ts> struct Types
   using map_types = std::variant<Ts...>;
 };
 
-template<typename Values> struct VariantHolder
+template<typename Values> 
+struct VariantHolder
 {
   using value_type = typename Values::map_types;
   value_type value;
@@ -32,7 +33,7 @@ template<typename Values> struct VariantHolder
 
   VariantHolder& operator=(value_type&& v)
   {
-    value = std::move(v);
+    value = std::forward(v);
     return *this;
   }
 };
@@ -184,7 +185,7 @@ struct KeySelectionProxy {
     // operation function generators
     template<typename T> 
     auto makeSumOp(const T& operand) { // nested lambda here avoids headaches. Other approaches weren't as effective
-    return [=](value_type& val) {
+    return [=](typename value_type& val) {
         std::visit(
         [&](auto& v) {
             using V = std::decay_t<decltype(v)>;
