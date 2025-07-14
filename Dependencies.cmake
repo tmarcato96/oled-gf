@@ -61,6 +61,12 @@ CPMAddPackage(
     GIT_TAG main
 )
 
+FetchContent_Declare(
+  QtQwt
+  GIT_REPOSITORY "https://github.com/ZIMO-Elektronik/QtQwt"
+  GIT_TAG v6.3.0)
+
+
 cpmaddpackage("gh:ZIMO-Elektronik/QtQwt@6.3.0")
 
 endfunction()
