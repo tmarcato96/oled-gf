@@ -10,11 +10,13 @@
 
 #include <string>
 #include <vector>
+#include <sstream>
 
 #include <Eigen/Core>
+
 #include <forwardDecl.hpp>
 #include <matlayer.hpp>
-#include <sstream>
+#include <polymap.hpp>
 
 struct Distribution
 { // Linear distribution
