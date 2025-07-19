@@ -1,6 +1,5 @@
 #pragma once
 
-#include <Eigen/Core>
 #include <concepts>
 #include <functional>
 #include <iostream>
@@ -139,8 +138,7 @@ struct KeySelectionProxy {
       {}
 
   // basic operators
-  KeySelectionProxy<Values>& operator=(const KeySelectionProxy<Values>&& operand) {
-    auto other = operand;
+KeySelectionProxy<Values>& operator=(KeySelectionProxy<Values>&& other) {
     if (this->keys.size() != other.keys.size()) {
         throw std::runtime_error("KeySelectionProxy assignment requires matching key counts");
     }
@@ -153,31 +151,27 @@ struct KeySelectionProxy {
         auto itSrc = other.source->polyMap.find(sourceKey);
         if (itDst == source->polyMap.end() || itSrc == other.source->polyMap.end()) continue;
 
+        value_type& dstVal = itDst->second.value;
+
+        // Make a copy of the source value so we can evaluate into it
         value_type evaluated = itSrc->second.value;
 
-        // Apply any deferred operations from 'other'
-        for (const auto& [opKey, opFunc] : other.operations) {
-            if (*opKey == sourceKey) {
-                opFunc(evaluated);  // Apply to copy
-            }
-        }
+        std::visit([&](auto& val) {
+            using T = std::decay_t<decltype(val)>;
 
-        // Safe assignment using std::visit
-        std::visit([&](auto&& srcVal) {
-            using T = std::decay_t<decltype(srcVal)>;
-            std::visit([&](auto& dstVal) {
-                using U = std::decay_t<decltype(dstVal)>;
-                if constexpr (std::is_same_v<T, U>) {
-                    dstVal = srcVal;
-                } else {
-                    throw std::runtime_error("Mismatched variant types during assignment.");
+            // Apply deferred operations from 'other' (only those for this sourceKey)
+            for (const auto& [opKey, opFunc] : other.operations) {
+                if (opKey == nullptr || *opKey == sourceKey) {
+                    opFunc(evaluated);  // Apply operation to our local copy
                 }
-            }, itDst->second.value);
-        }, evaluated);
-      }
+            }
 
-      return *this;
-  }
+            dstVal = evaluated;
+        }, evaluated);
+    }
+
+    return *this;
+}
 
   template<typename T>
   KeySelectionProxy operator+(const T& increment) {
