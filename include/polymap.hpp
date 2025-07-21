@@ -110,15 +110,30 @@ struct PolyMap {
 
   auto& operator[](const std::string& key) { return polyMap[key]; }
 
-  template<typename... Keys>
-  auto operator()(Keys&&... keys) {
-    return KeySelectionProxy<Values>(this, {std::forward<Keys>(keys)...});
-  }
+template<typename... Keys>
+auto operator()(Keys&&... keys) {
+    static_assert((std::is_convertible_v<Keys, std::string> && ...),
+                  "All keys must be convertible to std::string");
+
+    std::vector<std::string> keyVec = {std::forward<Keys>(keys)...};
+
+    for (const auto& key : keyVec) {
+        if (polyMap.find(key) == polyMap.end()) {
+            throw std::runtime_error("Key not found in polyMap: " + key);
+        }
+    }
+
+    return KeySelectionProxy<Values>(this, std::move(keyVec));
+}
 
   auto operator()(All_t) {
-    std::set<std::string> allKeys;
+    std::vector<std::string> allKeys;
     for (const auto& [key, _] : polyMap) allKeys.insert(key);
     return KeySelectionProxy<Values>(this, allKeys);
+  }
+
+  auto operator()() {
+    (*this)(All_t{});
   }
 };
 
@@ -137,40 +152,40 @@ struct KeySelectionProxy {
       operations{std::move(ops)} 
       {}
 
-  // basic operators
+// basic operators
 KeySelectionProxy<Values>& operator=(KeySelectionProxy<Values>&& other) {
-    if (this->keys.size() != other.keys.size()) {
-        throw std::runtime_error("KeySelectionProxy assignment requires matching key counts");
-    }
+  if (this->keys.size() != other.keys.size()) {
+      throw std::runtime_error("KeySelectionProxy assignment requires matching key counts");
+  }
 
-    for (size_t i = 0; i < keys.size(); ++i) {
-        const std::string& targetKey = this->keys[i];
-        const std::string& sourceKey = other.keys[i];
+  for (size_t i = 0; i < keys.size(); ++i) {
+      const std::string& targetKey = this->keys[i];
+      const std::string& sourceKey = other.keys[i];
 
-        auto itDst = source->polyMap.find(targetKey);
-        auto itSrc = other.source->polyMap.find(sourceKey);
-        if (itDst == source->polyMap.end() || itSrc == other.source->polyMap.end()) continue;
+      auto itDst = source->polyMap.find(targetKey);
+      auto itSrc = other.source->polyMap.find(sourceKey);
+      if (itDst == source->polyMap.end() || itSrc == other.source->polyMap.end()) continue;
 
-        value_type& dstVal = itDst->second.value;
+      value_type& dstVal = itDst->second.value;
 
-        // Make a copy of the source value so we can evaluate into it
-        value_type evaluated = itSrc->second.value;
+      // Make a copy of the source value so we can evaluate into it
+      value_type evaluated = itSrc->second.value;
 
-        std::visit([&](auto& val) {
-            using T = std::decay_t<decltype(val)>;
+      std::visit([&](auto& val) {
+          using T = std::decay_t<decltype(val)>;
 
-            // Apply deferred operations from 'other' (only those for this sourceKey)
-            for (const auto& [opKey, opFunc] : other.operations) {
-                if (opKey == nullptr || *opKey == sourceKey) {
-                    opFunc(evaluated);  // Apply operation to our local copy
-                }
-            }
+          // Apply deferred operations from 'other' (only those for this sourceKey)
+          for (const auto& [opKey, opFunc] : other.operations) {
+              if (opKey == nullptr || *opKey == sourceKey) {
+                  opFunc(evaluated);  // Apply operation to our local copy
+              }
+          }
 
-            dstVal = evaluated;
-        }, evaluated);
-    }
+          dstVal = evaluated;
+      }, evaluated);
+  }
 
-    return *this;
+  return *this;
 }
 
   template<typename T>
@@ -180,32 +195,7 @@ KeySelectionProxy<Values>& operator=(KeySelectionProxy<Values>&& other) {
   }
 
   KeySelectionProxy<Values> operator+(const KeySelectionProxy<Values>& other) {
-    assert(other.source != nullptr);
-    if (this->keys.size() == other.keys.size()) {
-      for (size_t i = 0; i < keys.size(); ++i) {
-        const std::string& key = keys[i];
-        const std::string& otherKey = other.keys[i];
-
-        auto it = source->polyMap.find(key);
-        auto itOther = other.source->polyMap.find(otherKey);
-        if (it == source->polyMap.end() || itOther == other.source->polyMap.end()) continue;
-
-        const std::string* keyPtr = &it->first;
-        value_type& otherVal = itOther->second.value;
-
-        std::visit(
-          [&](const auto& inner_val) {
-            using T = std::decay_t<decltype(inner_val)>;
-            operations.emplace_back(keyPtr, makeSumOp<T, Values>(inner_val));
-          },
-          otherVal
-        );
-      }
-      return KeySelectionProxy<Values>(source, keys, std::move(operations));
-    } 
-    else {
-      throw std::runtime_error("binary proxy operator + requires same number of keys");
-    }
+    return make_operator(ProxyBinOp::sum, other);
   }
 
   template<typename T> 
@@ -229,32 +219,7 @@ KeySelectionProxy<Values>& operator=(KeySelectionProxy<Values>&& other) {
   }
 
   KeySelectionProxy<Values> operator-(const KeySelectionProxy<Values>& other) {
-    assert(other.source != nullptr);
-    if (this->keys.size() == other.keys.size()) {
-      for (size_t i = 0; i < keys.size(); ++i) {
-        const std::string& key = keys[i];
-        const std::string& otherKey = other.keys[i];
-
-        auto it = source->polyMap.find(key);
-        auto itOther = other.source->polyMap.find(otherKey);
-        if (it == source->polyMap.end() || itOther == other.source->polyMap.end()) continue;
-
-        const std::string* keyPtr = &it->first;
-        value_type& otherVal = itOther->second.value;
-
-        std::visit(
-          [&](const auto& inner_val) {
-            using T = std::decay_t<decltype(inner_val)>;
-            operations.emplace_back(keyPtr, makeSubOp<T, Values>(inner_val));
-          },
-          otherVal
-        );
-      }
-      return KeySelectionProxy<Values>(source, keys, std::move(operations));
-    } 
-    else {
-      throw std::runtime_error("binary proxy operator - requires same number of keys");
-    }
+    return make_operator(ProxyBinOp::sub, other);
   }
   
   template<typename T> 
@@ -278,38 +243,11 @@ KeySelectionProxy<Values>& operator=(KeySelectionProxy<Values>&& other) {
   }
 
   KeySelectionProxy<Values> operator*(const KeySelectionProxy<Values>&& other) {
-    assert(other.source != nullptr);
-    if (this->keys.size() == other.keys.size()) {
-      for (size_t i = 0; i < keys.size(); ++i) {
-        const std::string& key = keys[i];
-        const std::string& otherKey = other.keys[i];
-
-        auto it = source->polyMap.find(key);
-        auto itOther = other.source->polyMap.find(otherKey);
-        if (it == source->polyMap.end() || itOther == other.source->polyMap.end()) continue;
-
-        const std::string* keyPtr = &it->first;
-        value_type& otherVal = itOther->second.value;
-
-        std::visit(
-          [&](const auto& inner_val) {
-            using T = std::decay_t<decltype(inner_val)>;
-            operations.emplace_back(keyPtr, makeMultOp<T, Values>(inner_val));
-          },
-          otherVal
-        );
-      }
-      return KeySelectionProxy<Values>(source, keys, std::move(operations));
-    } 
-    else {
-      throw std::runtime_error("binary proxy operator * requires same number of keys");
-    }
+    return make_operator(ProxyBinOp::mult, other);
   }
   
-
-  template<typename T> 
+  template<typename T>
   KeySelectionProxy& operator*=(const T& factor) {
-
     operations.emplace_back(nullptr, makeMultOp<T, Values>(factor));
     evaluate();
     operations.clear();
@@ -329,38 +267,12 @@ KeySelectionProxy<Values>& operator=(KeySelectionProxy<Values>&& other) {
   }
 
   KeySelectionProxy<Values> operator/(const KeySelectionProxy<Values>&& other) {
-    assert(other.source != nullptr);
-    if (this->keys.size() == other.keys.size()) {
-      for (size_t i = 0; i < keys.size(); ++i) {
-        const std::string& key = keys[i];
-        const std::string& otherKey = other.keys[i];
-
-        auto it = source->polyMap.find(key);
-        auto itOther = other.source->polyMap.find(otherKey);
-        if (it == source->polyMap.end() || itOther == other.source->polyMap.end()) continue;
-
-        const std::string* keyPtr = &it->first;
-        value_type& otherVal = itOther->second.value;
-
-        std::visit(
-          [&](const auto& inner_val) {
-            using T = std::decay_t<decltype(inner_val)>;
-            operations.emplace_back(keyPtr, makeDivOp<T, Values>(inner_val));
-          },
-          otherVal
-        );
-      }
-      return KeySelectionProxy<Values>(source, keys, std::move(operations));
-    } 
-    else {
-      throw std::runtime_error("binary proxy operator / requires same number of keys");
-    }
+    return make_operator(ProxyBinOp::div, other);
   }
   
 
-  template<typename T> 
+  template<typename T>
   KeySelectionProxy& operator/=(const T& denominator) {
-
     operations.emplace_back({nullptr, makeDivOp<T, Values>(denominator)});
     evaluate();
     operations.clear();
@@ -431,29 +343,72 @@ KeySelectionProxy<Values>& operator=(KeySelectionProxy<Values>&& other) {
       }
       return *source;
     }
+
+    //helper function
+    enum class ProxyBinOp{sum, sub, mult, div};
+
+    KeySelectionProxy<Values> make_operator(ProxyBinOp op, const KeySelectionProxy<Values>& operand) {
+      assert(operand.source != nullptr);
+      if (this->keys.size() == operand.keys.size()) {
+        for (size_t i = 0; i < keys.size(); ++i) {
+          const std::string& key = keys[i];
+          const std::string& operandKey = operand.keys[i];
+
+          auto it = source->polyMap.find(key);
+          auto itoperand = operand.source->polyMap.find(operandKey);
+          if (it == source->polyMap.end() || itoperand == operand.source->polyMap.end()) continue;
+
+          const std::string* keyPtr = &it->first;
+          value_type& operandVal = itoperand->second.value;
+
+          std::visit(
+            [&](const auto& inner_val) {
+              using T = std::decay_t<decltype(inner_val)>;
+
+              switch(op) { //picks the right operation for the lambda
+                case ProxyBinOp::sum:
+                  operations.emplace_back(keyPtr, makeSumOp<T, Values>(inner_val));
+                  break;
+                case ProxyBinOp::sub:
+                  operations.emplace_back(keyPtr, makeSubOp<T, Values>(inner_val));
+                  break;
+                case ProxyBinOp::mult:
+                  operations.emplace_back(keyPtr, makeMultOp<T, Values>(inner_val));
+                  break;
+                case ProxyBinOp::div:
+                  operations.emplace_back(keyPtr, makeDivOp<T, Values>(inner_val));
+                  break;
+              }
+            },
+            operandVal
+          );
+        }
+        return KeySelectionProxy<Values>(source, keys, std::move(operations));
+      } 
+      else {
+        throw std::runtime_error("binary proxy operators require same number of keys");
+      }
+    }
 };
 
 // out of class operator definitions to allow for lhs operations
 template<typename T, typename Values> 
-auto operator+(const T& lhs, const KeySelectionProxy<Values>& rhs)
+requires (!std::same_as<std::decay_t<T>, KeySelectionProxy<Values>>)
+auto operator+(const T& lhs, KeySelectionProxy<Values>&& rhs)
 {
   return rhs + lhs; // Uses the existing member operator
 }
 
 template<typename T, typename Values>
-auto operator-(const T& lhs, const KeySelectionProxy<Values>& rhs)
+requires (!std::same_as<std::decay_t<T>, KeySelectionProxy<Values>>)
+auto operator-(const T& lhs, KeySelectionProxy<Values>&& rhs)
 {
   return rhs - lhs;
 }
 
 template<typename T, typename Values>
-auto operator*(const T& lhs, const KeySelectionProxy<Values>& rhs)
+requires (!std::same_as<std::decay_t<T>, KeySelectionProxy<Values>>)
+auto operator*(const T& lhs, KeySelectionProxy<Values>&& rhs)
 {
   return rhs * lhs;
-}
-
-template<typename T, typename Values>
-auto operator/(const T& lhs, const KeySelectionProxy<Values>& rhs)
-{
-  return rhs / lhs;
 }
