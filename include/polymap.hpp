@@ -172,8 +172,6 @@ KeySelectionProxy<Values>& operator=(KeySelectionProxy<Values>&& other) {
       value_type evaluated = itSrc->second.value;
 
       std::visit([&](auto& val) {
-          using T = std::decay_t<decltype(val)>;
-
           // Apply deferred operations from 'other' (only those for this sourceKey)
           for (const auto& [opKey, opFunc] : other.operations) {
               if (opKey == nullptr || *opKey == sourceKey) {

@@ -20,7 +20,7 @@ target_link_libraries(GUIFunctions PRIVATE OLEDFunctions
 
 
 target_include_directories(qtmain PRIVATE  "${PROJECT_SOURCE_DIR}/include"
-                                          "${PROJECT_SOURCE_DIR}/gui/include")
+                                           "${PROJECT_SOURCE_DIR}/gui/include")
 
 target_link_libraries(qtmain PRIVATE GUIFunctions
                                      PRIVATE Eigen

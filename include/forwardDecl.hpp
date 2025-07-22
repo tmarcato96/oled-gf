@@ -9,5 +9,7 @@
 // Global typedefs
 typedef Eigen::ArrayXXcd CMatrix;
 typedef Eigen::ArrayXcd CVector;
+typedef Eigen::Array<std::complex<double>, 1, Eigen::Dynamic> CTVector;
 typedef Eigen::ArrayXXd Matrix;
 typedef Eigen::ArrayXd Vector;
+typedef Eigen::Array<double, 1, Eigen::Dynamic> TVector;

@@ -257,12 +257,12 @@ QFrame* ThreadManager::makePlot(bool polarFlag) {
             PolarData *paraUpPoints = new PolarData();
             PolarData *perpPoints = new PolarData();
 
-            for(size_t i = 0; i < simData.x.size(); i++) {
-                double angle = simData.x[i]*180/M_PI;
-                paraUsPoints->push_back({angle, simData.yParaUsPol[i]});
-                paraUpPoints->push_back({angle, simData.yParaUsPol[i]});
-                perpPoints->push_back({angle, simData.yParaUsPol[i]});
-            }
+            //for(size_t i = 0; i < simData.x.size(); i++) {
+            //    double angle = simData.x[i]*180/M_PI;
+            //    paraUsPoints->push_back({angle, simData.yParaUsPol[i]});
+            //    paraUpPoints->push_back({angle, simData.yParaUsPol[i]});
+            //    perpPoints->push_back({angle, simData.yParaUsPol[i]});
+            //}
 
             QwtPolarCurve *paraUsCurve = new QwtPolarCurve("s-Para");
             paraUsCurve->setLegendAttribute(QwtPolarCurve::LegendShowSymbol, false);
