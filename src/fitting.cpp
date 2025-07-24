@@ -6,6 +6,7 @@
 #include <numeric>
 #include <unsupported/Eigen/NonLinearOptimization>
 #include <vector>
+#include <type_traits>
 
 #include "indata.hpp"
 #include "linalg.hpp"
@@ -120,21 +121,21 @@ void Fitting::discretize()
 
 Matrix Fitting::calculateEmissionSubstrate()
 {
-  Vector powerPerppPolGlass;
-  Vector powerParapPolGlass;
+  Vector& pPerpPSub = resMap.get<Vector>("pPerpPSub");
+  Vector& pParaPSub = resMap.get<Vector>("pParaPSub");
   Eigen::Index substrateIndex = matstack.numLayers - 2; // glass
 
-  powerPerppPolGlass = powerPerpUpPol.row(substrateIndex).real() *
+  pPerpPSub = resMap.get<CMatrix>("pPerpP").row(substrateIndex).real() *
                        std::sqrt(std::real(matstack.epsilon(matstack.numLayers - 1) / matstack.epsilon(dipoleLayer)));
-  powerPerppPolGlass /= Eigen::tan(intensityData.col(0).segment(0, matstack.u.size()));
+  pPerpPSub /= Eigen::tan(intensityData.col(0).segment(0, matstack.u.size()));
 
-  powerParapPolGlass = powerParaUpPol.row(substrateIndex).real() *
+  pParaPSub = resMap.get<CMatrix>("pParaP").row(substrateIndex).real() *
                        std::sqrt(std::real(matstack.epsilon(matstack.numLayers - 1) / matstack.epsilon(dipoleLayer)));
-  powerParapPolGlass /= Eigen::tan(intensityData.col(0).segment(0, matstack.u.size()));
+  pParaPSub /= Eigen::tan(intensityData.col(0).segment(0, matstack.u.size()));
 
-  Matrix powerGlass(2, powerPerppPolGlass.size());
-  powerGlass.row(0) = powerPerppPolGlass;
-  powerGlass.row(1) = powerParapPolGlass;
+  Matrix powerGlass(2, pPerpPSub.size());
+  powerGlass.row(0) = pPerpPSub;
+  powerGlass.row(1) = pParaPSub;
   return powerGlass;
 }
 

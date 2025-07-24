@@ -5,6 +5,7 @@
 #include <iostream>
 #include <numeric>
 #include <vector>
+#include <type_traits>
 
 #include "linalg.hpp"
 #include <matlayer.hpp>
@@ -92,9 +93,9 @@ Simulation::SimRes Simulation::powerModeDissipation()
   std::vector<double> u(N), powerPerp(N), powerParaUs(N), powerParaUp(N);
 
   // Use Eigen::Map to copy Eigen arrays into std::vector
-  Eigen::Map<Eigen::ArrayXd>(powerPerp.data(), N) = fracPowerPerpUpPol.row(dipoleLayer);
-  Eigen::Map<Eigen::ArrayXd>(powerParaUs.data(), N) = fracPowerParaUsPol.row(dipoleLayer);
-  Eigen::Map<Eigen::ArrayXd>(powerParaUp.data(), N) = fracPowerParaUpPol.row(dipoleLayer);
+  Eigen::Map<Eigen::ArrayXd>(powerPerp.data(), N) = resMap.get<Matrix>("fpPerpP").row(dipoleLayer);
+  Eigen::Map<Eigen::ArrayXd>(powerParaUp.data(), N) = resMap.get<Matrix>("fpParaP").row(dipoleLayer);
+  Eigen::Map<Eigen::ArrayXd>(powerParaUs.data(), N) = resMap.get<Matrix>("fpPerpS").row(dipoleLayer);
   Eigen::Map<Eigen::ArrayXd>(u.data(), N) = matstack.u;
 
   return Simulation::SimRes{u, powerPerp, powerParaUs, powerParaUp};

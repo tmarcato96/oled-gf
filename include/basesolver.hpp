@@ -14,6 +14,7 @@
 
 #include <Eigen/Core>
 
+#include <polymap.hpp>
 #include <forwardDecl.hpp>
 #include <matlayer.hpp>
 #include <polymap.hpp>
@@ -177,10 +178,7 @@ protected:
 public:
   void run();
 
-  void calculateEmissionSubstrate(Vector& thetaGlass,
-    Vector& powerPerpGlass,
-    Vector& powerParapPolGlass,
-    Vector& powerParasPolGlass) const;
+  void calculateEmissionSubstrate();
 
   using CMPLX = std::complex<double>;
 
@@ -192,13 +190,8 @@ public:
   Matrix const& getPowerUsPara() const;
   Eigen::Index getDipoleIndex() const;
 
+  using ResTypes = Types<double, Vector, CMatrix, Matrix>;
+  PolyMap<ResTypes> resMap;
+
   double alpha;
-
-  CMatrix powerPerpUpPol;
-  CMatrix powerParaUpPol;
-  CMatrix powerParaUsPol;
-
-  Matrix fracPowerPerpUpPol;
-  Matrix fracPowerParaUpPol;
-  Matrix fracPowerParaUsPol;
 };

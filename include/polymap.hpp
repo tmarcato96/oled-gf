@@ -6,6 +6,7 @@
 #include <map>
 #include <set>
 #include <utility>
+#include <type_traits>
 #include <variant>
 
 // Placeholders
@@ -52,7 +53,7 @@ auto makeSubOp(const T& operand) {
 }
 
 template<typename T, typename Values>
-auto makeMultOp(const T& operand, std::string const* key=nullptr) {
+auto makeMultOp(const T& operand) {
   using value_type = typename Values::map_types;
   return [&operand](value_type& val) {
     std::visit([&](auto& v) {
@@ -108,23 +109,37 @@ struct PolyMap {
   std::map<std::string, VariantHolder<Values>, std::less<>> polyMap;
   static inline constexpr All_t All{};
 
-  auto& operator[](const std::string& key) { return polyMap[key]; }
+  value_type& operator[](const std::string& key) { return polyMap[key].value; }
 
-template<typename... Keys>
-auto operator()(Keys&&... keys) {
-    static_assert((std::is_convertible_v<Keys, std::string> && ...),
-                  "All keys must be convertible to std::string");
+  const value_type& operator[](const std::string& key) const { 
+    return polyMap.at(key).value; 
+  }
 
-    std::vector<std::string> keyVec = {std::forward<Keys>(keys)...};
+  template<typename T>
+  const T& get(const std::string& key) const { 
+    return std::get<T>(polyMap.at(key).value); 
+  }
 
-    for (const auto& key : keyVec) {
-        if (polyMap.find(key) == polyMap.end()) {
-            throw std::runtime_error("Key not found in polyMap: " + key);
-        }
-    }
+  template<typename T>
+  T& get(const std::string& key) { 
+    return std::get<T>(polyMap[key].value); 
+  }
 
-    return KeySelectionProxy<Values>(this, std::move(keyVec));
-}
+  template<typename... Keys>
+  auto operator()(Keys&&... keys) {
+      static_assert((std::is_convertible_v<Keys, std::string> && ...),
+                    "All keys must be convertible to std::string");
+
+      std::vector<std::string> keyVec = {std::forward<Keys>(keys)...};
+
+      for (const auto& key : keyVec) {
+          if (polyMap.find(key) == polyMap.end()) {
+              throw std::runtime_error("Key not found in polyMap: " + key);
+          }
+      }
+
+      return KeySelectionProxy<Values>(this, std::move(keyVec));
+  }
 
   auto operator()(All_t) {
     std::vector<std::string> allKeys;
@@ -171,18 +186,14 @@ KeySelectionProxy<Values>& operator=(KeySelectionProxy<Values>&& other) {
       // Make a copy of the source value so we can evaluate into it
       value_type evaluated = itSrc->second.value;
 
-      std::visit([&](auto& val) {
-          // Apply deferred operations from 'other' (only those for this sourceKey)
-          for (const auto& [opKey, opFunc] : other.operations) {
-              if (opKey == nullptr || *opKey == sourceKey) {
-                  opFunc(evaluated);  // Apply operation to our local copy
-              }
+      // Apply deferred operations from 'other' (only those for this sourceKey)
+      for (const auto& [opKey, opFunc] : other.operations) {
+          if (opKey == nullptr || *opKey == sourceKey) {
+              opFunc(evaluated);
           }
-
-          dstVal = evaluated;
-      }, evaluated);
+      }
+      dstVal = std::move(evaluated);
   }
-
   return *this;
 }
 
@@ -204,9 +215,8 @@ KeySelectionProxy<Values>& operator=(KeySelectionProxy<Values>&& other) {
     return *this;
   }
 
-  KeySelectionProxy<Values>& operator+=(const KeySelectionProxy<Values>&& other) {
-    auto proxy = *this + other;
-    proxy.evaluate();
+  KeySelectionProxy<Values>& operator+=(KeySelectionProxy<Values>&& other) {
+    *this = *this + other;
     return *this;
   }
 
@@ -228,9 +238,8 @@ KeySelectionProxy<Values>& operator=(KeySelectionProxy<Values>&& other) {
     return *this;
   }
 
-  KeySelectionProxy<Values>& operator-=(const KeySelectionProxy<Values>&& other) {
-    auto proxy = *this - other;
-    proxy.evaluate();
+  KeySelectionProxy<Values>& operator-=(KeySelectionProxy<Values>&& other) {
+    *this = *this - other;
     return *this;
   }
 
@@ -252,9 +261,8 @@ KeySelectionProxy<Values>& operator=(KeySelectionProxy<Values>&& other) {
     return *this;
   }
 
-  KeySelectionProxy<Values>& operator*=(const KeySelectionProxy<Values>& other) {
-    auto proxy = *this * other;
-    proxy.evaluate();
+  KeySelectionProxy<Values>& operator*=(KeySelectionProxy<Values>&& other) {
+    *this = *this * other;
     return *this;
   }
 
@@ -264,23 +272,22 @@ KeySelectionProxy<Values>& operator=(KeySelectionProxy<Values>&& other) {
     return KeySelectionProxy(source, keys, std::move(operations));
   }
 
-  KeySelectionProxy<Values> operator/(const KeySelectionProxy<Values>&& other) {
+  KeySelectionProxy<Values> operator/(KeySelectionProxy<Values>&& other) {
     return make_operator(ProxyBinOp::div, other);
   }
   
 
   template<typename T>
   KeySelectionProxy& operator/=(const T& denominator) {
-    operations.emplace_back({nullptr, makeDivOp<T, Values>(denominator)});
+    operations.emplace_back(nullptr, makeDivOp<T, Values>(denominator));
     evaluate();
     operations.clear();
     return *this;
 
   }
 
-  KeySelectionProxy<Values>& operator/=(const KeySelectionProxy<Values>& other) {
-    auto proxy = *this / other;
-    proxy.evaluate();
+  KeySelectionProxy<Values>& operator/=(KeySelectionProxy<Values>&& other) {
+    *this = *this / other;
     return *this;
   }
 
@@ -410,3 +417,78 @@ auto operator*(const T& lhs, KeySelectionProxy<Values>&& rhs)
 {
   return rhs * lhs;
 }
+
+
+//type printing
+template <typename T>
+std::string type_name() {
+#if defined(__clang__)
+    std::string name = __PRETTY_FUNCTION__;
+    return name.substr(name.find('=') + 2, name.rfind(']') - name.find('=') - 2);
+#elif defined(__GNUC__)
+    std::string name = __PRETTY_FUNCTION__;
+    return name.substr(name.find('=') + 2, name.rfind(';') - name.find('=') - 2);
+#else
+    return typeid(T).name();
+#endif
+}
+
+/*
+cmake_minimum_required(VERSION 3.10)
+
+project(testmap)
+
+set(CMAKE_CXX_STANDARD 20)
+
+set(CMAKE_MODULE_PATH "${CMAKE_BINARY_DIR}" "${CMAKE_MODULE_PATH}")
+set(CMAKE_PREFIX_PATH "${CMAKE_BINARY_DIR}" "${CMAKE_PREFIX_PATH}")
+
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/lib")
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/bin")
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/bin")
+
+
+
+add_executable(testmap testmap.cpp)
+
+int main() {
+    using MyTypes = Types<int, double, Eigen::ArrayXXd, Eigen::ArrayXd>;
+    PolyMap<MyTypes> mapa;
+    PolyMap<MyTypes> mapb;
+
+    mapa["a"] = 10;
+    mapa["b"] = 20;
+    mapa["c"] = 3.5;
+
+    mapa["cheese"] = 5.0;
+    //mapa("cheese", "a") += mapa("cheese", "a");
+
+    mapb["a"] = 10;
+    mapa.get<int>("a");
+    Eigen::ArrayXXd tmp = Eigen::ArrayXXd::Ones(6, 6);
+    mapa["cheese"] = tmp;
+    mapb["cheese"] = tmp;
+
+    //mapb("cheese", "a") = mapa("cheese", "a") + 2 + 3 + 102;
+    //mapa("c", "b") = 5 + mapa("a", "b") / 10;
+
+     mapa("a", "cheese") += mapb("a", "cheese"); //operation is ordered according to the slice!
+
+    Eigen::ArrayXXd tmp1 = (Eigen::ArrayXXd::Ones(6,6) + Eigen::ArrayXXd::Ones(6,6)).eval();
+    for (const auto& [key, val] : mapa.polyMap) {
+        std::cout << key << " = ";
+        std::visit([](auto&& v) {
+            std::cout << v << '\n';
+        }, val.value);
+    }
+
+    for (const auto& [key, val] : mapb.polyMap) {
+        std::cout << key << " = ";
+        std::visit([](auto&& v) {
+            std::cout << v << '\n';
+        }, val.value);
+    }
+
+    return 0;
+}
+*/
