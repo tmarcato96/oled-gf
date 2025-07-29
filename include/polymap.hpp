@@ -4,6 +4,8 @@
 #include <functional>
 #include <iostream>
 #include <map>
+#include <complex>
+#include <Eigen/Core>
 #include <set>
 #include <utility>
 #include <type_traits>
@@ -57,7 +59,7 @@ auto makeMultOp(const T& operand) {
   using value_type = typename Values::map_types;
   return [&operand](value_type& val) {
     std::visit([&](auto& v) {
-      using V = std::decay_t<decltype(v)>;
+      using V = decltype(v);
       if constexpr (requires(V a, T b) { a *= b; }) {
         v *= operand;
       } 
@@ -73,7 +75,7 @@ auto makeDivOp(const T& operand) {
   using value_type = typename Values::map_types;
   return [&operand](value_type& val) {
     std::visit([&](auto& v) {
-      using V = std::decay_t<decltype(v)>;
+      using V = decltype(v);
       if constexpr (requires(V a, T b) { a /= b; }) {
         v /= operand;
       } 
@@ -92,7 +94,8 @@ struct VariantHolder {
   VariantHolder() = default;
   VariantHolder(value_type v) : value(std::move(v)) {}
 
-  VariantHolder& operator=(value_type&& v) {
+  template<typename T>
+  VariantHolder& operator=(T&& v) {
     value = std::move(v);
     return *this;
   }
@@ -167,6 +170,13 @@ struct KeySelectionProxy {
       operations{std::move(ops)} 
       {}
 
+  explicit KeySelectionProxy(KeySelectionProxy<Values>& other)
+    : source{other.source}, 
+      keys{other.keys}, 
+      operations{other.operations} 
+      {}
+    
+
 // basic operators
 KeySelectionProxy<Values>& operator=(KeySelectionProxy<Values>&& other) {
   if (this->keys.size() != other.keys.size()) {
@@ -182,8 +192,6 @@ KeySelectionProxy<Values>& operator=(KeySelectionProxy<Values>&& other) {
       if (itDst == source->polyMap.end() || itSrc == other.source->polyMap.end()) continue;
 
       value_type& dstVal = itDst->second.value;
-
-      // Make a copy of the source value so we can evaluate into it
       value_type evaluated = itSrc->second.value;
 
       // Apply deferred operations from 'other' (only those for this sourceKey)
@@ -196,6 +204,7 @@ KeySelectionProxy<Values>& operator=(KeySelectionProxy<Values>&& other) {
   }
   return *this;
 }
+
 
   template<typename T>
   KeySelectionProxy operator+(const T& increment) {
@@ -215,8 +224,10 @@ KeySelectionProxy<Values>& operator=(KeySelectionProxy<Values>&& other) {
     return *this;
   }
 
-  KeySelectionProxy<Values>& operator+=(KeySelectionProxy<Values>&& other) {
-    *this = *this + other;
+  KeySelectionProxy<Values>& operator+=(const KeySelectionProxy<Values>& other) {
+    auto proxy = *this + other;
+    *this = std::move(proxy);
+    this->evaluate();
     return *this;
   }
 
@@ -368,7 +379,7 @@ KeySelectionProxy<Values>& operator=(KeySelectionProxy<Values>&& other) {
 
           std::visit(
             [&](const auto& inner_val) {
-              using T = std::decay_t<decltype(inner_val)>;
+              using T = decltype(inner_val);
 
               switch(op) { //picks the right operation for the lambda
                 case ProxyBinOp::sum:
@@ -417,6 +428,7 @@ auto operator*(const T& lhs, KeySelectionProxy<Values>&& rhs)
 {
   return rhs * lhs;
 }
+
 
 
 //type printing
