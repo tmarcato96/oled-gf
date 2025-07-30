@@ -153,14 +153,10 @@ int ResFunctor::inputs() const { return 2; }
 
 int ResFunctor::values() const { return intensities.size(); }
 
-Fitting::FitRes Fitting::fitEmissionSubstrate()
+void Fitting::fitEmissionSubstrate()
 {
-
-  // returns the vector of parameters and the fitted intensities as a std::pair
-  std::vector<double> theta(matstack.x.rows()), yFit(matstack.x.rows()), yExp(residual.intensities.rows());
-
-  Eigen::ArrayXd::Map(&theta[0], intensityData.rows() - 1) = intensityData.col(0).segment(0, matstack.u.size());
-  Eigen::ArrayXd::Map(&yExp[0], intensityData.rows() - 1) = residual.intensities;
+  Vector theta = intensityData.col(0).segment(0, matstack.u.size());
+  Vector& yExp = residual.intensities;
 
   // Setup
   Eigen::VectorXd fitParams(2);
@@ -180,12 +176,12 @@ Fitting::FitRes Fitting::fitEmissionSubstrate()
 
   // simulation results
   alpha = fitParams(1);
-  Eigen::ArrayXd optIntensities(matstack.x.rows());
-  optIntensities =
-    fitParams(0) * (fitParams(1) * residual.powerGlass.row(0) + (1 - fitParams(1)) * residual.powerGlass.row(1));
-  Eigen::ArrayXd::Map(&yFit[0], matstack.x.rows()) = optIntensities;
+  Vector yFit(matstack.x.rows());
+  yFit = fitParams(0) * (fitParams(1) * residual.powerGlass.row(0) + (1 - fitParams(1)) * residual.powerGlass.row(1));
 
-  Fitting::FitRes res{yExp, yFit, theta, fitParams};
-
-  return res;
+  resMap["yExp"] = yExp;
+  resMap["yFit"] = yFit;
+  resMap["theta"] = theta;
+  Vector fitPr = fitParams;
+  resMap["fitParams"] = fitPr;
 };

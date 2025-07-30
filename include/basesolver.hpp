@@ -11,8 +11,11 @@
 #include <string>
 #include <vector>
 #include <sstream>
-
+#include <utility>
+#include <type_traits>
+#include <complex>
 #include <Eigen/Core>
+
 
 #include <polymap.hpp>
 #include <forwardDecl.hpp>
@@ -190,7 +193,7 @@ public:
   Matrix const& getPowerUsPara() const;
   Eigen::Index getDipoleIndex() const;
 
-  using ResTypes = Types<double, Vector, CMatrix, Matrix>;
+  using ResTypes = Types<Eigen::Index, double, Vector, Matrix, CMatrix>;
   PolyMap<ResTypes> resMap;
 
   double alpha;

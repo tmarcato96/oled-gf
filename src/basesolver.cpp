@@ -1,12 +1,12 @@
 #define _USE_MATH_DEFINES
 
+#include <vector>
 #include <algorithm>
 #include <cmath>
 #include <fstream>
 #include <iostream>
 #include <numeric>
 #include <utility>
-#include <vector>
 #include <type_traits>
 #include <complex>
 #include <Eigen/Core>
@@ -49,7 +49,6 @@ BaseSolver::BaseSolver(const std::vector<Layer>& layers,
   _sweepStart{sweepStart},
   _sweepStop{sweepStop},
   alpha{inpalpha}
-
 {
   dipoleLayer = 0;
   for (auto layer : layers) {
@@ -271,14 +270,13 @@ void BaseSolver::calculateDissPower(const double bPerpSum, const double bParaSum
   CMatrix& pParaS = resMap.get<CMatrix>("pParaS");
 
   pPerpP.resize(matstack.numLayers - 1, matstack.u.size());
-  pPerpP.resize(matstack.numLayers - 1, matstack.u.size());
+  pParaP.resize(matstack.numLayers - 1, matstack.u.size());
   pParaS.resize(matstack.numLayers - 1, matstack.u.size());
 
   double q = 1.0; // PLQY
   CMPLX I(0.0, 1.0);
 
-  Vector boolValue = Vector::Zero(matstack.numLayers);
-  boolValue(dipoleLayer) = 1.0;
+  Vector boolValue = Vector::Ones(matstack.numLayers);
   for (Eigen::Index i = 0; i < matstack.numLayers - 1; ++i) {
 
     CTVector neg_exp = Eigen::exp(-I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i));
@@ -317,18 +315,15 @@ void BaseSolver::calculateDissPower(const double bPerpSum, const double bParaSum
   // Fraction power calculation
   Matrix m1 = Eigen::real(pPerpP.block(0, 0, pPerpP.rows() - 1, pPerpP.cols()));
   Matrix m2 = Eigen::real(pPerpP.block(1, 0, pPerpP.rows() - 1, pPerpP.cols()));
-  resMap.get<Matrix>("fpPerpP") = Eigen::abs(m2 - m1);
-  resMap.get<Matrix>("fpPerpP") /= std::abs(bPerpSum);
+  resMap.get<Matrix>("fpPerpP") = Eigen::abs(m2 - m1)/std::abs(bPerpSum);
 
   Matrix m3 = Eigen::real(pParaP.block(0, 0, pParaP.rows() - 1, pParaP.cols()));
   Matrix m4 = Eigen::real(pParaP.block(1, 0, pParaP.rows() - 1, pParaP.cols()));
-  resMap.get<Matrix>("fpParaP") = Eigen::abs(m4 - m3);
-  resMap.get<Matrix>("fpParaP") /= std::abs(bParaSum);
+  resMap.get<Matrix>("fpParaP") = Eigen::abs(m4 - m3)/std::abs(bParaSum);
 
   Matrix m5 = Eigen::real(pParaS.block(0, 0, pParaS.rows() - 1, pParaS.cols()));
   Matrix m6 = Eigen::real(pParaS.block(1, 0, pParaS.rows() - 1, pParaS.cols()));
-  resMap.get<Matrix>("fpParaS") = Eigen::abs(m6 - m5);
-  resMap.get<Matrix>("fpParaS") /= std::abs(bParaSum);
+  resMap.get<Matrix>("fpParaS") = Eigen::abs(m6 - m5)/std::abs(bParaSum);
 }
 
 void BaseSolver::calculate()
@@ -371,28 +366,33 @@ void BaseSolver::calculate()
 void BaseSolver::calculateWithSpectrum()
 {
   PolyMap<ResTypes> tmp;
-  tmp["tpPerpP"] = CMatrix::Zero(matstack.numLayers - 1, matstack.u.size());
-  tmp["tpParaP"] = CMatrix::Zero(matstack.numLayers - 1, matstack.u.size());
-  tmp["tpParaS"] = CMatrix::Zero(matstack.numLayers - 1, matstack.u.size());
+  CMatrix tpPerpP, tpParaP, tpParaS;
+  tpPerpP = tpParaP = tpParaS = CMatrix::Zero(matstack.numLayers - 1, matstack.u.size());
 
-  double dX = _spectrum(1, 0) - _spectrum(0, 0); // CHANGE IF DISCRETIZATION BECOMES UNEQUALLY SPACED
+  double dX = _spectrum(1, 0) - _spectrum(0, 0); // CHANGE IF DISCRETIZATION BECOMES UNEQUALLY SPACED (you don't have to yell lol)
   for (Eigen::Index i = 0; i < _spectrum.rows(); ++i) {
     wvl = _spectrum(i, 0);
     this->discretize();
     calculate();
     // Integration
     if (i == 0 || i == _spectrum.rows() - 1) {
-      resMap("pPerpP", "pParaP", "pParaS") *= 0.5;
+      resMap("pPerpP", "pParaP", "pParaS") *= 0.5; //works 
     }
-    tmp("tpPerpP", "tpParaP", "tpParaS") += tmp("tpPerpP", "tpParaP", "tpParaS") * std::complex<double>(0.5,0);//_spectrum(i, 1);
+    tpPerpP += tpPerpP * 0.5 *_spectrum(i, 1);
+    tpParaP += tpParaP * 0.5 *_spectrum(i, 1);
+    tpParaS += tpParaS * 0.5 *_spectrum(i, 1);
   }
-  resMap("pPerpP", "pParaP", "pParaS") = tmp("tpPerpP", "tpParaP", "tpParaS") * dX;
+  tmp["tpPerpP"] = tpPerpP;
+  tmp["tpParaP"] = tpParaP;
+  tmp["tpParaS"] = tpParaS;
+  resMap("pPerpP", "pParaP", "pParaS") = tmp("tpPerpP", "tpParaP", "tpParaS") * dX; //also works
 }
 
 void BaseSolver::calculateWithDipoleDistribution()
 {
   PolyMap<ResTypes> tmp;
-  tmp["tpPerpP"] = tmp["tpParaP"] = tmp["tpParaS"] = CMatrix::Zero(matstack.numLayers - 1, matstack.u.size());
+  CMatrix tpPerpP, tpParaP, tpParaS;
+  tpPerpP = tpParaP = tpParaS = CMatrix::Zero(matstack.numLayers - 1, matstack.u.size());
 
   double dX = _dipolePositions(1) - _dipolePositions(0);
   double thickness = layers[dipoleLayer].getThickness();
@@ -402,11 +402,16 @@ void BaseSolver::calculateWithDipoleDistribution()
     calculateWithSpectrum();
     // Integration
     if (i == 0 || i == _dipolePositions.size() - 1) {
-      resMap("pPerpP", "pParaP", "pParaS") *= 0.5;
+      resMap("pPerpP", "pParaP", "pParaS") *= 0.5; //works
     }
-    tmp("tpPerpP", "tpParaP", "tpParaS") += resMap("pPerpP", "pParaP", "pParaS");
+    tpPerpP += tpPerpP * 0.5;
+    tpParaP += tpParaP * 0.5;
+    tpParaS += tpParaS * 0.5;
   }
-  resMap("pPerpP", "pParaP", "pParaS") = tmp("tpPerpP", "tpParaP", "tpParaS") * dX / thickness;
+  tmp["tpPerpP"] = tpPerpP;
+  tmp["tpParaP"] = tpParaP;
+  tmp["tpParaS"] = tpParaS;
+  resMap("pPerpP", "pParaP", "pParaS") = tmp("tpPerpP", "tpParaP", "tpParaS") * dX / thickness; //also works
 }
 
 void BaseSolver::run()
@@ -423,7 +428,7 @@ void BaseSolver::run()
 void BaseSolver::calculateEmissionSubstrate()
 {
   Vector thetaGlass;
-  CMatrix& pPerpP = resMap.get<CMatrix>("pParaP");
+  CMatrix& pPerpP = resMap.get<CMatrix>("pPerpP");
   CMatrix& pParaP = resMap.get<CMatrix>("pParaP");
   CMatrix& pParaS = resMap.get<CMatrix>("pParaS");
 
@@ -448,7 +453,7 @@ void BaseSolver::calculateEmissionSubstrate()
 
   resMap.get<Vector>("pParaSSub") = ((Eigen::real(pParaS.row(matstack.numLayers - 2))) *
                         std::sqrt(std::real(matstack.epsilon(matstack.numLayers - 1) / matstack.epsilon(dipoleLayer))));
-  resMap("pPerpSSub")/= Eigen::tan(thetaGlass);
+  resMap("pParaSSub")/= Eigen::tan(thetaGlass);
 }
 
 Vector const& BaseSolver::getInPlaneWavevector() const { return matstack.u; }
