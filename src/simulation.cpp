@@ -5,6 +5,7 @@
 #include <iostream>
 #include <numeric>
 #include <vector>
+#include <utility>
 #include <type_traits>
 
 #include "linalg.hpp"
@@ -85,22 +86,6 @@ void Simulation::init()
   this->discretize();
 }
 
-Simulation::SimRes Simulation::powerModeDissipation()
-{
-  const Eigen::Index N = matstack.u.rows();
-  auto dipoleLayer = getDipoleIndex() - 1;
-
-  std::vector<double> u(N), powerPerp(N), powerParaUs(N), powerParaUp(N);
-
-  // Use Eigen::Map to copy Eigen arrays into std::vector
-  Eigen::Map<Eigen::ArrayXd>(powerPerp.data(), N) = resMap.get<Matrix>("fpPerpP").row(dipoleLayer);
-  Eigen::Map<Eigen::ArrayXd>(powerParaUp.data(), N) = resMap.get<Matrix>("fpParaP").row(dipoleLayer);
-  Eigen::Map<Eigen::ArrayXd>(powerParaUs.data(), N) = resMap.get<Matrix>("fpPerpS").row(dipoleLayer);
-  Eigen::Map<Eigen::ArrayXd>(u.data(), N) = matstack.u;
-
-  return Simulation::SimRes{u, powerPerp, powerParaUs, powerParaUp};
-}
-
 Simulation::Simulation(SimulationMode mode,
   const std::vector<Layer>& layers,
   const double dipolePosition,
@@ -112,6 +97,8 @@ Simulation::Simulation(SimulationMode mode,
   _mode{mode}
 {
   init();
+  resMap["u"] = matstack.u;
+  resMap["dLayer"] = dipoleLayer;
 }
 
 Simulation::Simulation(SimulationMode mode,
@@ -125,4 +112,6 @@ Simulation::Simulation(SimulationMode mode,
   _mode{mode}
 {
   init();
+  resMap["u"] = matstack.u;
+  resMap["dLayer"] = dipoleLayer;
 }

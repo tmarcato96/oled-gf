@@ -10,6 +10,8 @@
 #include <Eigen/Core>
 #include <string>
 #include <vector>
+#include <utility>
+#include <type_traits>
 
 #include <basesolver.hpp>
 #include <matlayer.hpp>
@@ -38,13 +40,8 @@ protected:
   SimulationMode _mode;
 
 public:
-  struct SimRes
-  { // this thing only exists to make plotting easier just like FitRes. (also needs testing)
-    std::vector<double> u;
-    std::vector<double> yPerp, yParaUpPol, yParaUsPol;
-  };
 
-  SimRes powerModeDissipation();
+  void powerModeDissipation();
 
   Simulation(SimulationMode mode,
     const std::vector<Layer>& layers,
