@@ -4,6 +4,7 @@
 #include <fitting.hpp>
 #include <simulation.hpp>
 #include <indata.hpp>
+#include <polymap.hpp>
 
 #include <set>
 #include <string>
@@ -23,6 +24,7 @@ namespace UIthreading {
     //workers
     class Worker : public QObject {
         Q_OBJECT
+        friend class ThreadManager;
         static std::set<QString> _blacklist;
         std::unique_ptr<BaseSolver> _solver;
         QString _filepath;
@@ -36,8 +38,8 @@ namespace UIthreading {
         public:
             Worker(const QString& filepath);
 
-            Fitting::FitRes getFitPlotData();
-            Simulation::SimRes getSimPlotData();
+            void loadFitPlotData();
+            void loadSimPlotData();
             Data::SolverMode getMode();
 
             bool solverAvail();

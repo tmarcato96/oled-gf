@@ -10,6 +10,8 @@
 #include <basesolver.hpp>
 #include <fitting.hpp>
 #include <simulation.hpp>
+#include <polymap.hpp>
+#include <Eigen/Core>
 
 #include <QWidget>
 #include <QVector>
@@ -114,26 +116,20 @@ void Worker::exportResults(const QString& savePath) {
     _workerMutex.unlock();
 }
 
-Fitting::FitRes Worker::getFitPlotData() {
+void Worker::loadFitPlotData() {
     if(_solver == nullptr || _mode != Data::SolverMode::fitting) {
         emit errorSignal("Wrong solver mode (there is some bug in the code)");
     }
     _workerMutex.lock();
     auto *fitSolver = dynamic_cast<Fitting*>(_solver.get());
-    Fitting::FitRes fitRes = fitSolver->fitEmissionSubstrate();
+    fitSolver->fitEmissionSubstrate();
     _workerMutex.unlock();
-    return fitRes;
 }
 
-Simulation::SimRes Worker::getSimPlotData() {
+void Worker::loadSimPlotData() { //make nicer later
     if(_solver == nullptr || _mode != Data::SolverMode::simulation) {
         emit errorSignal("Wrong solver mode (there is some bug in the code)");
     }
-    _workerMutex.lock();
-    auto *simSolver = dynamic_cast<Simulation*>(_solver.get());
-    Simulation::SimRes simRes = simSolver->powerModeDissipation();
-    _workerMutex.unlock();
-    return simRes;
 }
 
 Data::SolverMode Worker::getMode() {
@@ -168,11 +164,16 @@ QFrame* ThreadManager::makePlot(bool polarFlag) {
     
     if(worker->getMode() == Data::SolverMode::fitting) {
         auto plot = new QwtPlot();
-        auto fitData = worker->getFitPlotData();
-        QVector<double> x{fitData.x.begin(), fitData.x.end()};
-        QVector<double> yExp{fitData.yExp.begin(), fitData.yExp.end()};
-        QVector<double> yFit{fitData.yFit.begin(), fitData.yFit.end()};
-        
+        worker->loadFitPlotData();
+
+        Vector& eigenTheta = worker->_solver->resMap.get<Vector>("theta");
+        Vector& eigenFit = worker->_solver->resMap.get<Vector>("yFit");
+        Vector& eigenExp = worker->_solver->resMap.get<Vector>("yExp");
+
+        QVector<double> theta(eigenTheta.data(), eigenTheta.data() + eigenTheta.size());
+        QVector<double> yExp(eigenFit.data(), eigenFit.data() + eigenFit.size());
+        QVector<double> yFit(eigenFit.data(), eigenFit.data() + eigenFit.size());  
+                
         plot->setTitle("Fitting Results");
         plot->setCanvas(new QwtPlotCanvas());
         plot->setCanvasBackground(Qt::white);
@@ -185,14 +186,14 @@ QFrame* ThreadManager::makePlot(bool polarFlag) {
         scatterCurve->setStyle(QwtPlotCurve::NoCurve); // No connecting line
         scatterCurve->setLegendAttribute(QwtPlotCurve::LegendShowSymbol, true);
         scatterCurve->setLegendAttribute(QwtPlotCurve::LegendShowLine, false);
-        scatterCurve->setSamples(x, yExp);
+        scatterCurve->setSamples(theta, yExp);
         scatterCurve->attach(plot);
 
 
         QwtPlotCurve *fitCurve = new QwtPlotCurve("Fit");
         fitCurve->setLegendAttribute(QwtPlotCurve::LegendShowSymbol, false);
         fitCurve->setLegendAttribute(QwtPlotCurve::LegendShowLine, true);
-        fitCurve->setSamples(x, yFit);
+        fitCurve->setSamples(theta, yFit);
         fitCurve->attach(plot);
 
         QwtPlotZoomer *zoomer = new QwtPlotZoomer(plot->canvas());
@@ -204,15 +205,23 @@ QFrame* ThreadManager::makePlot(bool polarFlag) {
         return plot;
     }        
     else{
-        auto simData = worker->getSimPlotData();
+        worker->loadSimPlotData();
         //there's no good way around this
 
         if(!polarFlag) {
             auto plot = new QwtPlot();
-            QVector<double> u{simData.u.begin(), simData.u.end()};
-            QVector<double> yParaUs{simData.yParaUsPol.begin(), simData.yParaUsPol.end()};
-            QVector<double> yParaUp{simData.yParaUpPol.begin(), simData.yParaUpPol.end()};
-            QVector<double> yPerp{simData.yPerp.begin(), simData.yPerp.end()};
+
+            Vector& eigenU = worker->_solver->resMap.get<Vector>("u");
+            Matrix& eigenParaS = worker->_solver->resMap.get<Matrix>("fpParaS");
+            Matrix& eigenParaP = worker->_solver->resMap.get<Matrix>("fpParaP");
+            Matrix& eigenPerp = worker->_solver->resMap.get<Matrix>("fpPerpP");
+            Eigen::Index& dipoleLayer = worker->_solver->resMap.get<Eigen::Index>("dLayer");
+
+            //some pointer arithmetic
+            QVector<double> u(eigenU.data(), eigenU.data() + eigenU.size());
+            QVector<double> fpParaS(eigenParaS.row(dipoleLayer).data(), eigenParaS.data() + eigenParaS.row(dipoleLayer).size());
+            QVector<double> fpParaP(eigenParaP.row(dipoleLayer).data(), eigenParaP.data() + eigenParaP.row(dipoleLayer).size());
+            QVector<double> fpPerpP(eigenPerp.row(dipoleLayer).data(), eigenPerp.data() + eigenPerp.row(dipoleLayer).size());
 
             plot->setTitle("Simulation Results");
             plot->setCanvas(new QwtPlotCanvas());
@@ -224,21 +233,21 @@ QFrame* ThreadManager::makePlot(bool polarFlag) {
             paraUsCurve->setLegendAttribute(QwtPlotCurve::LegendShowSymbol, false);
             paraUsCurve->setLegendAttribute(QwtPlotCurve::LegendShowLine, true);
             paraUsCurve->setPen(QPen(Qt::red));
-            paraUsCurve->setSamples(u, yParaUs);
+            paraUsCurve->setSamples(u, fpParaS);
             paraUsCurve->attach(plot);
             
             QwtPlotCurve *paraUpCurve = new QwtPlotCurve("p-Para");
             paraUpCurve->setLegendAttribute(QwtPlotCurve::LegendShowSymbol, false);
             paraUpCurve->setLegendAttribute(QwtPlotCurve::LegendShowLine, true);
             paraUpCurve->setPen(QPen(Qt::blue));
-            paraUpCurve->setSamples(u, yParaUp);
+            paraUpCurve->setSamples(u, fpParaP);
             paraUpCurve->attach(plot);
 
             QwtPlotCurve *perpCurve = new QwtPlotCurve("(p)-Perp");
             perpCurve->setLegendAttribute(QwtPlotCurve::LegendShowSymbol, false);
             perpCurve->setLegendAttribute(QwtPlotCurve::LegendShowLine, true);
             perpCurve->setPen(QPen(Qt::green));
-            perpCurve->setSamples(u, yPerp);
+            perpCurve->setSamples(u, fpPerpP);
             perpCurve->attach(plot);
 
             QwtPlotZoomer *zoomer = new QwtPlotZoomer(plot->canvas());
