@@ -75,7 +75,7 @@ std::unique_ptr<Data::Importer> Data::ImportManager::makeImporter()
   if (_fin.is_open()) _fin.close();
   if (_ftype == FileFormat::JSON) importer_ptr = std::make_unique<Data::JSONimporter>(_filepath);
   else {
-    throw std::runtime_error("support for other file formats not implemented et!");
+    throw std::runtime_error("support for other file formats not implemented yet!");
   }
   return importer_ptr;
 }
