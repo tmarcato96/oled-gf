@@ -412,6 +412,7 @@ void BaseSolver::calculateWithDipoleDistribution()
   tmp["tpParaP"] = tpParaP;
   tmp["tpParaS"] = tpParaS;
   resMap("pPerpP", "pParaP", "pParaS") = tmp("tpPerpP", "tpParaP", "tpParaS") * dX / thickness; //also works
+  std::cout << "pPerpP (" << resMap.get<CMatrix>("pPerpP").rows() << "x" << resMap.get<CMatrix>("pPerpP").cols() << "):\n";
 }
 
 void BaseSolver::run()
@@ -440,19 +441,20 @@ void BaseSolver::calculateEmissionSubstrate()
 
   thetaGlass = Eigen::real(Eigen::acos(Eigen::sqrt(
     1 - matstack.epsilon(dipoleLayer) / matstack.epsilon(matstack.numLayers - 1) * Eigen::pow(matstack.u, 2))));
+  resMap["theta"] = thetaGlass;
 
-  resMap.get<Vector>("pPerpPSub") = ((Eigen::real(pPerpP.row(matstack.numLayers - 2))) *
-                    std::sqrt(std::real(matstack.epsilon(matstack.numLayers - 1) / matstack.epsilon(dipoleLayer))));
+  resMap.get<Vector>("pPerpPSub") = Eigen::real(pPerpP.row(matstack.numLayers - 2)) *
+                       std::sqrt(std::real(matstack.epsilon(matstack.numLayers - 1) / matstack.epsilon(dipoleLayer)));
   resMap("pPerpPSub") /= Eigen::tan(thetaGlass);
 
   //CMatrix powerParaUTot = pParaP + pParaS;
 
-  resMap.get<Vector>("pParaPSub") = ((Eigen::real(pParaP.row(matstack.numLayers - 2))) *
-                        std::sqrt(std::real(matstack.epsilon(matstack.numLayers - 1) / matstack.epsilon(dipoleLayer))));
+  resMap.get<Vector>("pParaPSub") = Eigen::real(pParaP.row(matstack.numLayers - 2)) *
+                        std::sqrt(std::real(matstack.epsilon(matstack.numLayers - 1) / matstack.epsilon(dipoleLayer)));
   resMap("pParaPSub") /= Eigen::tan(thetaGlass);
 
-  resMap.get<Vector>("pParaSSub") = ((Eigen::real(pParaS.row(matstack.numLayers - 2))) *
-                        std::sqrt(std::real(matstack.epsilon(matstack.numLayers - 1) / matstack.epsilon(dipoleLayer))));
+  resMap.get<Vector>("pParaSSub") = Eigen::real(pParaS.row(matstack.numLayers - 2)) *
+                        std::sqrt(std::real(matstack.epsilon(matstack.numLayers - 1) / matstack.epsilon(dipoleLayer)));
   resMap("pParaSSub")/= Eigen::tan(thetaGlass);
 }
 

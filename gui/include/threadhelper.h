@@ -40,6 +40,7 @@ namespace UIthreading {
 
             void loadFitPlotData();
             void loadSimPlotData();
+            void loadPolarPlotData();
             Data::SolverMode getMode();
 
             bool solverAvail();

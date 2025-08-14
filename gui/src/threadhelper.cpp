@@ -132,6 +132,16 @@ void Worker::loadSimPlotData() { //make nicer later
     }
 }
 
+void Worker::loadPolarPlotData() {
+    if(_solver == nullptr || _mode != Data::SolverMode::simulation) {
+        emit errorSignal("Wrong solver mode (there is some bug in the code)");
+    }
+    _workerMutex.lock();
+    auto *simSolver = dynamic_cast<Simulation*>(_solver.get());
+    simSolver->calculateEmissionSubstrate();
+    _workerMutex.unlock();
+}
+
 Data::SolverMode Worker::getMode() {
     return _mode;
 }
@@ -205,11 +215,9 @@ QFrame* ThreadManager::makePlot(bool polarFlag) {
         return plot;
     }        
     else{
-        worker->loadSimPlotData();
-        //there's no good way around this
-
         if(!polarFlag) {
             auto plot = new QwtPlot();
+            worker->loadSimPlotData();
 
             Vector& eigenU = worker->_solver->resMap.get<Vector>("u");
             Matrix& eigenParaS = worker->_solver->resMap.get<Matrix>("fpParaS");
@@ -260,38 +268,45 @@ QFrame* ThreadManager::makePlot(bool polarFlag) {
         }
         else{
             QwtPolarPlot *polarPlot = new QwtPolarPlot();
+            worker->loadPolarPlotData();
 
             //polar plot does not follow the same structure as QwtPlot
-            PolarData *paraUsPoints = new PolarData();
-            PolarData *paraUpPoints = new PolarData();
-            PolarData *perpPoints = new PolarData();
+            PolarData *paraSPoints = new PolarData();
+            PolarData *paraPPoints = new PolarData();
+            PolarData *perpPPoints = new PolarData();
 
-            //for(size_t i = 0; i < simData.x.size(); i++) {
-            //    double angle = simData.x[i]*180/M_PI;
-            //    paraUsPoints->push_back({angle, simData.yParaUsPol[i]});
-            //    paraUpPoints->push_back({angle, simData.yParaUsPol[i]});
-            //    perpPoints->push_back({angle, simData.yParaUsPol[i]});
-            //}
+            Vector& theta = worker->_solver->resMap.get<Vector>("theta");
+            Vector& pParaSSub = worker->_solver->resMap.get<Vector>("pParaSSub");
+            Vector& pParaPSub = worker->_solver->resMap.get<Vector>("pParaPSub");
+            Vector& pPerpPSub = worker->_solver->resMap.get<Vector>("pPerpPSub");
+
+            for(ptrdiff_t i = 0; i < theta.size(); i++) {
+                double angle = theta[i]*180/M_PI;
+
+                paraSPoints->push_back({angle, pParaSSub[i]});
+                paraPPoints->push_back({angle, pParaPSub[i]});
+                perpPPoints->push_back({angle, pPerpPSub[i]});
+            }
 
             QwtPolarCurve *paraUsCurve = new QwtPolarCurve("s-Para");
             paraUsCurve->setLegendAttribute(QwtPolarCurve::LegendShowSymbol, false);
             paraUsCurve->setLegendAttribute(QwtPolarCurve::LegendShowLine, true);
             paraUsCurve->setPen(QPen(Qt::red));
-            paraUsCurve->setData(paraUsPoints);
+            paraUsCurve->setData(paraSPoints);
             paraUsCurve->attach(polarPlot);
     
             QwtPolarCurve *paraUpCurve = new QwtPolarCurve("p-Para");
             paraUpCurve->setLegendAttribute(QwtPolarCurve::LegendShowSymbol, false);
             paraUpCurve->setLegendAttribute(QwtPolarCurve::LegendShowLine, true);
             paraUpCurve->setPen(QPen(Qt::green));
-            paraUpCurve->setData(paraUpPoints);
+            paraUpCurve->setData(paraPPoints);
             paraUpCurve->attach(polarPlot);
 
             QwtPolarCurve *perpCurve = new QwtPolarCurve("(p)-Perp");
             perpCurve->setLegendAttribute(QwtPolarCurve::LegendShowSymbol, false);
             perpCurve->setLegendAttribute(QwtPolarCurve::LegendShowLine, true);
             perpCurve->setPen(QPen(Qt::blue));
-            perpCurve->setData(perpPoints);
+            perpCurve->setData(perpPPoints);
             perpCurve->attach(polarPlot);
 
             QwtPolarGrid* grid = new QwtPolarGrid();

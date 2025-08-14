@@ -98,6 +98,7 @@ Simulation::Simulation(SimulationMode mode,
 {
   init();
   resMap["u"] = matstack.u;
+  resMap["x"] = matstack.x;
   resMap["dLayer"] = dipoleLayer;
 }
 
@@ -113,5 +114,6 @@ Simulation::Simulation(SimulationMode mode,
 {
   init();
   resMap["u"] = matstack.u;
+  resMap["x"] = matstack.x;
   resMap["dLayer"] = dipoleLayer;
 }
