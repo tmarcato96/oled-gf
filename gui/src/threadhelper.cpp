@@ -268,6 +268,7 @@ QFrame* ThreadManager::makePlot(bool polarFlag) {
         }
         else{
             QwtPolarPlot *polarPlot = new QwtPolarPlot();
+            polarPlot->setAzimuthOrigin(M_PI/2);
             worker->loadPolarPlotData();
 
             //polar plot does not follow the same structure as QwtPlot

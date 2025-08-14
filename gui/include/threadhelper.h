@@ -15,6 +15,7 @@
 #include <QMutex>
 #include <QThread>
 #include <QPair>
+#include <QPen>
 #include <QwtPlot>
 #include <qwt_series_data.h>
 #include <qwt_point_polar.h>
