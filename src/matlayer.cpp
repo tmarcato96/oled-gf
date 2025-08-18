@@ -1,23 +1,22 @@
 #include "matlayer.hpp"
-#include "indata.hpp"
+#include <fileutils.hpp>
 
-#include <utility>
+#include <Eigen/Core>
 #include <algorithm>
 #include <cmath>
 #include <complex>
 #include <iostream>
 #include <stdexcept>
-#include <Eigen/Core>
-
+#include <utility>
 
 Material::Material() :
   refIndices{std::pair{0.0, 0.0}}
-  {}
+{}
 
 Material::Material(double realRefIndex, double imagRefIndex)
 {
   Eigen::ArrayXd wavelength = Eigen::ArrayXd::LinSpaced(50, 300, 800);
-  for (auto wvl: wavelength) { 
+  for (auto wvl : wavelength) {
     refIndices.insert(std::pair<double, std::complex<double>>{wvl, std::complex<double>(realRefIndex, imagRefIndex)});
   }
 }
@@ -30,14 +29,14 @@ Material::Material(double wavelength, double realRefIndex, double imagRefIndex)
 Material::Material(const std::string& path, const char delimiter)
 {
   Matrix data = Data::loadFromFile(path, 3, delimiter);
-  for (Eigen::Index i=0; i<data.rows(); ++i) {
-    refIndices.insert(std::pair<double, std::complex<double>>{data(i, 0), 
-                                                               std::complex<double>(data(i, 1),
-                                                                                    data(i, 2))});
+  for (Eigen::Index i = 0; i < data.rows(); ++i) {
+    refIndices.insert(
+      std::pair<double, std::complex<double>>{data(i, 0), std::complex<double>(data(i, 1), data(i, 2))});
   }
 }
 
-void Material::insert(double wavelength, double realRefIndex, double imagRefIndex) {
+void Material::insert(double wavelength, double realRefIndex, double imagRefIndex)
+{
   refIndices.insert(std::pair{wavelength, std::complex<double>(realRefIndex, imagRefIndex)});
 }
 
@@ -50,7 +49,7 @@ std::complex<double> Material::getRefIndex(double wavelength) const
     return res;
   } catch (const std::out_of_range& oor) {
     auto const uBound = refIndices.upper_bound(wavelength);
-    if (uBound != refIndices.end()) {
+    if (uBound != refIndices.end() && uBound != refIndices.begin()) {
       auto const lBound = std::prev(uBound);
       double ratio = (wavelength - lBound->first) / (uBound->first - lBound->first);
       res = ratio * uBound->second + (1 - ratio) * lBound->second; // Interpolation
@@ -66,16 +65,12 @@ std::complex<double> Material::getEpsilon(double wavelength) const
   return res * res;
 }
 
-Layer::Layer(Material material, double thickness, bool emitterFlag):
-             _material(std::move(material)),
-             _thickness(thickness),
-             isEmitter(emitterFlag)
+Layer::Layer(Material material, double thickness, bool emitterFlag) :
+  _material(std::move(material)),
+  _thickness(thickness),
+  isEmitter(emitterFlag)
 {}
 
-const Material& Layer::getMaterial() const {
-    return _material;
-}
+const Material& Layer::getMaterial() const { return _material; }
 
-double Layer::getThickness() const {
-    return _thickness;
-}
+double Layer::getThickness() const { return _thickness; }

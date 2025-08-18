@@ -6,8 +6,9 @@
 #include <vector>
 
 #include <Eigen/Core>
-#include <fitting.hpp>
 #include <matlayer.hpp>
+#include <simulation.hpp>
+#include <sweep.hpp>
 
 #include <QApplication>
 #include <QMainWindow>
@@ -25,26 +26,42 @@ int main(int argc, char* argv[])
 #error "PROJECT_ROOT is not defined. Define it via CMake with target_compile_definitions."
 #endif
 
+  // Fitting filepath
+  const std::filesystem::path rootPath = PROJECT_ROOT;
+  const std::filesystem::path matPath = rootPath / "mat";
+  const std::filesystem::path dataPath = rootPath / "examples/data";
+  const std::filesystem::path spectrumFilePath = dataPath / "6ML_PL.txt";
+
   // Set up stack
-  double wavelength = 456;
+
+  const double wavelength = 535;
   std::vector<Layer> layers;
 
-  layers.emplace_back(Material(1.0, 0.0), -1.0);
-  layers.emplace_back(Material(1.7, 0.0), 35e-9, true);
+  layers.emplace_back(Material(matPath / "Al_Cent.csv", ','), -1.0);
+  layers.emplace_back(Material(1.9, 0.0), 50e-9);
+  layers.emplace_back(Material(matPath / "CBP.csv", ','), 20e-9, true);
+  layers.emplace_back(Material(matPath / "PEDOT_BaytronP_AL4083.csv", ','), 35e-9);
+  layers.emplace_back(Material(matPath / "ITO.csv", ','), 150e-9);
   layers.emplace_back(Material(1.52, 0.0), 5000e-9);
   layers.emplace_back(Material(1.52, 0.0), -1.0);
 
-  // Fitting filepath
-  const std::filesystem::path rootPath = PROJECT_ROOT;
-  const std::filesystem::path fitPath = rootPath / "examples/data/3ML_processed.txt";
   // Spectrum
   double fwhm = 30;
-  NormalDistribution dist{450, 700, wavelength, fwhm / 2.355, 50};
-  Spectrum<Distribution> spectrum{dist};
-  Distribution dipoleDist(0.0, 35e-9);
+  double sigma = fwhm / (2.0 * sqrt(2.0 * log(2.0)));
+  // auto spectrum = std::make_shared<NormalDistribution>(450, 750, wavelength, sigma, 100);
+  auto spectrum = std::make_shared<FileDistribution>(spectrumFilePath.string());
+  // Distribution spectrum(wavelength);
+  Distribution dipolePos(0.0, 20e-9, 5);
+  // Distribution dipolePos(10e-9);
 
-  auto solver = std::make_unique<Fitting>(fitPath.string(), layers, 0.0, Spectrum<Distribution>(wavelength), 0.0, 80.0);
-  auto fitRes = solver->fitEmissionSubstrate();
+  auto solver = std::make_unique<Simulation>(SimulationMode::ModeDissipation, layers, 0.0, 2.0);
+  SweepManager sm(std::move(solver));
+  // sm.setSDSweep(dipolePos, spectrum);
+  sm.setSDSweep(dipolePos, std::static_pointer_cast<Distribution<>>(spectrum));
+  // sm.setSDSweep(dipolePos, spectrum);
+  sm.runSweeps();
+  BaseSolver::SimRes simData = sm.getResults();
+
   // for (size_t i = 0; i < fitRes.x.size(); ++i) {
   //   std::cout << fitRes.x[i] << " " << fitRes.yExp[i] << " " << fitRes.yFit[i] << "\n";
   // }
@@ -53,30 +70,38 @@ int main(int argc, char* argv[])
   QMainWindow window;
 
   QwtPlot* plot = new QwtPlot();
-  plot->setTitle("Fitting Results");
+
+  QVector<double> u{simData.u.begin(), simData.u.end()};
+  QVector<double> yParaUs{simData.yParaUsPol.begin(), simData.yParaUsPol.end()};
+  QVector<double> yParaUp{simData.yParaUpPol.begin(), simData.yParaUpPol.end()};
+  QVector<double> yPerp{simData.yPerp.begin(), simData.yPerp.end()};
+
+  plot->setTitle("Simulation Results");
   plot->setCanvas(new QwtPlotCanvas());
   plot->setCanvasBackground(Qt::white);
   plot->setAxisTitle(QwtPlot::xBottom, "X");
   plot->setAxisTitle(QwtPlot::yLeft, "Y");
 
-  QVector<double> xData(fitRes.x.begin(), fitRes.x.end());
-  QVector<double> yExpData(fitRes.yExp.begin(), fitRes.yExp.end());
-  QVector<double> yFitData(fitRes.yFit.begin(), fitRes.yFit.end());
+  QwtPlotCurve* paraUsCurve = new QwtPlotCurve("s-Para");
+  paraUsCurve->setLegendAttribute(QwtPlotCurve::LegendShowSymbol, false);
+  paraUsCurve->setLegendAttribute(QwtPlotCurve::LegendShowLine, true);
+  paraUsCurve->setPen(QPen(Qt::red));
+  paraUsCurve->setSamples(u, yParaUs);
+  paraUsCurve->attach(plot);
 
-  QwtPlotCurve* scatterCurve = new QwtPlotCurve("Exp");
-  QwtSymbol* symbol = new QwtSymbol(QwtSymbol::Triangle, QBrush(Qt::blue), QPen(Qt::black), QSize(8, 8));
-  scatterCurve->setSymbol(symbol);
-  scatterCurve->setStyle(QwtPlotCurve::NoCurve); // No connecting line
-  scatterCurve->setLegendAttribute(QwtPlotCurve::LegendShowSymbol, true);
-  scatterCurve->setLegendAttribute(QwtPlotCurve::LegendShowLine, false);
-  scatterCurve->setSamples(xData, yExpData);
-  scatterCurve->attach(plot);
+  QwtPlotCurve* paraUpCurve = new QwtPlotCurve("p-Para");
+  paraUpCurve->setLegendAttribute(QwtPlotCurve::LegendShowSymbol, false);
+  paraUpCurve->setLegendAttribute(QwtPlotCurve::LegendShowLine, true);
+  paraUpCurve->setPen(QPen(Qt::blue));
+  paraUpCurve->setSamples(u, yParaUp);
+  paraUpCurve->attach(plot);
 
-  QwtPlotCurve* fitCurve = new QwtPlotCurve("Fit");
-  fitCurve->setLegendAttribute(QwtPlotCurve::LegendShowSymbol, false);
-  fitCurve->setLegendAttribute(QwtPlotCurve::LegendShowLine, true);
-  fitCurve->setSamples(xData, yFitData);
-  fitCurve->attach(plot);
+  QwtPlotCurve* perpCurve = new QwtPlotCurve("(p)-Perp");
+  perpCurve->setLegendAttribute(QwtPlotCurve::LegendShowSymbol, false);
+  perpCurve->setLegendAttribute(QwtPlotCurve::LegendShowLine, true);
+  perpCurve->setPen(QPen(Qt::green));
+  perpCurve->setSamples(u, yPerp);
+  perpCurve->attach(plot);
 
   QwtPlotZoomer* zoomer = new QwtPlotZoomer(plot->canvas());
   zoomer->setRubberBandPen(QColor(Qt::red));

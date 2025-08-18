@@ -22,7 +22,7 @@ void Simulation::genInPlaneWavevector()
 
   // Discretization of in-plane wavevector
   CMPLX I(0.0, 1.0);
-  double x_res = 5e-4;
+  double x_res = 5e-3;
   CVector x_range;
 
   if (_mode == SimulationMode::AngleSweep) {
@@ -73,7 +73,7 @@ void Simulation::discretize()
   genOutofPlaneWavevector();
 }
 
-void Simulation::init()
+void Simulation::update()
 {
   // Log initialization of Simulation
   std::cout << "\n\n\n"
@@ -84,44 +84,11 @@ void Simulation::init()
   this->discretize();
 }
 
-Simulation::SimRes Simulation::powerModeDissipation()
-{
-  const Eigen::Index N = matstack.u.rows();
-  auto dipoleLayer = getDipoleIndex() - 1;
-
-  std::vector<double> u(N), powerPerp(N), powerParaUs(N), powerParaUp(N);
-
-  // Use Eigen::Map to copy Eigen arrays into std::vector
-  Eigen::Map<Eigen::ArrayXd>(powerPerp.data(), N) = fracPowerPerpUpPol.row(dipoleLayer);
-  Eigen::Map<Eigen::ArrayXd>(powerParaUs.data(), N) = fracPowerParaUsPol.row(dipoleLayer);
-  Eigen::Map<Eigen::ArrayXd>(powerParaUp.data(), N) = fracPowerParaUpPol.row(dipoleLayer);
-  Eigen::Map<Eigen::ArrayXd>(u.data(), N) = matstack.u;
-
-  return Simulation::SimRes{u, powerPerp, powerParaUs, powerParaUp};
-}
-
 Simulation::Simulation(SimulationMode mode,
   const std::vector<Layer>& layers,
-  const double dipolePosition,
-  Spectrum<Distribution> spectrum,
   const double sweepStart,
   const double sweepStop,
   const double alpha) :
-  BaseSolver(layers, dipolePosition, spectrum, sweepStart, sweepStop, alpha),
+  BaseSolver(layers, sweepStart, sweepStop, alpha),
   _mode{mode}
-{
-  init();
-}
-
-Simulation::Simulation(SimulationMode mode,
-  const std::vector<Layer>& layers,
-  const Distribution& dipoleDist,
-  Spectrum<Distribution> spectrum,
-  const double sweepStart,
-  const double sweepStop,
-  const double alpha) :
-  BaseSolver(layers, dipoleDist, spectrum, sweepStart, sweepStop, alpha),
-  _mode{mode}
-{
-  init();
-}
+{}

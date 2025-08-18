@@ -13,6 +13,7 @@
 
 #include <basesolver.hpp>
 #include <matlayer.hpp>
+#include <polymap.hpp>
 
 /*! \class Simulation
     \brief A class for energy emission simulation which inherits from baseSolver.
@@ -33,34 +34,16 @@ protected:
   void genOutofPlaneWavevector() override;
   void discretize() override;
 
-  void init();
-
   SimulationMode _mode;
 
 public:
-  struct SimRes
-  { // this thing only exists to make plotting easier just like FitRes. (also needs testing)
-    std::vector<double> u;
-    std::vector<double> yPerp, yParaUpPol, yParaUsPol;
-  };
-
-  SimRes powerModeDissipation();
-
   Simulation(SimulationMode mode,
     const std::vector<Layer>& layers,
-    const double dipolePosition,
-    Spectrum<Distribution> spectrum,
-    const double sweepStart,
-    const double sweepStop,
-    const double alpha = 1.0 / 3.0);
-
-  Simulation(SimulationMode mode,
-    const std::vector<Layer>& layers,
-    const Distribution& dipoleDist,
-    Spectrum<Distribution> spectrum,
     const double sweepStart,
     const double sweepStop,
     const double alpha = 1.0 / 3.0);
 
   ~Simulation() = default;
+
+  void update() override;
 };

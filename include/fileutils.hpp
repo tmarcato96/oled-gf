@@ -10,4 +10,5 @@
 
 namespace Data {
   Matrix loadFromFile(const std::string& filepath, size_t ncols, char delimiter = ',');
+  void sortRowsByFirstColumn(Matrix& m);
 } // namespace Data

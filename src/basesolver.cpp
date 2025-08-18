@@ -9,9 +9,24 @@
 #include <vector>
 
 #include "basesolver.hpp"
-#include "indata.hpp"
 #include "linalg.hpp"
 #include <forwardDecl.hpp>
+
+BaseSolver::BaseSolver(const std::vector<Layer>& layers,
+  const double sweepStart,
+  const double sweepStop,
+  const double inalpha) :
+  layers{std::move(layers)},
+  _sweepStart{sweepStart},
+  _sweepStop{sweepStop},
+  alpha{inalpha}
+{
+  dipoleLayer = 0;
+  for (auto layer : layers) {
+    if (layer.isEmitter) { break; }
+    dipoleLayer++;
+  }
+}
 
 void BaseSolver::loadMaterialData()
 {
@@ -33,40 +48,6 @@ void BaseSolver::loadMaterialData()
     std::cout << "Layer " << i << "; Material: (" << matstack.epsilon(i).real() << ", " << matstack.epsilon(i).imag()
               << ")\n";
   }
-}
-
-BaseSolver::BaseSolver(const std::vector<Layer>& layers,
-  const double dipolePosition,
-  Spectrum<Distribution> spectrum,
-  const double sweepStart,
-  const double sweepStop,
-  const double inpalpha) :
-  layers{std::move(layers)},
-  dipolePosition{dipolePosition},
-  _sweepStart{sweepStart},
-  _sweepStop{sweepStop},
-  alpha{inpalpha}
-
-{
-  dipoleLayer = 0;
-  for (auto layer : layers) {
-    if (layer.isEmitter) { break; }
-    dipoleLayer++;
-  }
-  _spectrum = std::move(spectrum.spectrum);
-  if (_spectrum.rows() == 1) wvl = _spectrum(0, 0);
-  _dipolePositions = Vector::Zero(10);
-}
-
-BaseSolver::BaseSolver(const std::vector<Layer>& layers,
-  const Distribution& dipoleDist,
-  Spectrum<Distribution> spectrum,
-  const double sweepStart,
-  const double sweepStop,
-  const double inpalpha) :
-  BaseSolver(layers, 0.0, spectrum, sweepStart, sweepStop, inpalpha)
-{
-  _dipolePositions = std::move(dipoleDist.values);
 }
 
 void BaseSolver::calculateFresnelCoeffs()
@@ -401,6 +382,9 @@ void BaseSolver::calculate()
   fracPowerParaUpPol *= (1 - alpha);
   fracPowerParaUsPol *= (1 - alpha);
 
+  // Fill Results
+  fillResultTree();
+
   // Loggin
   std::cout << "\n\n\n"
             << "-----------------------------------------------------------------\n";
@@ -409,67 +393,7 @@ void BaseSolver::calculate()
             << "\n\n";
 }
 
-void BaseSolver::calculateWithSpectrum()
-{
-  CMatrix pPerpUpPol = CMatrix::Zero(matstack.numLayers - 1, matstack.u.size());
-  CMatrix pParaUpPol = CMatrix::Zero(matstack.numLayers - 1, matstack.u.size());
-  CMatrix pParaUsPol = CMatrix::Zero(matstack.numLayers - 1, matstack.u.size());
-  double dX = _spectrum(1, 0) - _spectrum(0, 0); // CHANGE IF DISCRETIZATION BECOMES UNEQUALLY SPACED
-  for (Eigen::Index i = 0; i < _spectrum.rows(); ++i) {
-    wvl = _spectrum(i, 0);
-    this->discretize();
-    calculate();
-    // Integration
-    if (i == 0 || i == _spectrum.rows() - 1) {
-      powerPerpUpPol *= 0.5;
-      powerParaUpPol *= 0.5;
-      powerParaUsPol *= 0.5;
-    }
-    pPerpUpPol += (powerPerpUpPol * _spectrum(i, 1));
-    pParaUpPol += (powerParaUpPol * _spectrum(i, 1));
-    pParaUsPol += (powerParaUsPol * _spectrum(i, 1));
-  }
-  powerPerpUpPol = pPerpUpPol * dX;
-  powerParaUpPol = pParaUpPol * dX;
-  powerParaUsPol = pParaUsPol * dX;
-}
-
-void BaseSolver::calculateWithDipoleDistribution()
-{
-  CMatrix pPerpUpPol = CMatrix::Zero(matstack.numLayers - 1, matstack.u.size());
-  CMatrix pParaUpPol = CMatrix::Zero(matstack.numLayers - 1, matstack.u.size());
-  CMatrix pParaUsPol = CMatrix::Zero(matstack.numLayers - 1, matstack.u.size());
-  double dX = _dipolePositions(1) - _dipolePositions(0);
-  double thickness = layers[dipoleLayer].getThickness();
-  for (Eigen::Index i = 0; i < _dipolePositions.size(); ++i) {
-    dipolePosition = _dipolePositions(i);
-    this->discretize();
-    calculateWithSpectrum();
-    // Integration
-    if (i == 0 || i == _dipolePositions.size() - 1) {
-      powerPerpUpPol *= 0.5;
-      powerParaUpPol *= 0.5;
-      powerParaUsPol *= 0.5;
-    }
-    pPerpUpPol += (powerPerpUpPol);
-    pParaUpPol += (powerParaUpPol);
-    pParaUsPol += (powerParaUsPol);
-  }
-  powerPerpUpPol = pPerpUpPol * dX / thickness;
-  powerParaUpPol = pParaUpPol * dX / thickness;
-  powerParaUsPol = pParaUsPol * dX / thickness;
-}
-
-void BaseSolver::run()
-{
-  if ((_spectrum.rows() == 1) && _dipolePositions.isZero()) { calculate(); }
-  else if (_dipolePositions.isZero()) {
-    calculateWithSpectrum();
-  }
-  else {
-    calculateWithDipoleDistribution();
-  }
-}
+void BaseSolver::run() { calculate(); }
 
 void BaseSolver::calculateEmissionSubstrate(Vector& thetaGlass,
   Vector& powerPerpGlass,
@@ -504,22 +428,35 @@ Vector const& BaseSolver::getInPlaneWavevector() const { return matstack.u; }
 
 Eigen::Index BaseSolver::getDipoleIndex() const { return dipoleLayer; }
 
-Distribution::Distribution(double xLeft, double xRight, size_t numPoints) :
-  lBound{xLeft},
-  hBound{xRight}
+void BaseSolver::setDipolePosition(double pos) { dipolePosition = pos; }
+
+void BaseSolver::setWavelength(double wavelength) { wvl = wavelength; }
+
+BaseSolver::SimRes BaseSolver::powerModeDissipation()
 {
-  values = Eigen::ArrayXd::LinSpaced(numPoints, xLeft, xRight);
+  const Eigen::Index N = matstack.u.rows();
+  auto dipoleLayer = getDipoleIndex() - 1;
+
+  std::vector<double> u(N), powerPerp(N), powerParaUs(N), powerParaUp(N);
+
+  // Use Eigen::Map to copy Eigen arrays into std::vector
+  Eigen::Map<Eigen::ArrayXd>(powerPerp.data(), N) = resultTree.get<Matrix>("P_perp_uf").row(dipoleLayer);
+  Eigen::Map<Eigen::ArrayXd>(powerParaUs.data(), N) = resultTree.get<Matrix>("P_para_p_uf").row(dipoleLayer);
+  Eigen::Map<Eigen::ArrayXd>(powerParaUp.data(), N) = resultTree.get<Matrix>("P_para_s_uf").row(dipoleLayer);
+  Eigen::Map<Eigen::ArrayXd>(u.data(), N) = matstack.u;
+
+  return BaseSolver::SimRes{u, powerPerp, powerParaUs, powerParaUp};
 }
 
-Distribution::Distribution(double value) :
-  lBound(value),
-  hBound(value)
-{
-  values = Vector::Constant(1, value);
-}
+double BaseSolver::getLayerThickness(size_t index) { return layers[index].getThickness(); }
 
-NormalDistribution::NormalDistribution(double xmin, double xmax, double x0, double sigma, size_t numPoints) :
-  Distribution(xmin, xmax, numPoints)
+void BaseSolver::fillResultTree()
 {
-  values = (1.0 / sqrt(2 * M_PI * pow(sigma, 2))) * (-0.5 * ((values - x0) / sigma).pow(2)).exp();
+  resultTree["u"] = matstack.u;
+  resultTree["P_perp_u"] = powerPerpUpPol;
+  resultTree["P_para_p_u"] = powerParaUpPol;
+  resultTree["P_para_s_u"] = powerParaUsPol;
+  resultTree["P_perp_uf"] = fracPowerPerpUpPol;
+  resultTree["P_para_p_uf"] = fracPowerParaUpPol;
+  resultTree["P_para_s_uf"] = fracPowerParaUsPol;
 }

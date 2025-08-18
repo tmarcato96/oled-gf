@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <numeric>
 #include <sstream>
 
 #include <Eigen/Core>
@@ -69,4 +70,16 @@ Matrix Data::loadFromFile(const std::string& filepath, size_t ncols, char delimi
   Matrix ret = Eigen::Map<Matrix, 0, Eigen::Stride<1, Eigen::Dynamic>>(
     &data[0], nlines, ncols, Eigen::Stride<1, Eigen::Dynamic>(1, ncols));
   return ret;
+}
+
+void Data::sortRowsByFirstColumn(Matrix& m)
+{
+  std::vector<size_t> indices(m.rows());
+  std::iota(indices.begin(), indices.end(), 0);
+
+  // Sort indices based on first column
+  std::sort(indices.begin(), indices.end(), [&](size_t i, size_t j) { return m(i, 0) < m(j, 0); });
+
+  Matrix sorted = m; // copy
+  for (size_t i = 0; i < indices.size(); ++i) { m.row(i) = sorted.row(indices[i]); }
 }
