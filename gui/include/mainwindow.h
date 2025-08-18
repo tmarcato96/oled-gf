@@ -36,6 +36,7 @@ protected:
 public:
   MainWindow();
 
+  void newConfigFile();
   PreviewTab* getPreviewTab();
   void refreshPreviewTab(MonitoredTab* tab); // safe(r) tab refresh
 

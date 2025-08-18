@@ -1,6 +1,7 @@
 #include "mainwindow.h"
-#include <previewtab.h>
-#include <threadhelper.h>
+#include "configwindow.h"
+#include "previewtab.h"
+#include "threadhelper.h"
 
 #include <QString>
 #include <QEvent>
@@ -20,6 +21,14 @@
 #include <QStandardPaths>
 #include <QStackedWidget>
 #include <QProcess>
+
+#include <QFormLayout>
+#include <QLineEdit>
+#include <QSpinBox>
+#include <QCheckBox>
+#include <QComboBox>
+#include <QTextEdit>
+
 
 #include <QwtPlotZoomer>
 #include <QPen>
@@ -151,6 +160,14 @@ void MonitoredTab::showEvent(QShowEvent* event) {
     }
 }
 
+void MainWindow::newConfigFile() {
+    LayerStackWidget *layerStack = new LayerStackWidget;
+    setCentralWidget(layerStack);
+
+    // When saving to JSON:
+    QList<QVariantMap> layers = layerStack->getLayersData();
+}
+
 void MainWindow::newCurrentBlankTab(const QString& label) {
 
     auto* newTab = new MonitoredTab(this);
@@ -184,12 +201,12 @@ MainWindow::MainWindow()
 
         newCurrentBlankTab();
         createCanvas();
-
     }
 
 void MainWindow::newCurrentTabFromFile(const QString& configFilepath, const QString& label) {
     newCurrentBlankTab(label);
     _currentTab->makeJob(configFilepath);
+    
 }
 
 void MainWindow::createMenus() {
@@ -198,6 +215,11 @@ void MainWindow::createMenus() {
 
     // File menu
     QMenu *fileMenu = menuBar->addMenu(tr("&File"));
+
+    //make config file
+    auto configAction = new QAction("make config", this);
+    connect(configAction, &QAction::triggered, this, [this](){newConfigFile();});
+    fileMenu->addAction(configAction);
 
     auto loadAction = new QAction("load", this);
     connect(loadAction, &QAction::triggered, this, &MainWindow::onLoad);
@@ -341,9 +363,10 @@ void MainWindow::createCanvas() {
             plot->replot(); //updates plot
             _plotStatus = 1;
         }
-        else if (auto plot = dynamic_cast<QwtPolarPlot*> (_currentTab->plot))
+        else if (auto plot = dynamic_cast<QwtPolarPlot*> (_currentTab->plot)) {
             plot->replot();
             _plotStatus = 1;
+        }
     }
         _centralStack->setCurrentWidget(_currentTab);
 }
