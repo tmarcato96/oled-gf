@@ -24,6 +24,19 @@ namespace pm {
   };
 } // namespace pm
 
+// Helper traits for variant
+template<class T, class Variant> struct is_alternative_of_variant : std::false_type
+{
+};
+
+template<class T, class... Us>
+struct is_alternative_of_variant<T, std::variant<Us...>> : std::disjunction<std::is_same<std::remove_cvref_t<T>, Us>...>
+{
+};
+
+template<class T, class Variant>
+inline constexpr bool is_alternative_of_variant_v = is_alternative_of_variant<T, Variant>::value;
+
 // Operation default policy
 struct DefaultOpPolicy
 {
@@ -218,6 +231,16 @@ template<typename Values, typename Policy = DefaultOpPolicy> struct PolyMap
     static_assert((std::is_convertible_v<Keys, std::string> && ...), "All keys must be convertible to std::string");
 
     for (const auto k : {keys...}) { polyMap[k] = val; }
+  }
+
+  template<typename Target, typename... Keys> void insertAs(Target&& expr, Keys&&... keys)
+  {
+    using altT = std::remove_cvref_t<Target>;
+    static_assert(
+      is_alternative_of_variant_v<altT, value_type>, "insert_as<T>: T must be one of the variant alternatives");
+
+    value_type v{std::in_place_type<altT>, altT(std::forward<Target>(expr))};
+    ((polyMap[std::string(std::forward<Keys>(keys))] = v), ...);
   }
 };
 

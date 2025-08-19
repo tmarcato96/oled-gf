@@ -7,60 +7,27 @@
 #include <unsupported/Eigen/NonLinearOptimization>
 #include <vector>
 
-#include "indata.hpp"
-#include "linalg.hpp"
 #include "matlayer.hpp"
 #include <fitting.hpp>
 
 Fitting::Fitting(const std::string& fittingFilePath,
   const std::vector<Layer>& layers,
-  const double dipolePosition,
-  Spectrum<Distribution> spectrum,
   const double sweepStart,
   const double sweepStop) :
-  BaseSolver(layers, dipolePosition, spectrum, sweepStart, sweepStop)
+  BaseSolver(layers, sweepStart, sweepStop)
 {
-  init(std::move(fittingFilePath));
+  intensityData = Data::loadFromFile(fittingFilePath, 2);
 }
 
 Fitting::Fitting(const Matrix& fitData,
   const std::vector<Layer>& layers,
-  const double dipolePosition,
-  Spectrum<Distribution> spectrum,
   const double sweepStart,
   const double sweepStop) :
-  BaseSolver(layers, dipolePosition, spectrum, sweepStart, sweepStop),
+  BaseSolver(layers, sweepStart, sweepStop),
   intensityData{fitData}
-{
-  std::string empty{};
-  init(empty);
-}
+{}
 
-Fitting::Fitting(const std::string& fittingFilePath,
-  const std::vector<Layer>& layers,
-  const Distribution& dipoleDist,
-  Spectrum<Distribution> spectrum,
-  const double sweepStart,
-  const double sweepStop) :
-  BaseSolver(layers, dipoleDist, spectrum, sweepStart, sweepStop)
-{
-  init(std::move(fittingFilePath));
-}
-
-Fitting::Fitting(const Matrix& fitData,
-  const std::vector<Layer>& layers,
-  const Distribution& dipoleDist,
-  Spectrum<Distribution> spectrum,
-  const double sweepStart,
-  const double sweepStop) :
-  BaseSolver(layers, dipoleDist, spectrum, sweepStart, sweepStop),
-  intensityData{fitData}
-{
-  std::string empty{};
-  init(empty);
-}
-
-void Fitting::init(const std::string& fittingFile)
+void Fitting::update()
 {
   // Log initialization of Simulation
   std::cout << "\n\n\n"
@@ -69,17 +36,23 @@ void Fitting::init(const std::string& fittingFile)
   std::cout << "-----------------------------------------------------------------\n"
             << "\n\n";
 
-  if (!fittingFile.empty()) intensityData = Data::loadFromFile(fittingFile, 2);
-  else if (intensityData.size() == 0) throw std::runtime_error("fitting data improperly initialized!");
   this->discretize();
-  run();
+}
+
+void Fitting::setup()
+{
   // setting up functor for fitting
   residual.intensities = intensityData.col(1).segment(0, matstack.u.size());
-  residual.powerGlass = calculateEmissionSubstrate();
+  calculateEmissionSubstrate();
+  Matrix powerGlassP(2, resultTree.get<Vector>("P_perp_sub").size());
+  powerGlassP.row(0) = resultTree.get<Vector>("P_perp_sub");
+  powerGlassP.row(1) = resultTree.get<Vector>("P_para_p_sub");
+  residual.powerGlass = std::move(powerGlassP);
 }
 
 void Fitting::genInPlaneWavevector()
 {
+  // Technically should not be updated every run of the sweep
   // Cumulative sum of thicknesses
   matstack.z0.resize(matstack.numLayers - 1);
   matstack.z0(0) = 0.0;
@@ -118,26 +91,6 @@ void Fitting::discretize()
   genOutofPlaneWavevector();
 }
 
-Matrix Fitting::calculateEmissionSubstrate()
-{
-  Vector powerPerppPolGlass;
-  Vector powerParapPolGlass;
-  Eigen::Index substrateIndex = matstack.numLayers - 2; // glass
-
-  powerPerppPolGlass = powerPerpUpPol.row(substrateIndex).real() *
-                       std::sqrt(std::real(matstack.epsilon(matstack.numLayers - 1) / matstack.epsilon(dipoleLayer)));
-  powerPerppPolGlass /= Eigen::tan(intensityData.col(0).segment(0, matstack.u.size()));
-
-  powerParapPolGlass = powerParaUpPol.row(substrateIndex).real() *
-                       std::sqrt(std::real(matstack.epsilon(matstack.numLayers - 1) / matstack.epsilon(dipoleLayer)));
-  powerParapPolGlass /= Eigen::tan(intensityData.col(0).segment(0, matstack.u.size()));
-
-  Matrix powerGlass(2, powerPerppPolGlass.size());
-  powerGlass.row(0) = powerPerppPolGlass;
-  powerGlass.row(1) = powerParapPolGlass;
-  return powerGlass;
-}
-
 int ResFunctor::operator()(const Eigen::VectorXd& params, Eigen::VectorXd& fvec) const
 {
   // x here is vector of fitting params
@@ -152,8 +105,9 @@ int ResFunctor::inputs() const { return 2; }
 
 int ResFunctor::values() const { return intensities.size(); }
 
-Fitting::FitRes Fitting::fitEmissionSubstrate()
+Fitting::FitRes Fitting::fit()
 {
+  setup();
 
   // returns the vector of parameters and the fitted intensities as a std::pair
   std::vector<double> theta(matstack.x.rows()), yFit(matstack.x.rows()), yExp(residual.intensities.rows());
@@ -188,3 +142,22 @@ Fitting::FitRes Fitting::fitEmissionSubstrate()
 
   return res;
 };
+
+void Fitting::calculateEmissionSubstrate()
+{
+  CMatrix& powerPerpUpPol = resultTree.get<CMatrix>("P_perp_u");
+  CMatrix& powerParaUpPol = resultTree.get<CMatrix>("P_para_p_u");
+
+  resultTree.insertAs<Vector>(Vector(), POWER_DIPOLES_SUB);
+  Eigen::Index substrateIndex = matstack.numLayers - 2; // glass
+
+  resultTree.get<Vector>("P_perp_sub") =
+    powerPerpUpPol.row(substrateIndex).real() *
+    std::sqrt(std::real(matstack.epsilon(matstack.numLayers - 1) / matstack.epsilon(dipoleLayer)));
+  resultTree.get<Vector>("P_perp_sub") /= Eigen::tan(intensityData.col(0).segment(0, matstack.u.size()));
+
+  resultTree.get<Vector>("P_para_p_sub") =
+    powerParaUpPol.row(substrateIndex).real() *
+    std::sqrt(std::real(matstack.epsilon(matstack.numLayers - 1) / matstack.epsilon(dipoleLayer)));
+  resultTree.get<Vector>("P_para_p_sub") /= Eigen::tan(intensityData.col(0).segment(0, matstack.u.size()));
+}

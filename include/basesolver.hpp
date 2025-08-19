@@ -90,10 +90,6 @@ protected:
   MatStack matstack;
   SolverCoefficients coeffs;
 
-  CMatrix powerPerpUpPol;
-  CMatrix powerParaUpPol;
-  CMatrix powerParaUsPol;
-
   // Discretization
   void loadMaterialData();
   virtual void discretize() = 0;
@@ -118,23 +114,16 @@ protected:
   /*!< Function that initializes that properly initializes all coefficients and call the other member functions
   sequentially, as needed to obtain the base results needed for both Fitting and Simulation. In particular, the power
   emitted at the output as given by the real part of the Poynting vector's area integral.*/
-  void fillResultTree();
 
 public:
   using CMPLX = std::complex<double>;
-  // Temporary results holder
-  struct SimRes
-  { // this thing only exists to make plotting easier just like FitRes. (also needs testing)
-    std::vector<double> u;
-    std::vector<double> yPerp, yParaUpPol, yParaUsPol;
-  };
-  SimRes powerModeDissipation();
 
-  // New results
+  // Main interface to Solver Results
   using ResTypes = Types<double, Vector, CMatrix, Matrix>;
   using ResMap = PolyMap<ResTypes, pm_eigen::EigenArrayPolicy>;
   ResMap resultTree;
 
+  // Setter and getters
   Vector const& getInPlaneWavevector() const;
   void setDipolePosition(double pos);
   void setWavelength(double wavelength);
@@ -144,16 +133,7 @@ public:
   void run();
   virtual void update() = 0;
 
-  void calculateEmissionSubstrate(Vector& thetaGlass,
-    Vector& powerPerpGlass,
-    Vector& powerParapPolGlass,
-    Vector& powerParasPolGlass) const;
-
   virtual ~BaseSolver() = default;
 
   double alpha;
-
-  Matrix fracPowerPerpUpPol;
-  Matrix fracPowerParaUpPol;
-  Matrix fracPowerParaUsPol;
 };

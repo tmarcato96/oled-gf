@@ -15,9 +15,9 @@ using JsonList = std::vector<std::unique_ptr<JsonNode>>;
 Data::Results::Results(const BaseSolver& solver) :
   alpha{solver.alpha},
   u{solver.getInPlaneWavevector()},
-  powerUpPerp{solver.fracPowerPerpUpPol},
-  powerUpPara{solver.fracPowerParaUpPol},
-  powerUsPara{solver.fracPowerParaUsPol}
+  powerUpPerp{},
+  powerUpPara{},
+  powerUsPara{}
 {}
 
 std::string Data::Results::vecToString(const Vector& vec)

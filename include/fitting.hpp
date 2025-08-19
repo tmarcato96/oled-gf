@@ -79,31 +79,10 @@ class Fitting : public BaseSolver
 public:
   Fitting(const std::string& fittingFilePath,
     const std::vector<Layer>& layers,
-    const double dipolePosition,
-    Spectrum<Distribution> spectrum,
     const double sweepStart,
     const double sweepStop);
 
-  Fitting(const Matrix& fitData,
-    const std::vector<Layer>& layers,
-    const double dipolePosition,
-    Spectrum<Distribution> spectrum,
-    const double sweepStart,
-    const double sweepStop);
-
-  Fitting(const std::string& fittingFilePath,
-    const std::vector<Layer>& layers,
-    const Distribution& dipoleDist,
-    Spectrum<Distribution> spectrum,
-    const double sweepStart,
-    const double sweepStop);
-
-  Fitting(const Matrix& fitData,
-    const std::vector<Layer>& layers,
-    const Distribution& dipoleDist,
-    Spectrum<Distribution> spectrum,
-    const double sweepStart,
-    const double sweepStop);
+  Fitting(const Matrix& fitData, const std::vector<Layer>& layers, const double sweepStart, const double sweepStop);
 
   /*!< Fitting class constructor, the constructor takes a (std) vector of class Material containing the materials of the
   stack to be simulated, a (std) vector of layer thicknesses with matching indices, the index of the dipole layer, the
@@ -118,12 +97,7 @@ public:
     Eigen::VectorXd optParams;
   };
 
-  Matrix calculateEmissionSubstrate(); // MAKE PRIVATE
-  /*!< Member method of Fitting used to simulate the emitted power leaving the substrate. The function simulates
-  parallel and perpendicular components of the power emitted, so that it returns an Eigen array where the first and
-  second columnns are the perpendicular and parallel components of the emitted power, repectively.*/
-
-  FitRes fitEmissionSubstrate();
+  FitRes fit();
   /*!< Member method of Fitting used to fit the emitted power leaving the substrate. The function uses the components of
   the power emitted simulated by calculateEmissionSubstrate() and the experimentally obtained intensities in order to
   compute the residuals for fitting. It uses the Levenberg-Marquadt algorithm to optimize the fittinng parameters and
@@ -135,10 +109,13 @@ public:
 
   ResFunctorNumericalDiff residual;
 
-private:
-  void init(const std::string& fittingFile);
+  void update() override;
+  void calculateEmissionSubstrate();
 
+private:
   void genInPlaneWavevector() override;
   void genOutofPlaneWavevector() override;
   void discretize() override;
+
+  void setup();
 };

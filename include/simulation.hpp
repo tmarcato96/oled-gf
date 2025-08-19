@@ -46,4 +46,6 @@ public:
   ~Simulation() = default;
 
   void update() override;
+
+  void calculateEmissionSubstrate();
 };

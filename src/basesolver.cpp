@@ -26,6 +26,9 @@ BaseSolver::BaseSolver(const std::vector<Layer>& layers,
     if (layer.isEmitter) { break; }
     dipoleLayer++;
   }
+  // Initialize result Tree
+  resultTree.insertAs<CMatrix>(CMatrix(), POWER_DIPOLES_U);
+  resultTree.insertAs<Matrix>(Matrix(), POWER_DIPOLES_U_FRAC);
 }
 
 void BaseSolver::loadMaterialData()
@@ -284,10 +287,13 @@ void BaseSolver::calculateLifetime(Vector& bPerp, Vector& bPara)
 void BaseSolver::calculateDissPower(const double bPerpSum, const double bParaSum)
 {
   // Power calculation
+  CMatrix& powerPerpUpPol = resultTree.get<CMatrix>("P_perp_u");
+  CMatrix& powerParaUpPol = resultTree.get<CMatrix>("P_para_p_u");
+  CMatrix& powerParaUsPol = resultTree.get<CMatrix>("P_para_s_u");
+
   powerPerpUpPol.resize(matstack.numLayers - 1, matstack.u.size());
   powerParaUpPol.resize(matstack.numLayers - 1, matstack.u.size());
   powerParaUsPol.resize(matstack.numLayers - 1, matstack.u.size());
-  CMatrix powerParaTemp(matstack.numLayers - 1, matstack.u.size());
 
   double q = 1.0; // PLQY
   CMPLX I(0.0, 1.0);
@@ -338,18 +344,15 @@ void BaseSolver::calculateDissPower(const double bPerpSum, const double bParaSum
   // Fraction power calculation
   Matrix m1 = Eigen::real(powerPerpUpPol.block(0, 0, powerPerpUpPol.rows() - 1, powerPerpUpPol.cols()));
   Matrix m2 = Eigen::real(powerPerpUpPol.block(1, 0, powerPerpUpPol.rows() - 1, powerPerpUpPol.cols()));
-  fracPowerPerpUpPol = Eigen::abs(m2 - m1);
-  fracPowerPerpUpPol /= std::abs(bPerpSum);
+  resultTree.get<Matrix>("P_perp_uf") = Eigen::abs(m2 - m1) / std::abs(bPerpSum);
 
   Matrix m3 = Eigen::real(powerParaUpPol.block(0, 0, powerParaUpPol.rows() - 1, powerParaUpPol.cols()));
   Matrix m4 = Eigen::real(powerParaUpPol.block(1, 0, powerParaUpPol.rows() - 1, powerParaUpPol.cols()));
-  fracPowerParaUpPol = Eigen::abs(m4 - m3);
-  fracPowerParaUpPol /= std::abs(bParaSum);
+  resultTree.get<Matrix>("P_para_p_uf") = Eigen::abs(m4 - m3) / std::abs(bParaSum);
 
   Matrix m5 = Eigen::real(powerParaUsPol.block(0, 0, powerParaUsPol.rows() - 1, powerParaUsPol.cols()));
   Matrix m6 = Eigen::real(powerParaUsPol.block(1, 0, powerParaUsPol.rows() - 1, powerParaUsPol.cols()));
-  fracPowerParaUsPol = Eigen::abs(m6 - m5);
-  fracPowerParaUsPol /= std::abs(bParaSum);
+  resultTree.get<Matrix>("P_para_s_uf") = Eigen::abs(m6 - m5) / std::abs(bParaSum);
 }
 
 void BaseSolver::calculate()
@@ -378,12 +381,9 @@ void BaseSolver::calculate()
   calculateDissPower(bPerpSum, bParaSum);
 
   // normalizing dissipated power by alpha to get efficiency
-  fracPowerPerpUpPol *= alpha;
-  fracPowerParaUpPol *= (1 - alpha);
-  fracPowerParaUsPol *= (1 - alpha);
-
-  // Fill Results
-  fillResultTree();
+  resultTree("P_perp_uf") *= alpha;
+  resultTree("P_para_p_uf", "P_para_s_uf") *= (1 - alpha);
+  resultTree["u"] = matstack.u;
 
   // Loggin
   std::cout << "\n\n\n"
@@ -395,35 +395,6 @@ void BaseSolver::calculate()
 
 void BaseSolver::run() { calculate(); }
 
-void BaseSolver::calculateEmissionSubstrate(Vector& thetaGlass,
-  Vector& powerPerpGlass,
-  Vector& powerParapPolGlass,
-  Vector& powerParasPolGlass) const
-{
-  double uCriticalGlass =
-    std::real(std::sqrt(matstack.epsilon(matstack.numLayers - 1) / matstack.epsilon(dipoleLayer)));
-  auto uGlassIt =
-    std::find_if(matstack.u.begin(), matstack.u.end(), [uCriticalGlass](auto a) { return a > uCriticalGlass; });
-  auto uGlassIndex = uGlassIt - matstack.u.begin();
-
-  thetaGlass = Eigen::real(Eigen::acos(Eigen::sqrt(
-    1 - matstack.epsilon(dipoleLayer) / matstack.epsilon(matstack.numLayers - 1) * Eigen::pow(matstack.u, 2))));
-
-  powerPerpGlass = ((Eigen::real(powerPerpUpPol.row(matstack.numLayers - 2))) *
-                    std::sqrt(std::real(matstack.epsilon(matstack.numLayers - 1) / matstack.epsilon(dipoleLayer))));
-  powerPerpGlass /= Eigen::tan(thetaGlass);
-
-  // CMatrix powerParaUTot = powerParaUpPol + powerParaUsPol;
-
-  powerParapPolGlass = ((Eigen::real(powerParaUpPol.row(matstack.numLayers - 2))) *
-                        std::sqrt(std::real(matstack.epsilon(matstack.numLayers - 1) / matstack.epsilon(dipoleLayer))));
-  powerParapPolGlass /= Eigen::tan(thetaGlass);
-
-  powerParasPolGlass = ((Eigen::real(powerParaUsPol.row(matstack.numLayers - 2))) *
-                        std::sqrt(std::real(matstack.epsilon(matstack.numLayers - 1) / matstack.epsilon(dipoleLayer))));
-  powerParasPolGlass /= Eigen::tan(thetaGlass);
-}
-
 Vector const& BaseSolver::getInPlaneWavevector() const { return matstack.u; }
 
 Eigen::Index BaseSolver::getDipoleIndex() const { return dipoleLayer; }
@@ -432,31 +403,4 @@ void BaseSolver::setDipolePosition(double pos) { dipolePosition = pos; }
 
 void BaseSolver::setWavelength(double wavelength) { wvl = wavelength; }
 
-BaseSolver::SimRes BaseSolver::powerModeDissipation()
-{
-  const Eigen::Index N = matstack.u.rows();
-  auto dipoleLayer = getDipoleIndex() - 1;
-
-  std::vector<double> u(N), powerPerp(N), powerParaUs(N), powerParaUp(N);
-
-  // Use Eigen::Map to copy Eigen arrays into std::vector
-  Eigen::Map<Eigen::ArrayXd>(powerPerp.data(), N) = resultTree.get<Matrix>("P_perp_uf").row(dipoleLayer);
-  Eigen::Map<Eigen::ArrayXd>(powerParaUs.data(), N) = resultTree.get<Matrix>("P_para_p_uf").row(dipoleLayer);
-  Eigen::Map<Eigen::ArrayXd>(powerParaUp.data(), N) = resultTree.get<Matrix>("P_para_s_uf").row(dipoleLayer);
-  Eigen::Map<Eigen::ArrayXd>(u.data(), N) = matstack.u;
-
-  return BaseSolver::SimRes{u, powerPerp, powerParaUs, powerParaUp};
-}
-
 double BaseSolver::getLayerThickness(size_t index) { return layers[index].getThickness(); }
-
-void BaseSolver::fillResultTree()
-{
-  resultTree["u"] = matstack.u;
-  resultTree["P_perp_u"] = powerPerpUpPol;
-  resultTree["P_para_p_u"] = powerParaUpPol;
-  resultTree["P_para_s_u"] = powerParaUsPol;
-  resultTree["P_perp_uf"] = fracPowerPerpUpPol;
-  resultTree["P_para_p_uf"] = fracPowerParaUpPol;
-  resultTree["P_para_s_uf"] = fracPowerParaUsPol;
-}

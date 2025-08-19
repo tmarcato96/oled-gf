@@ -232,20 +232,20 @@ public:
 class SweepManager
 {
 public:
-  SweepManager(std::unique_ptr<BaseSolver> solver) :
-    _solver{std::move(solver)}
+  explicit SweepManager(BaseSolver& solver) :
+    _solver{&solver}
   {}
 
   template<typename DipoleT, typename SpectrumT>
   void setSDSweep(Distribution<DipoleT>& dipoleDist, std::shared_ptr<Distribution<SpectrumT>> spectrumDist)
   {
-    _sdSweep = std::make_unique<SweepSpecDip<DipoleT, SpectrumT>>(_solver.get(), dipoleDist, std::move(spectrumDist));
+    _sdSweep = std::make_unique<SweepSpecDip<DipoleT, SpectrumT>>(_solver, dipoleDist, std::move(spectrumDist));
   }
 
   template<typename DipoleT, typename SpectrumT>
   void setSDSweep(const Distribution<DipoleT>& dipoleDist, const Distribution<SpectrumT>& spectrumDist)
   {
-    _sdSweep = std::make_unique<SweepSpecDip<DipoleT, SpectrumT>>(_solver.get(), dipoleDist, spectrumDist);
+    _sdSweep = std::make_unique<SweepSpecDip<DipoleT, SpectrumT>>(_solver, dipoleDist, spectrumDist);
   }
 
   void addSweep(size_t layerNum, Distribution<> thicknesses) { _sweeps.emplace(layerNum, thicknesses); }
@@ -264,7 +264,27 @@ public:
     }
   }
 
-  BaseSolver::SimRes getResults() { return _solver->powerModeDissipation(); }
+  struct SimRes
+  { // this thing only exists to make plotting easier just like FitRes. (also needs testing)
+    std::vector<double> u;
+    std::vector<double> yPerp, yParaUpPol, yParaUsPol;
+  };
+
+  SimRes getResults()
+  {
+    const Eigen::Index N = _solver->resultTree.get<Vector>("u").rows();
+    auto dipoleLayer = _solver->getDipoleIndex() - 1;
+
+    std::vector<double> u(N), powerPerp(N), powerParaUs(N), powerParaUp(N);
+
+    // Use Eigen::Map to copy Eigen arrays into std::vector
+    Eigen::Map<Eigen::ArrayXd>(powerPerp.data(), N) = _solver->resultTree.get<Matrix>("P_perp_uf").row(dipoleLayer);
+    Eigen::Map<Eigen::ArrayXd>(powerParaUs.data(), N) = _solver->resultTree.get<Matrix>("P_para_p_uf").row(dipoleLayer);
+    Eigen::Map<Eigen::ArrayXd>(powerParaUp.data(), N) = _solver->resultTree.get<Matrix>("P_para_s_uf").row(dipoleLayer);
+    Eigen::Map<Eigen::ArrayXd>(u.data(), N) = _solver->resultTree.get<Vector>("u");
+
+    return SimRes{u, powerPerp, powerParaUs, powerParaUp};
+  }
 
 private:
   using sweep = std::map<size_t, double>; // current combination of sweepParams
@@ -295,7 +315,7 @@ private:
 
   bool isEmpty() const { return _sweeps.empty(); }
 
-  std::unique_ptr<BaseSolver> _solver;
+  BaseSolver* _solver; // non-owning
   std::unique_ptr<ISweep> _sdSweep;
   std::map<size_t, Distribution<>> _sweeps;
   std::vector<SweepLayer> _sweepTable;
