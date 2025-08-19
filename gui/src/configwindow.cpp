@@ -1,7 +1,10 @@
 #include <QWidget>
+#include <QComboBox>
+#include <QGroupBox>
 #include <QScrollArea>
 #include <QVBoxLayout>
 #include <QFormLayout>
+#include <QFileDialog>
 #include <QLineEdit>
 #include <QPushButton>
 #include <QHBoxLayout>
@@ -10,30 +13,135 @@
 #include "configwindow.h"
 
 
-LayerStackWidget::LayerStackWidget(QWidget *parent) : QWidget(parent) {
-    QVBoxLayout *outerLayout = new QVBoxLayout(this);
+LayerStackWidget::LayerStackWidget(QWidget *parent) 
+    : QWidget(parent) 
+    {
+        QVBoxLayout *outerLayout = new QVBoxLayout(this);
+        outerLayout->setContentsMargins(0,0,0,0);
+        outerLayout->setSpacing(2);
 
-    // Scroll area for the stack
-    QScrollArea *scrollArea = new QScrollArea;
-    scrollArea->setWidgetResizable(true);
-    outerLayout->addWidget(scrollArea);
+        // --- Top fields container ---
+        QWidget *topContainer = new QWidget;
+        QFormLayout *topForm = new QFormLayout(topContainer);
+        topForm->setContentsMargins(4,4,4,4);
+        topForm->setSpacing(4);
 
-    // Container for all layers (inside scroll area)
-    container = new QWidget;
-    stackLayout = new QVBoxLayout(container);
-    stackLayout->setSpacing(8);
-    stackLayout->setContentsMargins(10, 10, 10, 10); 
-    stackLayout->addStretch();
-    scrollArea->setWidget(container);
+        // Mode combo
+        modeCombo = new QComboBox;
+        modeCombo->addItems({"Fitting", "Simulation"});
+        topForm->addRow("Mode:", modeCombo);
 
-    // Add button goes OUTSIDE scroll area
-    QPushButton *addButton = new QPushButton("+ Add Layer");
-    connect(addButton, &QPushButton::clicked, this, &LayerStackWidget::addLayer);
-    outerLayout->addWidget(addButton, 0, Qt::AlignCenter);
+        // Mode-dependent stacked fields
+        modeFields = new QStackedWidget;
+        topForm->addRow(modeFields);
 
-    addLayer(); // adds first layer
-}
+        // Helper for sweep fields
+        auto createSweepFields = [](QWidget *parent) -> QWidget* {
+            QWidget *sweepOpt = new QWidget(parent);
+            QHBoxLayout *sweepLayout = new QHBoxLayout(sweepOpt);
+            sweepLayout->setContentsMargins(2,2,2,2);
+            sweepLayout->setSpacing(8);
 
+            QLabel *startLabel = new QLabel("Start:");
+            QLineEdit *startField = new QLineEdit;
+            QLabel *stopLabel = new QLabel("Stop:");
+            QLineEdit *stopField = new QLineEdit;
+
+            sweepLayout->addWidget(startLabel);
+            sweepLayout->addWidget(startField);
+            sweepLayout->addWidget(stopLabel);
+            sweepLayout->addWidget(stopField);
+
+            return sweepOpt;
+        };
+
+        // --- Fitting fields ---
+        QWidget *fitFields = new QWidget;
+        QFormLayout *fitLayout = new QFormLayout(fitFields);
+        fitLayout->setContentsMargins(0,0,0,0);
+        fitLayout->setSpacing(4);
+        fitLayout->addRow("Sweep:", createSweepFields(fitFields));
+        // File selector row (fitData)
+        QWidget *fileRow = new QWidget;
+        QHBoxLayout *fileLayout = new QHBoxLayout(fileRow);
+        fileLayout->setContentsMargins(0,0,0,0);
+        fileLayout->setSpacing(4);
+
+        QLineEdit *fitDataEdit = new QLineEdit;
+        QPushButton *browseButton = new QPushButton("Browse…");
+        fileLayout->addWidget(fitDataEdit, 1);
+        fileLayout->addWidget(browseButton, 0);
+
+
+        fitLayout->addRow("fitData:", fileRow);
+        modeFields->addWidget(fitFields);
+        connect(browseButton, &QPushButton::clicked, this, [this, fitDataEdit]() {
+        QString fileName = QFileDialog::getOpenFileName(
+            this, tr("Select Data File"), QString(), tr("Data Files (*.txt *.csv);;All Files (*)")
+            );
+            if (!fileName.isEmpty()) {
+                fitDataEdit->setText(fileName);
+            }
+        });
+
+        // --- Simulation fields ---
+        QWidget *simFields = new QWidget;
+        QFormLayout *simLayout = new QFormLayout(simFields);
+        simLayout->setContentsMargins(0,0,0,0);
+        simLayout->setSpacing(4);
+        simLayout->addRow("alpha:", new QLineEdit);
+        simLayout->addRow("Sweep:", createSweepFields(simFields));
+        simLayout->addRow("dipole:", new QLineEdit);
+        modeFields->addWidget(simFields);
+
+        connect(modeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+                modeFields, &QStackedWidget::setCurrentIndex);
+
+        outerLayout->addWidget(topContainer, 0);
+
+        // --- Scrollable layers ---
+        QScrollArea *scrollArea = new QScrollArea;
+        scrollArea->setWidgetResizable(true);
+        scrollArea->setFrameShape(QFrame::StyledPanel);
+        scrollArea->setLineWidth(2);               
+        scrollArea->setContentsMargins(8, 8, 8, 8);
+
+        container = new QWidget;
+        stackLayout = new QVBoxLayout(container);
+        stackLayout->setAlignment(Qt::AlignTop);
+        stackLayout->setSpacing(8);
+        stackLayout->setContentsMargins(4, 4, 4, 4);
+        stackLayout->addStretch();
+        scrollArea->setWidget(container);
+
+        QWidget *scrollContainer = new QWidget;
+        QVBoxLayout *scrollContainerLayout = new QVBoxLayout(scrollContainer);
+        scrollContainerLayout->setContentsMargins(8, 0, 8, 0); // left/right padding
+        scrollContainerLayout->setSpacing(0);
+        
+        QLabel *layers = new QLabel("Layers");
+        layers->setAlignment(Qt::AlignCenter);
+        scrollContainerLayout->addWidget(layers);
+        scrollContainerLayout->addWidget(scrollArea);
+
+        outerLayout->addWidget(scrollContainer, 1);
+        // --- Bottom buttons ---
+        QWidget *buttonContainer = new QWidget;
+        QHBoxLayout *buttonLayout = new QHBoxLayout(buttonContainer);
+        buttonLayout->setContentsMargins(0,0,0,0);
+        buttonLayout->setSpacing(8); // space between buttons
+
+        QPushButton *addButton = new QPushButton("+ Add Layer");
+        connect(addButton, &QPushButton::clicked, this, &LayerStackWidget::addLayer);
+        buttonLayout->addWidget(addButton);
+
+        QPushButton *exportButton = new QPushButton("Export JSON");
+        buttonLayout->addWidget(exportButton);
+
+        outerLayout->addWidget(buttonContainer, 0, Qt::AlignCenter);
+
+        addLayer();
+    }
 
 QList<QVariantMap> LayerStackWidget::getLayersData() const {
     QList<QVariantMap> data;
@@ -89,7 +197,6 @@ void LayerStackWidget::addLayer() {
 
     // Insert before the stretch at the bottom
     stackLayout->insertWidget(stackLayout->count() - 1, layerWidget);
-
     layerWidgets.append(layerWidget);
 }
 

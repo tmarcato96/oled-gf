@@ -1,4 +1,6 @@
 #include <QWidget>
+#include <QComboBox>
+#include <QStackedWidget>
 #include <QScrollArea>
 #include <QVBoxLayout>
 #include <QFormLayout>
@@ -25,6 +27,8 @@ private:
     QWidget *container;
     QVBoxLayout *stackLayout;
     QList<QWidget*> layerWidgets;
+    QComboBox *modeCombo;
+    QStackedWidget *modeFields;
 };
 
 class NoWheelSpinBox : public QDoubleSpinBox {
