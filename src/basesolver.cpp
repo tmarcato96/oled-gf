@@ -276,7 +276,8 @@ void BaseSolver::calculateDissPower(const double bPerpSum, const double bParaSum
   double q = 1.0; // PLQY
   CMPLX I(0.0, 1.0);
 
-  Vector boolValue = Vector::Ones(matstack.numLayers);
+  Vector boolValue = Vector::Zero(matstack.numLayers);
+  boolValue(dipoleLayer) = 1.0;
   for (Eigen::Index i = 0; i < matstack.numLayers - 1; ++i) {
 
     CTVector neg_exp = Eigen::exp(-I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i));
