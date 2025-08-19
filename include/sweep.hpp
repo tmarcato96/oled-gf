@@ -68,7 +68,8 @@ struct NormalDistribution : public Distribution<>
     Distribution(xmin, xmax, NumPoints)
   {
     values.conservativeResize(values.rows(), values.cols() + 1);
-    values.col(1) = (1.0 / sqrt(2 * M_PI * pow(sigma, 2))) * (-0.5 * ((values.col(0) - x0) / sigma).pow(2)).exp();
+    values.col(1) =
+      (1.0 / std::sqrt(2 * M_PI * (sigma * sigma))) * (-0.5 * ((values.col(0) - x0) / sigma).square()).exp();
   }
 };
 
@@ -101,7 +102,7 @@ private:
       integral = (0.5 * (y.segment(0, N - 1) + y.segment(1, N - 1)) * dX).sum();
     }
 
-    if (integral > 0) values.col(1) /= integral;
+    if (integral > 0.0) values.col(1) /= integral;
   }
 
   void downsample()
@@ -125,7 +126,7 @@ template<typename DipoleT, typename SpectrumT> class SweepSpecDip : public ISwee
 
   void runSingleValue(double dipolePos, double wavelength, bool reuseDipole = false)
   {
-    if (!reuseDipole) { solver->setDipolePosition(dipolePos); }
+    if (!reuseDipole) solver->setDipolePosition(dipolePos);
 
     solver->setWavelength(wavelength);
     // Calculate
@@ -133,38 +134,35 @@ template<typename DipoleT, typename SpectrumT> class SweepSpecDip : public ISwee
     solver->run();
   }
 
-  BaseSolver* integrateDipStep(Eigen::Index i, const Matrix& m)
+  void runSingleDistribution()
   {
-    runSingleValue(m(i, 0), spectrum);
-    return solver;
-  }
+    if constexpr (std::is_same_v<SpectrumT, Matrix>) {
+      const Eigen::Index N = spectrum.rows();
+      integrateTrapezoidal(N, spectrum.col(0), [&](Eigen::Index i) {
+        // Make sure dipolePositions is right type
+        double dipolePos = [&] {
+          if constexpr (std::is_same_v<DipoleT, Matrix>) return dipolePositions(0, 0);
+          else return dipolePositions;
+        }();
 
-  BaseSolver* integrateSpecStep(Eigen::Index i, const Matrix& m, bool reuseDipole = false)
-  {
-    double dipolePosition;
-    if constexpr (std::is_same_v<DipoleT, Matrix>) dipolePosition = dipolePositions(0, 0); // Extract scalar from matrix
-    else dipolePosition = dipolePositions; // Already a scalar
-
-    runSingleValue(dipolePosition, m(i, 0), reuseDipole);
-    double weight = m(i, 1);
-    solver->resultTree(POWER_DIPOLES) *= weight;
-    return solver;
-  }
-
-  void runSingleDistribution() {}
-
-  void runDualDistribution()
-  {
-    Eigen::Index N = dipolePositions.rows();
-
-    integrateTrapezoidal(N, dipolePositions.col(0), [&](Eigen::Index i) {
-      solver->setDipolePosition(dipolePositions(i, 0));
-      runSingleDistribution();
-      return solver;
-    });
-
-    double thickness = solver->getLayerThickness(solver->getDipoleIndex());
-    solver->resultTree(POWER_DIPOLES) /= thickness;
+        runSingleValue(dipolePos, spectrum(i, 0), true);
+        double weight = spectrum(i, 1);
+        solver->resultTree(POWER_DIPOLES) *= weight;
+        return solver;
+      });
+    }
+    else if constexpr (std::is_same_v<DipoleT, Matrix>) {
+      const Eigen::Index N = dipolePositions.rows();
+      integrateTrapezoidal(N, dipolePositions.col(0), [&](Eigen::Index i) {
+        runSingleValue(dipolePositions(i, 0), spectrum);
+        return solver;
+      });
+      double thickness = solver->getLayerThickness(solver->getDipoleIndex());
+      solver->resultTree(POWER_DIPOLES) /= thickness;
+    }
+    else {
+      runSingleValue(dipolePositions, spectrum);
+    }
   }
 
 public:
@@ -184,7 +182,30 @@ public:
     spectrum{spectrumDist.values}
   {}
 
-  void update() override {}
+  void update() override
+  {
+    if constexpr (std::is_same_v<DipoleT, Matrix> && std::is_same_v<SpectrumT, Matrix>) {
+      // dual distribution
+      const Eigen::Index N = dipolePositions.rows();
+      integrateTrapezoidal(N, dipolePositions.col(0), [&](Eigen::Index i) {
+        solver->setDipolePosition(dipolePositions(i, 0));
+        // inner spectral integration
+        const Eigen::Index M = spectrum.rows();
+        integrateTrapezoidal(M, spectrum.col(0), [&](Eigen::Index j) {
+          runSingleValue(dipolePositions(i, 0), spectrum(j, 0), true);
+          double w = spectrum(j, 1);
+          solver->resultTree(POWER_DIPOLES) *= w;
+          return solver;
+        });
+        return solver;
+      });
+      double thickness = solver->getLayerThickness(solver->getDipoleIndex());
+      solver->resultTree(POWER_DIPOLES) /= thickness;
+    }
+    else {
+      runSingleDistribution();
+    }
+  }
 
   DipoleT dipolePositions;
   SpectrumT spectrum;
@@ -192,42 +213,6 @@ public:
 private:
   BaseSolver* solver;
 };
-
-// Specializations
-
-template<> void SweepSpecDip<Matrix, Matrix>::runSingleDistribution()
-{
-  // Temp Matrices
-  Eigen::Index N = spectrum.rows();
-
-  integrateTrapezoidal(N, spectrum.col(0), [&](Eigen::Index i) { return integrateSpecStep(i, spectrum, true); });
-};
-
-template<> void SweepSpecDip<Matrix, Matrix>::update() { runDualDistribution(); };
-
-template<> void SweepSpecDip<double, Matrix>::runSingleDistribution()
-{
-  // Temp Matrices
-  Eigen::Index N = spectrum.rows();
-
-  integrateTrapezoidal(N, spectrum.col(0), [&](Eigen::Index i) { return integrateSpecStep(i, spectrum); });
-};
-
-template<> void SweepSpecDip<double, Matrix>::update() { runSingleDistribution(); };
-
-template<> void SweepSpecDip<Matrix, double>::runSingleDistribution()
-{
-  // Temp Matrices
-  Eigen::Index N = dipolePositions.rows();
-
-  integrateTrapezoidal(N, dipolePositions.col(0), [&](Eigen::Index i) { return integrateDipStep(i, dipolePositions); });
-  double thickness = solver->getLayerThickness(solver->getDipoleIndex());
-  solver->resultTree(POWER_DIPOLES) /= thickness;
-};
-
-template<> void SweepSpecDip<Matrix, double>::update() { runSingleDistribution(); };
-
-template<> void SweepSpecDip<double, double>::update() { runSingleValue(dipolePositions, spectrum); };
 
 class SweepLayer : public ISweep
 {
