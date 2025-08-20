@@ -4,7 +4,6 @@
 #include <cmath>
 #include <iostream>
 #include <numeric>
-#include <type_traits>
 #include <unsupported/Eigen/NonLinearOptimization>
 #include <vector>
 
@@ -136,8 +135,10 @@ Fitting::FitRes Fitting::fit()
 
   // simulation results
   alpha = fitParams(1);
-  Vector yFit(matstack.x.rows());
-  yFit = fitParams(0) * (fitParams(1) * residual.powerGlass.row(0) + (1 - fitParams(1)) * residual.powerGlass.row(1));
+  Eigen::ArrayXd optIntensities(matstack.x.rows());
+  optIntensities =
+    fitParams(0) * (fitParams(1) * residual.powerGlass.row(0) + (1 - fitParams(1)) * residual.powerGlass.row(1));
+  Eigen::ArrayXd::Map(&yFit[0], matstack.x.rows()) = optIntensities;
 
   Fitting::FitRes res{yExp, yFit, theta, fitParams};
 

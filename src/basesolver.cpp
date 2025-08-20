@@ -1,13 +1,10 @@
 #define _USE_MATH_DEFINES
-
 #include <Eigen/Core>
 #include <algorithm>
 #include <cmath>
-#include <complex>
 #include <fstream>
 #include <iostream>
 #include <numeric>
-#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -37,10 +34,10 @@ BaseSolver::BaseSolver(const std::vector<Layer>& layers,
 
 void BaseSolver::loadMaterialData()
 {
-  // Logging
+  // Loggin
   std::cout << "\n\n\n"
             << "-----------------------------------------------------------------\n";
-  std::cout << "                      Loading material data                      \n";
+  std::cout << "              Loading material data             \n";
   std::cout << "-----------------------------------------------------------------\n"
             << "\n\n";
 
@@ -72,12 +69,10 @@ void BaseSolver::calculateFresnelCoeffs()
               matstack.epsilon.segment(1, matstack.epsilon.size() - 1) -
             (matstack.h.block(1, 0, matstack.h.rows() - 1, matstack.h.cols())).colwise() *
               matstack.epsilon.segment(0, matstack.epsilon.size() - 1));
-
   R_para /= ((matstack.h.block(0, 0, matstack.h.rows() - 1, matstack.h.cols())).colwise() *
                matstack.epsilon.segment(1, matstack.epsilon.size() - 1) +
              (matstack.h.block(1, 0, matstack.h.rows() - 1, matstack.h.cols())).colwise() *
                matstack.epsilon.segment(0, matstack.epsilon.size() - 1));
-
   (R_para.bottomRows(R_para.rows() - dipoleLayer)) *= -1.0;
   // Move into SolverCoefficients
   coeffs._Rperp = std::move(R_perp);
@@ -87,31 +82,42 @@ void BaseSolver::calculateFresnelCoeffs()
 void BaseSolver::calculateGFCoeffRatios()
 {
   CMPLX I(0.0, 1.0);
-  CMatrix CB, FB, CT, FT;
-  CB = FB = CMatrix::Zero(matstack.numLayersTop, matstack.numKVectors);
-  CT = FT = CMatrix::Zero(matstack.numLayersBottom, matstack.numKVectors);
+  CMatrix CB = CMatrix::Zero(matstack.numLayersTop, matstack.numKVectors);
+  CMatrix FB = CMatrix::Zero(matstack.numLayersTop, matstack.numKVectors);
+  CMatrix CT = CMatrix::Zero(matstack.numLayersBottom, matstack.numKVectors);
+  CMatrix FT = CMatrix::Zero(matstack.numLayersBottom, matstack.numKVectors);
 
   for (Eigen::Index i = 1; i < dipoleLayer + 1; ++i) {
-    CTVector neg_exp = Eigen::exp(-2.0 * I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i - 1));
-    CTVector pos_exp = Eigen::exp(2.0 * I * matstack.h.row(i - 1) * (matstack.z0.cast<CMPLX>())(i - 1));
+    CB.row(i) =
+      Eigen::exp(-2.0 * I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i - 1)) *
+      (coeffs._Rperp.row(i - 1) +
+        (CB.row(i - 1) * Eigen::exp(2.0 * I * matstack.h.row(i - 1) * (matstack.z0.cast<CMPLX>())(i - 1)))) /
+      (1 + coeffs._Rperp.row(i - 1) *
+             (CB.row(i - 1) * Eigen::exp(2.0 * I * matstack.h.row(i - 1) * (matstack.z0.cast<CMPLX>())(i - 1))));
 
-    CB.row(i) = neg_exp * (coeffs._Rperp.row(i - 1) + (CB.row(i - 1) * pos_exp)) /
-                (1 + coeffs._Rperp.row(i - 1) * (CB.row(i - 1) * pos_exp));
-
-    FB.row(i) = neg_exp * (-coeffs._Rpara.row(i - 1) + (FB.row(i - 1) * pos_exp)) /
-                (1 - coeffs._Rpara.row(i - 1) * (FB.row(i - 1) * pos_exp));
+    FB.row(i) =
+      Eigen::exp(-2.0 * I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i - 1)) *
+      (-coeffs._Rpara.row(i - 1) +
+        (FB.row(i - 1) * Eigen::exp(2.0 * I * matstack.h.row(i - 1) * (matstack.z0.cast<CMPLX>())(i - 1)))) /
+      (1 - coeffs._Rpara.row(i - 1) *
+             (FB.row(i - 1) * Eigen::exp(2.0 * I * matstack.h.row(i - 1) * (matstack.z0.cast<CMPLX>())(i - 1))));
   }
 
   for (Eigen::Index i = matstack.numLayers - dipoleLayer - 2; i >= 0; --i) {
     Eigen::Index indexFromTop = i + dipoleLayer;
-    CTVector neg_exp =
-      Eigen::exp(-2.0 * I * matstack.h.row(indexFromTop + 1) * (matstack.z0.cast<CMPLX>())(indexFromTop));
-    CTVector pos_exp = Eigen::exp(2.0 * I * matstack.h.row(indexFromTop) * (matstack.z0.cast<CMPLX>())(indexFromTop));
+    CT.row(i) =
+      Eigen::exp(2.0 * I * matstack.h.row(indexFromTop) * (matstack.z0.cast<CMPLX>())(indexFromTop)) *
+      (coeffs._Rperp.row(indexFromTop) + (CT.row(i + 1) * Eigen::exp(-2.0 * I * matstack.h.row(indexFromTop + 1) *
+                                                                     (matstack.z0.cast<CMPLX>())(indexFromTop)))) /
+      (1 + coeffs._Rperp.row(indexFromTop) * (CT.row(i + 1) * Eigen::exp(-2.0 * I * matstack.h.row(indexFromTop + 1) *
+                                                                         (matstack.z0.cast<CMPLX>())(indexFromTop))));
 
-    CT.row(i) = pos_exp * (coeffs._Rperp.row(indexFromTop) + (CT.row(i + 1) * neg_exp)) /
-                (1 + coeffs._Rperp.row(indexFromTop) * (CT.row(i + 1) * neg_exp));
-    FT.row(i) = pos_exp * (-coeffs._Rpara.row(indexFromTop) + (FT.row(i + 1) * neg_exp)) /
-                (1 - coeffs._Rpara.row(indexFromTop) * (FT.row(i + 1) * neg_exp));
+    FT.row(i) =
+      Eigen::exp(2.0 * I * matstack.h.row(indexFromTop) * (matstack.z0.cast<CMPLX>())(indexFromTop)) *
+      (-coeffs._Rpara.row(indexFromTop) + (FT.row(i + 1) * Eigen::exp(-2.0 * I * matstack.h.row(indexFromTop + 1) *
+                                                                      (matstack.z0.cast<CMPLX>())(indexFromTop)))) /
+      (1 - coeffs._Rpara.row(indexFromTop) * (FT.row(i + 1) * Eigen::exp(-2.0 * I * matstack.h.row(indexFromTop + 1) *
+                                                                         (matstack.z0.cast<CMPLX>())(indexFromTop))));
   }
   // Move results into SolverCoefficients
   coeffs._cb = std::move(CB);
@@ -124,8 +130,12 @@ void BaseSolver::calculateGFCoeffs()
 {
 
   CMPLX I(0.0, 1.0);
-  CMatrix c, cd, f_perp, fd_perp, f_para, fd_para;
-  c = cd = f_perp = fd_perp = f_para = fd_para = CMatrix::Zero(matstack.numLayers, matstack.numKVectors);
+  CMatrix c = CMatrix::Zero(matstack.numLayers, matstack.numKVectors);
+  CMatrix cd = CMatrix::Zero(matstack.numLayers, matstack.numKVectors);
+  CMatrix f_perp = CMatrix::Zero(matstack.numLayers, matstack.numKVectors);
+  CMatrix fd_perp = CMatrix::Zero(matstack.numLayers, matstack.numKVectors);
+  CMatrix f_para = CMatrix::Zero(matstack.numLayers, matstack.numKVectors);
+  CMatrix fd_para = CMatrix::Zero(matstack.numLayers, matstack.numKVectors);
 
   c.row(dipoleLayer) =
     (coeffs._cb.row(dipoleLayer) + 1) * coeffs._ct.row(0) / (1 - coeffs._cb.row(dipoleLayer) * coeffs._ct.row(0));
@@ -146,67 +156,105 @@ void BaseSolver::calculateGFCoeffs()
   boolValue(dipoleLayer) = 1.0;
 
   for (Eigen::Index i = dipoleLayer; i >= 1; --i) {
-
-    CTVector h_frac = matstack.h.row(i) / matstack.h.row(i - 1);
-    CTVector c_neg_exp = Eigen::exp(-I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i - 1));
-    CTVector c_pos_exp = Eigen::exp(I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i - 1));
-
-    CTVector neg_exp = 0.5 * Eigen::exp(-I * matstack.h.row(i - 1) * (matstack.z0.cast<CMPLX>())(i - 1));
-    CTVector pos_exp = 0.5 * Eigen::exp(I * matstack.h.row(i - 1) * (matstack.z0.cast<CMPLX>())(i - 1));
-
-    CMPLX k_frac = matstack.k(i) / matstack.k(i - 1);
-    CTVector f_fact = h_frac / k_frac;
-
     c.row(i - 1) =
-      pos_exp * ((boolValue(i) + c.row(i)) * c_neg_exp * (1 + h_frac) + cd.row(i) * c_pos_exp * (1 - h_frac));
+      0.5 * Eigen::exp(I * matstack.h.row(i - 1) * (matstack.z0.cast<CMPLX>())(i - 1)) *
+      ((boolValue(i) + c.row(i)) * Eigen::exp(-I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i - 1)) *
+          (1 + matstack.h.row(i) / matstack.h.row(i - 1)) +
+        cd.row(i) * Eigen::exp(I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i - 1)) *
+          (1 - matstack.h.row(i) / matstack.h.row(i - 1)));
 
     cd.row(i - 1) =
-      neg_exp * ((boolValue(i) + c.row(i)) * c_neg_exp * (1 - h_frac) + cd.row(i) * c_pos_exp * (1 + h_frac));
+      0.5 * Eigen::exp(-I * matstack.h.row(i - 1) * (matstack.z0.cast<CMPLX>())(i - 1)) *
+      ((boolValue(i) + c.row(i)) * Eigen::exp(-I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i - 1)) *
+          (1 - matstack.h.row(i) / matstack.h.row(i - 1)) +
+        cd.row(i) * Eigen::exp(I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i - 1)) *
+          (1 + matstack.h.row(i) / matstack.h.row(i - 1)));
 
-    f_perp.row(i - 1) = pos_exp * ((boolValue(i) + f_perp.row(i)) * neg_exp * (k_frac + f_fact) +
-                                    fd_perp.row(i) * pos_exp * (k_frac - f_fact));
+    f_perp.row(i - 1) =
+      0.5 * Eigen::exp(I * matstack.h.row(i - 1) * (matstack.z0.cast<CMPLX>())(i - 1)) *
+      ((boolValue(i) + f_perp.row(i)) * Eigen::exp(-I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i - 1)) *
+          (matstack.k(i) / matstack.k(i - 1) +
+            matstack.k(i - 1) / matstack.k(i) * matstack.h.row(i) / matstack.h.row(i - 1)) +
+        fd_perp.row(i) * Eigen::exp(I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i - 1)) *
+          (matstack.k(i) / matstack.k(i - 1) -
+            matstack.k(i - 1) / matstack.k(i) * matstack.h.row(i) / matstack.h.row(i - 1)));
 
-    fd_perp.row(i - 1) = neg_exp * ((boolValue(i) + f_perp.row(i)) * neg_exp * (k_frac - f_fact) +
-                                     fd_perp.row(i) * pos_exp * (k_frac + f_fact));
+    fd_perp.row(i - 1) =
+      0.5 * Eigen::exp(-I * matstack.h.row(i - 1) * (matstack.z0.cast<CMPLX>())(i - 1)) *
+      ((boolValue(i) + f_perp.row(i)) * Eigen::exp(-I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i - 1)) *
+          (matstack.k(i) / matstack.k(i - 1) -
+            matstack.k(i - 1) / matstack.k(i) * matstack.h.row(i) / matstack.h.row(i - 1)) +
+        fd_perp.row(i) * Eigen::exp(I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i - 1)) *
+          (matstack.k(i) / matstack.k(i - 1) +
+            matstack.k(i - 1) / matstack.k(i) * matstack.h.row(i) / matstack.h.row(i - 1)));
 
-    f_para.row(i - 1) = pos_exp * ((boolValue(i) + f_para.row(i)) * neg_exp * (k_frac + f_fact) +
-                                    fd_para.row(i) * pos_exp * (k_frac - f_fact));
+    f_para.row(i - 1) =
+      0.5 * Eigen::exp(I * matstack.h.row(i - 1) * (matstack.z0.cast<CMPLX>())(i - 1)) *
+      ((boolValue(i) + f_para.row(i)) * Eigen::exp(-I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i - 1)) *
+          (matstack.k(i) / matstack.k(i - 1) +
+            matstack.k(i - 1) / matstack.k(i) * matstack.h.row(i) / matstack.h.row(i - 1)) +
+        fd_para.row(i) * Eigen::exp(I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i - 1)) *
+          (matstack.k(i) / matstack.k(i - 1) -
+            matstack.k(i - 1) / matstack.k(i) * matstack.h.row(i) / matstack.h.row(i - 1)));
 
-    fd_para.row(i - 1) = neg_exp * ((boolValue(i) + f_para.row(i)) * neg_exp * (k_frac - f_fact) +
-                                     fd_para.row(i) * pos_exp * (k_frac + f_fact));
+    fd_para.row(i - 1) =
+      0.5 * Eigen::exp(-I * matstack.h.row(i - 1) * (matstack.z0.cast<CMPLX>())(i - 1)) *
+      ((boolValue(i) + f_para.row(i)) * Eigen::exp(-I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i - 1)) *
+          (matstack.k(i) / matstack.k(i - 1) -
+            matstack.k(i - 1) / matstack.k(i) * matstack.h.row(i) / matstack.h.row(i - 1)) +
+        fd_para.row(i) * Eigen::exp(I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i - 1)) *
+          (matstack.k(i) / matstack.k(i - 1) +
+            matstack.k(i - 1) / matstack.k(i) * matstack.h.row(i) / matstack.h.row(i - 1)));
   }
 
   for (Eigen::Index i = dipoleLayer; i < matstack.numLayers - 1; ++i) {
+    c.row(i + 1) = 0.5 * Eigen::exp(I * matstack.h.row(i + 1) * (matstack.z0.cast<CMPLX>())(i)) *
+                   (c.row(i) * Eigen::exp(-I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i)) *
+                       (1 + matstack.h.row(i) / matstack.h.row(i + 1)) +
+                     (boolValue(i) + cd.row(i)) * Eigen::exp(I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i)) *
+                       (1 - matstack.h.row(i) / matstack.h.row(i + 1)));
 
-    // THE FOLLOWING DEFINITIONS ARE SLIGHTLY DIFFERENT FROM BEFORE DUE TO THE LOOP'S DIRECTION
-    CTVector h_frac = matstack.h.row(i) / matstack.h.row(i + 1);
+    cd.row(i + 1) = 0.5 * Eigen::exp(-I * matstack.h.row(i + 1) * (matstack.z0.cast<CMPLX>())(i)) *
+                    (c.row(i) * Eigen::exp(-I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i)) *
+                        (1 - matstack.h.row(i) / matstack.h.row(i + 1)) +
+                      (boolValue(i) + cd.row(i)) * Eigen::exp(I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i)) *
+                        (1 + matstack.h.row(i) / matstack.h.row(i + 1)));
 
-    CTVector c_neg_exp = Eigen::exp(-I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i));
-    CTVector c_pos_exp = Eigen::exp(I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i));
+    f_perp.row(i + 1) =
+      0.5 * Eigen::exp(I * matstack.h.row(i + 1) * (matstack.z0.cast<CMPLX>())(i)) *
+      (f_perp.row(i) * Eigen::exp(-I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i)) *
+          (matstack.k(i) / matstack.k(i + 1) +
+            matstack.k(i + 1) / matstack.k(i) * matstack.h.row(i) / matstack.h.row(i + 1)) +
+        (boolValue(i) + fd_perp.row(i)) * Eigen::exp(I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i)) *
+          (matstack.k(i) / matstack.k(i + 1) -
+            matstack.k(i + 1) / matstack.k(i) * matstack.h.row(i) / matstack.h.row(i + 1)));
 
-    CTVector neg_exp = 0.5 * Eigen::exp(-I * matstack.h.row(i + 1) * (matstack.z0.cast<CMPLX>())(i));
-    CTVector pos_exp = 0.5 * Eigen::exp(I * matstack.h.row(i + 1) * (matstack.z0.cast<CMPLX>())(i));
+    fd_perp.row(i + 1) =
+      0.5 * Eigen::exp(-I * matstack.h.row(i + 1) * (matstack.z0.cast<CMPLX>())(i)) *
+      (f_perp.row(i) * Eigen::exp(-I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i)) *
+          (matstack.k(i) / matstack.k(i + 1) -
+            matstack.k(i + 1) / matstack.k(i) * matstack.h.row(i) / matstack.h.row(i + 1)) +
+        (boolValue(i) + fd_perp.row(i)) * Eigen::exp(I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i)) *
+          (matstack.k(i) / matstack.k(i + 1) +
+            matstack.k(i + 1) / matstack.k(i) * matstack.h.row(i) / matstack.h.row(i + 1)));
 
-    CMPLX k_frac = matstack.k(i) / matstack.k(i + 1);
-    CTVector f_fact = h_frac / k_frac;
+    f_para.row(i + 1) =
+      0.5 * Eigen::exp(I * matstack.h.row(i + 1) * (matstack.z0.cast<CMPLX>())(i)) *
+      (f_para.row(i) * Eigen::exp(-I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i)) *
+          (matstack.k(i) / matstack.k(i + 1) +
+            matstack.k(i + 1) / matstack.k(i) * matstack.h.row(i) / matstack.h.row(i + 1)) +
+        (fd_para.row(i) - boolValue(i)) * Eigen::exp(I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i)) *
+          (matstack.k(i) / matstack.k(i + 1) -
+            matstack.k(i + 1) / matstack.k(i) * matstack.h.row(i) / matstack.h.row(i + 1)));
 
-    c.row(i + 1) =
-      pos_exp * (c.row(i) * c_neg_exp * (1 + h_frac) + (boolValue(i) + cd.row(i)) * c_pos_exp * (1 - h_frac));
-
-    cd.row(i + 1) =
-      neg_exp * (c.row(i) * c_neg_exp * (1 - h_frac) + (boolValue(i) + cd.row(i)) * c_pos_exp * (1 + h_frac));
-
-    f_perp.row(i + 1) = pos_exp * (f_perp.row(i) * c_neg_exp * (k_frac + f_fact) +
-                                    (boolValue(i) + fd_perp.row(i)) * c_pos_exp * (k_frac - f_fact));
-
-    fd_perp.row(i + 1) = neg_exp * (f_perp.row(i) * c_neg_exp * (k_frac - f_fact) +
-                                     (boolValue(i) + fd_perp.row(i)) * c_pos_exp * (k_frac + f_fact));
-
-    f_para.row(i + 1) = pos_exp * (f_para.row(i) * c_neg_exp * (k_frac + f_fact) +
-                                    (fd_para.row(i) - boolValue(i)) * c_pos_exp * (k_frac - f_fact));
-
-    fd_para.row(i + 1) = neg_exp * (f_para.row(i) * c_neg_exp * (k_frac - f_fact) +
-                                     (fd_para.row(i) - boolValue(i)) * c_pos_exp * (k_frac + f_fact));
+    fd_para.row(i + 1) =
+      0.5 * Eigen::exp(-I * matstack.h.row(i + 1) * (matstack.z0.cast<CMPLX>())(i)) *
+      (f_para.row(i) * Eigen::exp(-I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i)) *
+          (matstack.k(i) / matstack.k(i + 1) -
+            matstack.k(i + 1) / matstack.k(i) * matstack.h.row(i) / matstack.h.row(i + 1)) +
+        (fd_para.row(i) - boolValue(i)) * Eigen::exp(I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i)) *
+          (matstack.k(i) / matstack.k(i + 1) +
+            matstack.k(i + 1) / matstack.k(i) * matstack.h.row(i) / matstack.h.row(i + 1)));
   }
   coeffs._c = std::move(c);
   coeffs._cd = std::move(cd);
@@ -254,37 +302,44 @@ void BaseSolver::calculateDissPower(const double bPerpSum, const double bParaSum
   Vector boolValue = Vector::Zero(matstack.numLayers);
   boolValue(dipoleLayer) = 1.0;
   for (Eigen::Index i = 0; i < matstack.numLayers - 1; ++i) {
+    powerPerpUpPol.row(i) =
+      (-3.0 * q / 4.0) * ((Eigen::pow(matstack.u, 3)) / Eigen::abs(1 - Eigen::pow(matstack.u, 2))) *
+      (Eigen::sqrt(matstack.epsilon(i) / matstack.epsilon(dipoleLayer) - Eigen::pow(matstack.u, 2))) *
+      (std::conj(std::sqrt(matstack.epsilon(i))) / std::sqrt(matstack.epsilon(i)));
+    powerPerpUpPol.row(i) *= (coeffs._f_perp(i, Eigen::seqN(0, powerPerpUpPol.cols())) *
+                               Eigen::exp(-I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i))) -
+                             ((coeffs._fd_perp(i, Eigen::seqN(0, powerPerpUpPol.cols())) + boolValue(i)) *
+                               Eigen::exp(I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i)));
+    powerPerpUpPol.row(i) *= (Eigen::conj((coeffs._f_perp(i, Eigen::seqN(0, powerPerpUpPol.cols())) *
+                                            Eigen::exp(-I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i))) +
+                                          ((coeffs._fd_perp(i, Eigen::seqN(0, powerPerpUpPol.cols())) + boolValue(i)) *
+                                            Eigen::exp(I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i)))));
+    powerParaUsPol.row(i) =
+      (-3.0 * q / 8.0) *
+      (matstack.u *
+        Eigen::conj(Eigen::sqrt(matstack.epsilon(i) / matstack.epsilon(dipoleLayer) - Eigen::pow(matstack.u, 2)))) /
+      (Eigen::abs(1 - Eigen::pow(matstack.u, 2)));
+    powerParaUsPol.row(i) *= (coeffs._c(i, Eigen::seqN(0, powerParaUsPol.cols())) *
+                               Eigen::exp(-I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i))) +
+                             ((coeffs._cd(i, Eigen::seqN(0, powerParaUsPol.cols())) + boolValue(i)) *
+                               Eigen::exp(I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i)));
+    powerParaUsPol.row(i) *= (Eigen::conj((coeffs._c(i, Eigen::seqN(0, powerParaUsPol.cols())) *
+                                            Eigen::exp(-I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i))) -
+                                          ((coeffs._cd(i, Eigen::seqN(0, powerParaUsPol.cols())) + boolValue(i)) *
+                                            Eigen::exp(I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i)))));
 
-    CTVector neg_exp = Eigen::exp(-I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i));
-    CTVector pos_exp = Eigen::exp(I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i));
-    CVector ep_coeff = Eigen::sqrt(matstack.epsilon(i) / matstack.epsilon(dipoleLayer) - Eigen::pow(matstack.u, 2));
-
-    pPerpP.row(i) = (-3.0 * q / 4.0) * ((Eigen::pow(matstack.u, 3)) / Eigen::abs(1 - Eigen::pow(matstack.u, 2))) *
-                    (ep_coeff) * (std::conj(std::sqrt(matstack.epsilon(i))) / std::sqrt(matstack.epsilon(i)));
-
-    pPerpP.row(i) *= (coeffs._f_perp(i, Eigen::seqN(0, pPerpP.cols())) * neg_exp) -
-                     ((coeffs._fd_perp(i, Eigen::seqN(0, pPerpP.cols())) + boolValue(i)) * pos_exp);
-
-    pPerpP.row(i) *= (Eigen::conj((coeffs._f_perp(i, Eigen::seqN(0, pPerpP.cols())) * neg_exp) +
-                                  ((coeffs._fd_perp(i, Eigen::seqN(0, pPerpP.cols())) + boolValue(i)) * pos_exp)));
-
-    pParaS.row(i) =
-      (-3.0 * q / 8.0) * (matstack.u * Eigen::conj(ep_coeff)) / (Eigen::abs(1 - Eigen::pow(matstack.u, 2)));
-
-    pParaS.row(i) *= (coeffs._c(i, Eigen::seqN(0, pParaS.cols())) * neg_exp) +
-                     ((coeffs._cd(i, Eigen::seqN(0, pParaS.cols())) + boolValue(i)) * pos_exp);
-
-    pParaS.row(i) *= (Eigen::conj((coeffs._c(i, Eigen::seqN(0, pParaS.cols())) * neg_exp) -
-                                  ((coeffs._cd(i, Eigen::seqN(0, pParaS.cols())) + boolValue(i)) * pos_exp)));
-
-    pParaP.row(i) = (-3.0 * q / 8.0) * (matstack.u * ep_coeff) *
-                    (std::conj(std::sqrt(matstack.epsilon(i))) / std::sqrt(matstack.epsilon(i)));
-
-    pParaP.row(i) *= (coeffs._f_para(i, Eigen::seqN(0, pParaP.cols())) * neg_exp) -
-                     ((coeffs._fd_para(i, Eigen::seqN(0, pParaP.cols())) - boolValue(i)) * pos_exp);
-
-    pParaP.row(i) *= (Eigen::conj((coeffs._f_para(i, Eigen::seqN(0, pParaP.cols())) * neg_exp) +
-                                  ((coeffs._fd_para(i, Eigen::seqN(0, pParaP.cols())) - boolValue(i)) * pos_exp)));
+    powerParaUpPol.row(i) =
+      (-3.0 * q / 8.0) *
+      (matstack.u * Eigen::sqrt(matstack.epsilon(i) / matstack.epsilon(dipoleLayer) - Eigen::pow(matstack.u, 2))) *
+      (std::conj(std::sqrt(matstack.epsilon(i))) / std::sqrt(matstack.epsilon(i)));
+    powerParaUpPol.row(i) *= (coeffs._f_para(i, Eigen::seqN(0, powerParaUpPol.cols())) *
+                               Eigen::exp(-I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i))) -
+                             ((coeffs._fd_para(i, Eigen::seqN(0, powerParaUpPol.cols())) - boolValue(i)) *
+                               Eigen::exp(I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i)));
+    powerParaUpPol.row(i) *= (Eigen::conj((coeffs._f_para(i, Eigen::seqN(0, powerParaUpPol.cols())) *
+                                            Eigen::exp(-I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i))) +
+                                          ((coeffs._fd_para(i, Eigen::seqN(0, powerParaUpPol.cols())) - boolValue(i)) *
+                                            Eigen::exp(I * matstack.h.row(i) * (matstack.z0.cast<CMPLX>())(i)))));
   }
 
   // Fraction power calculation

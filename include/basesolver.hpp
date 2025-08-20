@@ -8,8 +8,10 @@
 !*/
 #pragma once
 
+#include <string>
+#include <vector>
+
 #include <Eigen/Core>
-#include <complex>
 #include <eigen_policy.hpp>
 #include <fileutils.hpp>
 #include <forwardDecl.hpp>
@@ -17,10 +19,6 @@
 #include <polymap.hpp>
 #include <solver_macros.hpp>
 #include <sstream>
-#include <string>
-#include <type_traits>
-#include <utility>
-#include <vector>
 
 //! A Struct to contain all the Green's Function coefficients.
 struct SolverCoefficients

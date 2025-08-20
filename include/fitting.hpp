@@ -10,7 +10,6 @@
 #include <Eigen/Core>
 #include <map>
 #include <string>
-#include <type_traits>
 #include <unsupported/Eigen/NonLinearOptimization>
 #include <utility>
 #include <vector>
