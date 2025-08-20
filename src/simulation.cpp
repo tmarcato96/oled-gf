@@ -4,6 +4,8 @@
 #include <cmath>
 #include <iostream>
 #include <numeric>
+#include <type_traits>
+#include <utility>
 #include <vector>
 
 #include "linalg.hpp"

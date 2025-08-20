@@ -37,10 +37,10 @@
     "fitData": "C:\\Users\\mnouman\\oled-gf\\examples\\data\\3ML_processed.txt",
 
 	"spectrum": {"gaussian": {
-							  "xmin":400,
+							  "xmin":450,
 							  "xmax":700,
 							  "x0":456,
-							  "sigma":8.4925
+							  "sigma":12.7388
 							 }
 
 }

@@ -3,6 +3,7 @@ build/
 
 # Python venv
 venv/
+*.pyc
 
 # IDE files
 .vs/
