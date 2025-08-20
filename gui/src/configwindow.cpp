@@ -20,7 +20,6 @@ LayerStackWidget::LayerStackWidget(QWidget *parent)
         outerLayout->setContentsMargins(0,0,0,0);
         outerLayout->setSpacing(2);
 
-        // --- Top fields container ---
         QWidget *topContainer = new QWidget;
         QFormLayout *topForm = new QFormLayout(topContainer);
         topForm->setContentsMargins(4,4,4,4);
@@ -55,7 +54,6 @@ LayerStackWidget::LayerStackWidget(QWidget *parent)
             return sweepOpt;
         };
 
-        // --- Fitting fields ---
         QWidget *fitFields = new QWidget;
         QFormLayout *fitLayout = new QFormLayout(fitFields);
         fitLayout->setContentsMargins(0,0,0,0);
@@ -84,7 +82,6 @@ LayerStackWidget::LayerStackWidget(QWidget *parent)
             }
         });
 
-        // --- Simulation fields ---
         QWidget *simFields = new QWidget;
         QFormLayout *simLayout = new QFormLayout(simFields);
         simLayout->setContentsMargins(0,0,0,0);
@@ -99,12 +96,11 @@ LayerStackWidget::LayerStackWidget(QWidget *parent)
 
         outerLayout->addWidget(topContainer, 0);
 
-        // --- Scrollable layers ---
         QScrollArea *scrollArea = new QScrollArea;
         scrollArea->setWidgetResizable(true);
         scrollArea->setFrameShape(QFrame::StyledPanel);
         scrollArea->setLineWidth(2);               
-        scrollArea->setContentsMargins(8, 8, 8, 8);
+        scrollArea->setContentsMargins(4, 4, 4, 4);
 
         container = new QWidget;
         stackLayout = new QVBoxLayout(container);
@@ -116,7 +112,7 @@ LayerStackWidget::LayerStackWidget(QWidget *parent)
 
         QWidget *scrollContainer = new QWidget;
         QVBoxLayout *scrollContainerLayout = new QVBoxLayout(scrollContainer);
-        scrollContainerLayout->setContentsMargins(8, 0, 8, 0); // left/right padding
+        scrollContainerLayout->setContentsMargins(4, 4, 4, 4);
         scrollContainerLayout->setSpacing(0);
         
         QLabel *layers = new QLabel("Layers");
@@ -125,7 +121,8 @@ LayerStackWidget::LayerStackWidget(QWidget *parent)
         scrollContainerLayout->addWidget(scrollArea);
 
         outerLayout->addWidget(scrollContainer, 1);
-        // --- Bottom buttons ---
+
+
         QWidget *buttonContainer = new QWidget;
         QHBoxLayout *buttonLayout = new QHBoxLayout(buttonContainer);
         buttonLayout->setContentsMargins(0,0,0,0);
@@ -146,13 +143,13 @@ LayerStackWidget::LayerStackWidget(QWidget *parent)
 QList<QVariantMap> LayerStackWidget::getLayersData() const {
     QList<QVariantMap> data;
     for (auto layerWidget : layerWidgets) {
-        auto nameEdit = layerWidget->findChild<QLineEdit*>("nameEdit");
-        auto thicknessSpin = layerWidget->findChild<NoWheelSpinBox*>("thicknessSpin");
+        auto matEdit = layerWidget->findChild<QLineEdit*>("matEdit");
+        auto widthSpin = layerWidget->findChild<NoWheelSpinBox*>("widthSpin");
         auto refSpin = layerWidget->findChild<NoWheelSpinBox*>("refSpin");
 
         QVariantMap layer;
-        layer["name"] = nameEdit->text();
-        layer["thickness"] = thicknessSpin->value();
+        layer["mat"] = matEdit->text();
+        layer["width"] = widthSpin->value();
         layer["n"] = refSpin->value();
         data.append(layer);
     }
@@ -164,36 +161,57 @@ void LayerStackWidget::addLayer() {
     layerWidget->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
 
     QFormLayout *form = new QFormLayout(layerWidget);
-    form->setSpacing(6);
+    form->setSpacing(4);
 
-    QLineEdit *nameEdit = new QLineEdit;
-    nameEdit->setObjectName("nameEdit");
+    QLineEdit *matEdit = new QLineEdit;
+    matEdit->setObjectName("matEdit");
 
-    NoWheelSpinBox *thicknessSpin = new NoWheelSpinBox;
-    thicknessSpin->setSuffix(" nm");
-    thicknessSpin->setRange(0.0, 10000.0);
-    thicknessSpin->setObjectName("thicknessSpin");
+    QLabel *widthLab = new QLabel("width:");
+    NoWheelSpinBox *widthSpin = new NoWheelSpinBox;
+    widthSpin->setSuffix(" nm");
+    widthSpin->setRange(0.0, 10000.0);
+    widthSpin->setObjectName("widthSpin");
 
+    QLabel *refLab = new QLabel("ref. Idx: ");
     NoWheelSpinBox *refSpin = new NoWheelSpinBox;
-    refSpin->setRange(0.0, 50.0);
+    refSpin->setRange(0.0, 500.0);
     refSpin->setObjectName("refSpin");
     refSpin->setFocusPolicy(Qt::ClickFocus);
 
+    QPushButton *matButton = new QPushButton("Browse");
+    connect(matButton, &QPushButton::clicked, this, [this, matEdit]() {
+    QString fileName = QFileDialog::getOpenFileName(
+        this, tr("Select Data File"), QString(), tr("Data Files (*.txt *.csv);;All Files (*)")
+        );
+        if (!fileName.isEmpty()) {
+            matEdit->setText(fileName);
+        }
+    });
+    
     QPushButton *removeButton = new QPushButton("Remove");
     connect(removeButton, &QPushButton::clicked, this, [this, layerWidget]() {
         removeLayer(layerWidget);
     });
 
-    // Inline name + remove button
-    QWidget *nameRow = new QWidget;
-    QHBoxLayout *nameLayout = new QHBoxLayout(nameRow);
-    nameLayout->setContentsMargins(0, 0, 0, 0);
-    nameLayout->addWidget(nameEdit);
-    nameLayout->addWidget(removeButton);
+    // Inline mat + remove button
+    QWidget *matRow = new QWidget;
+    QHBoxLayout *matLayout = new QHBoxLayout(matRow);
+    matLayout->setContentsMargins(0, 0, 0, 0);
+    matLayout->addWidget(matEdit);
+    matLayout->addWidget(matButton);
+    matLayout->addWidget(removeButton);
 
-    form->addRow("Material:", nameRow);
-    form->addRow("Thickness:", thicknessSpin);
-    form->addRow("Ref Idx:", refSpin);
+    QWidget *spinRow = new QWidget;
+    QHBoxLayout *spinLayout = new QHBoxLayout(spinRow);
+    spinLayout->setContentsMargins(0, 0, 0, 0);
+    spinLayout->setSpacing(8);
+    spinLayout->addWidget(refLab, 0);
+    spinLayout->addWidget(refSpin, 1);
+    spinLayout->addWidget(widthLab, 0);
+    spinLayout->addWidget(widthSpin, 1);
+
+    form->addRow("Material:", matRow);
+    form->addRow(spinRow);
 
     // Insert before the stretch at the bottom
     stackLayout->insertWidget(stackLayout->count() - 1, layerWidget);
