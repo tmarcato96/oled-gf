@@ -128,7 +128,7 @@ public:
   void setDipolePosition(double pos);
   void setWavelength(double wavelength);
   double getLayerThickness(size_t index);
-  Eigen::Index getDipoleIndex() const;
+  size_t getDipoleIndex() const;
 
   void run();
   virtual void update() = 0;

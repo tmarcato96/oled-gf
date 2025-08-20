@@ -46,14 +46,17 @@ int main(int argc, char* argv[])
   layers.emplace_back(Material(1.52, 0.0), -1.0);
 
   // Spectrum
-  auto spectrum = std::make_shared<FileDistribution>(spectrumFilePath.string());
+  // auto spectrum = std::make_shared<FileDistribution>(spectrumFilePath.string());
   double fwhm = 30;
   double sigma = fwhm / (2.0 * sqrt(2.0 * log(2.0)));
-  // auto spectrum = std::make_shared<NormalDistribution>(450, 750, 550, sigma, 40);
+  auto spectrum = std::make_shared<NormalDistribution>(450, 750, 550, sigma, 40);
+  // Distribution spectrum(550);
   Distribution dipolePos(0.0, 20e-9, 5);
   // Distribution dipolePos(10e-9);
 
-  auto solver = std::make_unique<Simulation>(SimulationMode::ModeDissipation, layers, 0.0, 2.0);
+  const double uStart = 0.0;
+  const double uStop = 2.0;
+  auto solver = std::make_unique<Simulation>(SimulationMode::ModeDissipation, layers, uStart, uStop);
   SweepManager sm(*solver);
   sm.setSDSweep(dipolePos, std::static_pointer_cast<Distribution<>>(spectrum));
   // sm.setSDSweep(dipolePos, spectrum);
@@ -81,6 +84,7 @@ int main(int argc, char* argv[])
     *std::max_element(yParaUp.constBegin(), yParaUp.constEnd()),
     *std::max_element(yPerp.constBegin(), yPerp.constEnd())});
   plot->setAxisScale(QwtPlot::yLeft, yMin, yMax);
+  plot->setAxisScale(QwtPlot::xBottom, uStart, uStop);
 
   QwtPlotCurve* paraUsCurve = new QwtPlotCurve("s-Para");
   paraUsCurve->setLegendAttribute(QwtPlotCurve::LegendShowSymbol, false);

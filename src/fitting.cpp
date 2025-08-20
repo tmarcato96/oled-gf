@@ -9,6 +9,7 @@
 
 #include "matlayer.hpp"
 #include <fitting.hpp>
+#include <utils.hpp>
 
 Fitting::Fitting(const std::string& fittingFilePath,
   const std::vector<Layer>& layers,
@@ -94,7 +95,7 @@ void Fitting::discretize()
 int ResFunctor::operator()(const Eigen::VectorXd& params, Eigen::VectorXd& fvec) const
 {
   // x here is vector of fitting params
-  for (size_t i = 0; i < intensities.size(); ++i) {
+  for (Eigen::Index i = 0; i < intensities.size(); ++i) {
     fvec(i) = intensities(i) - params(0) * (params(1) * powerGlass(0, i) +
                                              (1 - params(1)) * powerGlass(1, i)); // residual of each sample
   }
@@ -103,14 +104,15 @@ int ResFunctor::operator()(const Eigen::VectorXd& params, Eigen::VectorXd& fvec)
 
 int ResFunctor::inputs() const { return 2; }
 
-int ResFunctor::values() const { return intensities.size(); }
+int ResFunctor::values() const { return checked_narrow_cast<int>(intensities.size()); }
 
 Fitting::FitRes Fitting::fit()
 {
   setup();
 
   // returns the vector of parameters and the fitted intensities as a std::pair
-  std::vector<double> theta(matstack.x.rows()), yFit(matstack.x.rows()), yExp(residual.intensities.rows());
+  std::vector<double> theta(toSize(matstack.x.rows())), yFit(toSize(matstack.x.rows())),
+    yExp(toSize(residual.intensities.rows()));
 
   Eigen::ArrayXd::Map(&theta[0], intensityData.rows() - 1) = intensityData.col(0).segment(0, matstack.u.size());
   Eigen::ArrayXd::Map(&yExp[0], intensityData.rows() - 1) = residual.intensities;

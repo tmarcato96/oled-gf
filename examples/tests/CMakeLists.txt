@@ -1,25 +1,9 @@
-qt_add_executable(test_fitting test_fitting.cpp)
-target_link_libraries(test_fitting PUBLIC OLEDFunctions
-                                          GUIFunctions
+qt_add_executable(test_sweep_fit test_sweep_fit.cpp)
+target_link_libraries(test_sweep_fit PUBLIC OLEDFunctions
                                     PRIVATE Qt::Qwt)
-target_compile_definitions(test_fitting PRIVATE PROJECT_ROOT="${CMAKE_SOURCE_DIR}")
+target_compile_definitions(test_sweep_fit PRIVATE PROJECT_ROOT="${CMAKE_SOURCE_DIR}")
 
-qt_add_executable(test_barnes test_barnes.cpp)
-target_include_directories(test_barnes PUBLIC "${PROJECT_SOURCE_DIR}/include")
-target_link_libraries(test_barnes PUBLIC OLEDFunctions 
-                                         GUIFunctions)
-
-qt_add_executable(test_test test_test.cpp)
-target_include_directories(test_test PUBLIC "${PROJECT_SOURCE_DIR}/include")
-target_link_libraries(test_test PUBLIC OLEDFunctions 
-                                       GUIFunctions)
-
-qt_add_executable(test_sim_input test_sim_input.cpp)
-target_include_directories(test_sim_input PUBLIC "${PROJECT_SOURCE_DIR}/include")
-target_link_libraries(test_sim_input PUBLIC OLEDFunctions 
-                                            GUIFunctions)
-
-qt_add_executable(test_fit_input test_fit_input.cpp)
-target_include_directories(test_fit_input PUBLIC "${PROJECT_SOURCE_DIR}/include")
-target_link_libraries(test_fit_input PUBLIC OLEDFunctions 
-                                            GUIFunctions)
+qt_add_executable(test_sweep_sim test_sweep_sim.cpp)
+target_link_libraries(test_sweep_sim PUBLIC OLEDFunctions
+                                    PRIVATE Qt::Qwt)
+target_compile_definitions(test_sweep_sim PRIVATE PROJECT_ROOT="${CMAKE_SOURCE_DIR}")

@@ -7,6 +7,7 @@
 
 #include <basesolver.hpp>
 #include <simulation.hpp>
+#include <utils.hpp>
 
 #define MAX_SPECTRUM_SIZE 100
 
@@ -47,8 +48,9 @@ template<typename T = Matrix> struct Distribution
   {
     if constexpr (std::is_same_v<T, Matrix>) {
       if (xLeft > xRight) { std::swap(xLeft, xRight); }
-      values.resize(numPoints, 1);
-      values.col(0) = Vector::LinSpaced(numPoints, xLeft, xRight);
+      Eigen::Index N = toIndexChecked(numPoints);
+      values.resize(N, 1);
+      values.col(0) = Vector::LinSpaced(N, xLeft, xRight);
     }
     else {
       static_assert(sizeof(T) == 0, "This constructor only supports Eigen::Matrix.");
@@ -212,11 +214,12 @@ public:
     }
   }
 
-  DipoleT dipolePositions;
-  SpectrumT spectrum;
-
 private:
   BaseSolver* solver;
+
+public:
+  DipoleT dipolePositions;
+  SpectrumT spectrum;
 };
 
 class SweepLayer : public ISweep
@@ -280,12 +283,15 @@ public:
     const Eigen::Index N = _solver->resultTree.get<Vector>("u").rows();
     auto dipoleLayer = _solver->getDipoleIndex() - 1;
 
-    std::vector<double> u(N), powerPerp(N), powerParaUs(N), powerParaUp(N);
+    std::vector<double> u(toSize(N)), powerPerp(toSize(N)), powerParaUs(toSize(N)), powerParaUp(toSize(N));
 
     // Use Eigen::Map to copy Eigen arrays into std::vector
-    Eigen::Map<Eigen::ArrayXd>(powerPerp.data(), N) = _solver->resultTree.get<Matrix>("P_perp_uf").row(dipoleLayer);
-    Eigen::Map<Eigen::ArrayXd>(powerParaUs.data(), N) = _solver->resultTree.get<Matrix>("P_para_p_uf").row(dipoleLayer);
-    Eigen::Map<Eigen::ArrayXd>(powerParaUp.data(), N) = _solver->resultTree.get<Matrix>("P_para_s_uf").row(dipoleLayer);
+    Eigen::Map<Eigen::ArrayXd>(powerPerp.data(), N) =
+      _solver->resultTree.get<Matrix>("P_perp_uf").row(toIndex(dipoleLayer));
+    Eigen::Map<Eigen::ArrayXd>(powerParaUs.data(), N) =
+      _solver->resultTree.get<Matrix>("P_para_p_uf").row(toIndex(dipoleLayer));
+    Eigen::Map<Eigen::ArrayXd>(powerParaUp.data(), N) =
+      _solver->resultTree.get<Matrix>("P_para_s_uf").row(toIndex(dipoleLayer));
     Eigen::Map<Eigen::ArrayXd>(u.data(), N) = _solver->resultTree.get<Vector>("u");
 
     return SimRes{u, powerPerp, powerParaUs, powerParaUp};

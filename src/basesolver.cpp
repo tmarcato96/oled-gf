@@ -11,6 +11,7 @@
 #include "basesolver.hpp"
 #include "linalg.hpp"
 #include <forwardDecl.hpp>
+#include <utils.hpp>
 
 BaseSolver::BaseSolver(const std::vector<Layer>& layers,
   const double sweepStart,
@@ -40,14 +41,14 @@ void BaseSolver::loadMaterialData()
   std::cout << "-----------------------------------------------------------------\n"
             << "\n\n";
 
-  matstack.numLayers = static_cast<Eigen::Index>(layers.size());
+  matstack.numLayers = toIndex(layers.size());
   matstack.numInterfaces = matstack.numLayers - 1;
   matstack.numLayersTop = dipoleLayer + 1;
   matstack.numLayersBottom = matstack.numLayers - dipoleLayer;
 
   matstack.epsilon.resize(matstack.numLayers);
-  for (size_t i = 0; i < static_cast<size_t>(matstack.numLayers); ++i) {
-    matstack.epsilon(i) = layers[i].getMaterial().getEpsilon(wvl);
+  for (Eigen::Index i = 0; i < matstack.numLayers; ++i) {
+    matstack.epsilon(i) = layers[toSize(i)].getMaterial().getEpsilon(wvl);
     std::cout << "Layer " << i << "; Material: (" << matstack.epsilon(i).real() << ", " << matstack.epsilon(i).imag()
               << ")\n";
   }
@@ -397,7 +398,7 @@ void BaseSolver::run() { calculate(); }
 
 Vector const& BaseSolver::getInPlaneWavevector() const { return matstack.u; }
 
-Eigen::Index BaseSolver::getDipoleIndex() const { return dipoleLayer; }
+size_t BaseSolver::getDipoleIndex() const { return toSize(dipoleLayer); }
 
 void BaseSolver::setDipolePosition(double pos) { dipolePosition = pos; }
 

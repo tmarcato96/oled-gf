@@ -8,9 +8,7 @@ project(oledgf
         VERSION 0.1
         LANGUAGES CXX)
 
-if (NOT DEFINED CMAKE_CXX_STANDARD)
-    set(CMAKE_CXX_STANDARD 23)
-endif()
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 set(CMAKE_TRY_COMPILE_TARGET_TYPE "STATIC_LIBRARY")
@@ -26,14 +24,10 @@ oledgf_setup_dependencies()
 target_compile_features(oledgf_options INTERFACE cxx_std_${CMAKE_CXX_STANDARD})
 
 add_subdirectory(src)
-add_subdirectory(gui/src)
-
-add_subdirectory(examples/main)
-add_subdirectory(examples/tests)
 
 # Adding tests:
-#include(CTest)
+include(CTest)
 
-#if(BUILD_TESTING)
-#  add_subdirectory(test)
-#endif()
+if(BUILD_TESTING)
+  add_subdirectory(test)
+endif()

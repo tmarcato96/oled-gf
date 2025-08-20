@@ -44,8 +44,8 @@ int main(int argc, char* argv[])
   layers.emplace_back(Material(1.52, 0.0), -1.0);
 
   // Spectrum
-  double fwhm = 30;
-  double sigma = fwhm / (2.0 * sqrt(2.0 * log(2.0)));
+  // double fwhm = 30;
+  // double sigma = fwhm / (2.0 * sqrt(2.0 * log(2.0)));
   // auto spectrum = std::make_shared<NormalDistribution>(450, 750, wavelength, sigma, 100);
   // auto spectrum = std::make_shared<FileDistribution>(spectrumFilePath.string());
   Distribution spectrum(wavelength);

@@ -480,8 +480,6 @@ private:
 
         std::visit(
           [&](const auto& inner_val) {
-            using T = std::decay_t<decltype(inner_val)>;
-
             switch (op) { // picks the right operation for the lambda
             case ProxyBinOp::sum: makeSumOp<Values, Policy>(inner_val)(lhsVal); break;
             case ProxyBinOp::sub: makeSubOp<Values, Policy>(inner_val)(lhsVal); break;
@@ -496,11 +494,11 @@ private:
     return KeySelectionProxy<Values, Policy>(source, keys, std::move(operations));
   }
 
-  bool hasDuplicates(const std::vector<std::string>& keys)
+  bool hasDuplicates(const std::vector<std::string>& ks)
   {
     std::unordered_set<std::string> s;
-    s.reserve(keys.size());
-    for (const auto& k : keys) {
+    s.reserve(ks.size());
+    for (const auto& k : ks) {
       if (!s.insert(k).second) return true;
     }
     return false;
