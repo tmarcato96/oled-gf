@@ -10,7 +10,8 @@
 
 #define MAX_SPECTRUM_SIZE 100
 
-template<typename StepFn> void integrateTrapezoidal(Eigen::Index N, const Vector& X, StepFn&& step)
+template<typename StepFn>
+void integrateTrapezoidal(Eigen::Index N, const Vector& X, StepFn&& step, double totInterval = 1.0)
 {
   if (N <= 0 || X.size() < N) throw std::runtime_error("integrateTrapezoidal: invalid sizes");
   if (N < 2) return;
@@ -26,7 +27,7 @@ template<typename StepFn> void integrateTrapezoidal(Eigen::Index N, const Vector
   prev = solver->resultTree(POWER_DIPOLES);
 
   for (Eigen::Index i = 1; i < N; ++i) {
-    const double dX = X(i) - X(i - 1);
+    const double dX = (X(i) - X(i - 1)) / totInterval;
     step(i); // mutates solver->resultTree
     out(POWER_DIPOLES) += (solver->resultTree(POWER_DIPOLES) + prev(POWER_DIPOLES)) * 0.5 * dX;
 
@@ -34,7 +35,7 @@ template<typename StepFn> void integrateTrapezoidal(Eigen::Index N, const Vector
   }
 
   // Put results in solver
-  solver->resultTree(POWER_DIPOLES).moveFrom(std::move(out(POWER_DIPOLES)));
+  solver->resultTree(POWER_DIPOLES).moveFrom(out(POWER_DIPOLES));
 }
 
 template<typename T = Matrix> struct Distribution
@@ -153,12 +154,14 @@ template<typename DipoleT, typename SpectrumT> class SweepSpecDip : public ISwee
     }
     else if constexpr (std::is_same_v<DipoleT, Matrix>) {
       const Eigen::Index N = dipolePositions.rows();
-      integrateTrapezoidal(N, dipolePositions.col(0), [&](Eigen::Index i) {
-        runSingleValue(dipolePositions(i, 0), spectrum);
-        return solver;
-      });
-      double thickness = solver->getLayerThickness(solver->getDipoleIndex());
-      solver->resultTree(POWER_DIPOLES) /= thickness;
+      integrateTrapezoidal(
+        N,
+        dipolePositions.col(0),
+        [&](Eigen::Index i) {
+          runSingleValue(dipolePositions(i, 0), spectrum);
+          return solver;
+        },
+        solver->getLayerThickness(solver->getDipoleIndex()));
     }
     else {
       runSingleValue(dipolePositions, spectrum);
@@ -187,20 +190,22 @@ public:
     if constexpr (std::is_same_v<DipoleT, Matrix> && std::is_same_v<SpectrumT, Matrix>) {
       // dual distribution
       const Eigen::Index N = dipolePositions.rows();
-      integrateTrapezoidal(N, dipolePositions.col(0), [&](Eigen::Index i) {
-        solver->setDipolePosition(dipolePositions(i, 0));
-        // inner spectral integration
-        const Eigen::Index M = spectrum.rows();
-        integrateTrapezoidal(M, spectrum.col(0), [&](Eigen::Index j) {
-          runSingleValue(dipolePositions(i, 0), spectrum(j, 0), true);
-          double w = spectrum(j, 1);
-          solver->resultTree(POWER_DIPOLES) *= w;
+      integrateTrapezoidal(
+        N,
+        dipolePositions.col(0),
+        [&](Eigen::Index i) {
+          solver->setDipolePosition(dipolePositions(i, 0));
+          // inner spectral integration
+          const Eigen::Index M = spectrum.rows();
+          integrateTrapezoidal(M, spectrum.col(0), [&](Eigen::Index j) {
+            runSingleValue(dipolePositions(i, 0), spectrum(j, 0), true);
+            double w = spectrum(j, 1);
+            solver->resultTree(POWER_DIPOLES) *= w;
+            return solver;
+          });
           return solver;
-        });
-        return solver;
-      });
-      double thickness = solver->getLayerThickness(solver->getDipoleIndex());
-      solver->resultTree(POWER_DIPOLES) /= thickness;
+        },
+        solver->getLayerThickness(solver->getDipoleIndex()));
     }
     else {
       runSingleDistribution();
