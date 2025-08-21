@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <memory>
 #include <type_traits>
+#include <utility>
 
 #include <basesolver.hpp>
 #include <simulation.hpp>
@@ -117,6 +118,40 @@ private:
   }
 };
 
+namespace dist {
+  // Utilities to make sure we can deduce Distribution correctly to intialize SDSweep
+  // Distribution is something that has .values.
+  template<class T>
+  concept HasValuesMember = requires(T t) { t.values; };
+
+  template<class Arg>
+  using deduced_value_t = std::conditional_t<HasValuesMember<std::remove_cvref_t<Arg>>,
+    std::remove_cvref_t<decltype(std::declval<Arg>().values)>,
+    std::remove_cvref_t<Arg>>;
+
+  // Raw value
+  template<class V> Distribution<std::remove_cvref_t<V>> as_distribution(V&& v)
+  {
+    return Distribution<std::remove_cvref_t<V>>(std::forward<V>(v));
+  }
+
+  // Distribution object with .values
+  template<HasValuesMember D> auto as_distribution(D&& d)
+  {
+    using V = std::remove_cvref_t<decltype(d.values)>;
+    using Base = Distribution<V>;
+
+    if constexpr (std::is_base_of_v<Base, std::remove_cvref_t<D>>) {
+      // slice
+      return Base(std::forward<D>(d));
+    }
+    else {
+      return Base(std::remove_cvref_t<decltype(d.values)>(d.values)); // just use the values
+    }
+  }
+
+} // namespace dist
+
 class ISweep
 {
 public:
@@ -171,20 +206,10 @@ template<typename DipoleT, typename SpectrumT> class SweepSpecDip : public ISwee
   }
 
 public:
-  SweepSpecDip(BaseSolver* solver,
-    const Distribution<DipoleT>& dipoleDist,
-    std::shared_ptr<Distribution<SpectrumT>> spectrumDist) :
+  SweepSpecDip(BaseSolver* solver, Distribution<DipoleT> dipoleDist, Distribution<SpectrumT> spectrumDist) :
     solver{solver},
-    dipolePositions{dipoleDist.values},
-    spectrum{std::move(spectrumDist->values)}
-  {}
-
-  SweepSpecDip(BaseSolver* solver,
-    const Distribution<DipoleT>& dipoleDist,
-    const Distribution<SpectrumT>& spectrumDist) :
-    solver{solver},
-    dipolePositions{dipoleDist.values},
-    spectrum{spectrumDist.values}
+    dipolePositions{std::move(dipoleDist.values)},
+    spectrum{std::move(spectrumDist.values)}
   {}
 
   void update() override
@@ -244,16 +269,18 @@ public:
     _solver{&solver}
   {}
 
-  template<typename DipoleT, typename SpectrumT>
-  void setSDSweep(Distribution<DipoleT>& dipoleDist, std::shared_ptr<Distribution<SpectrumT>> spectrumDist)
+  template<class DipArg, class SpecArg> void setSDSweep(DipArg&& dipArg, SpecArg&& specArg)
   {
-    _sdSweep = std::make_unique<SweepSpecDip<DipoleT, SpectrumT>>(_solver, dipoleDist, std::move(spectrumDist));
-  }
+    using DipT = dist::deduced_value_t<DipArg>;
+    using SpecT = dist::deduced_value_t<SpecArg>;
 
-  template<typename DipoleT, typename SpectrumT>
-  void setSDSweep(const Distribution<DipoleT>& dipoleDist, const Distribution<SpectrumT>& spectrumDist)
-  {
-    _sdSweep = std::make_unique<SweepSpecDip<DipoleT, SpectrumT>>(_solver, dipoleDist, spectrumDist);
+    static_assert(std::is_same_v<DipT, double> || std::is_same_v<DipT, Matrix>, "Dipole must be double or Matrix");
+    static_assert(std::is_same_v<SpecT, double> || std::is_same_v<SpecT, Matrix>, "Spectrum must be double or Matrix");
+
+    auto dipole = dist::as_distribution(std::forward<DipArg>(dipArg));
+    auto spectrum = dist::as_distribution(std::forward<SpecArg>(specArg));
+
+    _sdSweep = std::make_unique<SweepSpecDip<DipT, SpecT>>(_solver, std::move(dipole), std::move(spectrum));
   }
 
   void addSweep(size_t layerNum, Distribution<> thicknesses) { _sweeps.emplace(layerNum, thicknesses); }

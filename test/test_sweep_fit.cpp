@@ -45,26 +45,17 @@ int main(int argc, char* argv[])
   layers.emplace_back(Material(1.52, 0.0), -1.0);
 
   // Spectrum
-  // double fwhm = 30;
-  // double sigma = fwhm / (2.0 * sqrt(2.0 * log(2.0)));
-  // auto spectrum = std::make_shared<NormalDistribution>(450, 750, wavelength, sigma, 100);
-  // auto spectrum = std::make_shared<FileDistribution>(spectrumFilePath.string());
   Distribution spectrum(wavelength);
-  // Distribution dipolePos(0.0, 35e-9, 5);
+  // Dipole
   Distribution dipolePos(17.5e-9);
 
   auto solver = std::make_unique<Fitting>(fitFilePath, layers, 0.0, 90.0);
   SweepManager sm(*solver);
   sm.setSDSweep(dipolePos, spectrum);
-  // sm.setSDSweep(dipolePos, std::static_pointer_cast<Distribution<>>(spectrum));
-  //  sm.setSDSweep(dipolePos, spectrum);
   sm.runSweeps();
   Fitting::FitRes res = solver->fit();
 
-  // for (size_t i = 0; i < fitRes.x.size(); ++i) {
-  //   std::cout << fitRes.x[i] << " " << fitRes.yExp[i] << " " << fitRes.yFit[i] << "\n";
-  // }
-
+  // Plot
   QApplication app(argc, argv);
   QMainWindow window;
 

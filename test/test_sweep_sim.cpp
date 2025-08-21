@@ -46,11 +46,15 @@ int main(int argc, char* argv[])
   layers.emplace_back(Material(1.52, 0.0), -1.0);
 
   // Spectrum
-  // auto spectrum = std::make_shared<FileDistribution>(spectrumFilePath.string());
   double fwhm = 30;
   double sigma = fwhm / (2.0 * sqrt(2.0 * log(2.0)));
-  auto spectrum = std::make_shared<NormalDistribution>(450, 750, 550, sigma, 40);
-  // Distribution spectrum(550);
+  double wvl = 550;
+  // Single wvl, Normal and File
+  // Distribution spectrum(wvl);
+  // auto spectrum = NormalDistribution(450, 750, 550, sigma, 40);
+  auto spectrum = FileDistribution(spectrumFilePath.string());
+
+  // Dipole distribution
   Distribution dipolePos(0.0, 20e-9, 5);
   // Distribution dipolePos(10e-9);
 
@@ -58,8 +62,7 @@ int main(int argc, char* argv[])
   const double uStop = 2.0;
   auto solver = std::make_unique<Simulation>(SimulationMode::ModeDissipation, layers, uStart, uStop);
   SweepManager sm(*solver);
-  sm.setSDSweep(dipolePos, std::static_pointer_cast<Distribution<>>(spectrum));
-  // sm.setSDSweep(dipolePos, spectrum);
+  sm.setSDSweep(dipolePos, spectrum);
   sm.runSweeps();
   SweepManager::SimRes simData = sm.getResults();
 
