@@ -1,6 +1,7 @@
 #pragma once
 
 #include <basesolver.hpp>
+#include <distribution.hpp>
 #include <filesystem>
 #include <fitting.hpp>
 #include <fstream>
@@ -12,6 +13,7 @@
 #include <optional>
 #include <queue>
 #include <simulation.hpp>
+#include <sweep.hpp>
 
 template<typename T> T return_pop(std::queue<T>& s)
 { // returns the top element and pops queue IN THIS ORDER
@@ -35,18 +37,18 @@ public:
 
   ConfigVisitor() = default;
 
-  std::unique_ptr<BaseSolver> makeSolver();
+  SolverManager configure();
   bool isSimulation();
 
 private:
   std::map<int, Layer> _layerMap;
   std::vector<Layer> _layers;
-  std::optional<Matrix> _fitData;
+  std::optional<std::string> _fitFile;
   std::optional<double> _alpha;
   std::optional<SimulationMode> _simMode;
-  Distribution _test;
-  std::variant<Distribution, double> _dipoleDist;
-  Spectrum<Distribution> _spectrum;
+  // Distribution _test;
+  AnyDist _dipoleDist;
+  AnyDist _spectrum;
 
   double _sweepStart;
   double _sweepStop;
@@ -60,6 +62,9 @@ private:
   void fillMaterialHelper(Material& mat);
   void fillDipoleModeHelper();
   void fillSpectrumModeHelper();
+
+  std::unique_ptr<BaseSolver> makeSolver();
+  std::unique_ptr<SweepManager> makeSweepManager();
 };
 
 // note to self: don't forget to differentiate between simulation and fitting!!!!

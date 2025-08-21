@@ -12,6 +12,7 @@
 #include <forwardDecl.hpp>
 #include <matlayer.hpp>
 #include <simulation.hpp>
+#include <sweep.hpp>
 #include <visitor.hpp>
 
 namespace Data {
@@ -47,7 +48,7 @@ namespace Data {
 
     SolverMode get_mode() { return _smode; }
 
-    std::unique_ptr<BaseSolver> makeSolver() { return _visitor->makeSolver(); }
+    SolverManager makeSolver() { return _visitor->configure(); }
   };
 
   class Importer
@@ -61,7 +62,7 @@ namespace Data {
     SolverMode _mode;
 
   public:
-    virtual std::unique_ptr<BaseSolver> solverFromFile() = 0;
+    virtual SolverManager solverFromFile() = 0;
     virtual SolverMode getSolverMode() = 0;
     virtual ~Importer() = default;
   };
@@ -72,7 +73,7 @@ namespace Data {
     void setSolverMode() override;
 
   public:
-    std::unique_ptr<BaseSolver> solverFromFile() override;
+    SolverManager solverFromFile() override;
     virtual SolverMode getSolverMode() override;
     INIimporter(const std::string& filepath);
     INIimporter(const std::string& filepath, SolverMode mode);
@@ -85,7 +86,7 @@ namespace Data {
     Reader<Json::JsonParser, ConfigVisitor> _reader;
 
   public:
-    std::unique_ptr<BaseSolver> solverFromFile() override;
+    SolverManager solverFromFile() override;
     virtual SolverMode getSolverMode() override;
 
     JSONimporter(const std::string& filepath);

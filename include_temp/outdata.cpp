@@ -13,7 +13,7 @@ using JsonObject = std::map<std::string, std::unique_ptr<JsonNode>>;
 using JsonList = std::vector<std::unique_ptr<JsonNode>>;
 
 Data::Results::Results(const BaseSolver& solver) :
-  alpha{solver.alpha},
+  alpha{solver.getAlpha()},
   u{solver.getInPlaneWavevector()},
   // MODIFYYY
   powerUpPerp{},

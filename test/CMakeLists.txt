@@ -22,3 +22,11 @@ target_compile_definitions(test_sim_barnes PRIVATE PROJECT_ROOT="${CMAKE_SOURCE_
 
 add_test(NAME test_sim_barnes
          COMMAND test_sim_barnes)
+
+qt_add_executable(test_sweep_config test_sweep_config.cpp)
+target_link_libraries(test_sweep_config PUBLIC OLEDFunctions oledgf_options oledgf_warnings
+                                    PRIVATE Qt::Qwt)
+target_compile_definitions(test_sweep_config PRIVATE PROJECT_ROOT="${CMAKE_SOURCE_DIR}")
+
+add_test(NAME test_sweep_config
+         COMMAND test_sweep_config)

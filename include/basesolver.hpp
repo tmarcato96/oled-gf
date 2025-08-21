@@ -86,6 +86,7 @@ protected:
   double dipolePosition = 0.0;
   double _sweepStart;
   double _sweepStop;
+  double alpha;
 
   MatStack matstack;
   SolverCoefficients coeffs;
@@ -124,16 +125,17 @@ public:
   ResMap resultTree;
 
   // Setter and getters
-  Vector const& getInPlaneWavevector() const;
   void setDipolePosition(double pos);
   void setWavelength(double wavelength);
+  void setAlpha(double a);
+
   double getLayerThickness(size_t index);
   size_t getDipoleIndex() const;
+  Vector const& getInPlaneWavevector() const;
+  double getAlpha() const;
 
   void run();
   virtual void update() = 0;
 
   virtual ~BaseSolver() = default;
-
-  double alpha;
 };

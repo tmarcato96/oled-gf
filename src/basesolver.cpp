@@ -400,8 +400,12 @@ Vector const& BaseSolver::getInPlaneWavevector() const { return matstack.u; }
 
 size_t BaseSolver::getDipoleIndex() const { return toSize(dipoleLayer); }
 
+double BaseSolver::getLayerThickness(size_t index) { return layers[index].getThickness(); }
+
+double BaseSolver::getAlpha() const { return alpha; }
+
 void BaseSolver::setDipolePosition(double pos) { dipolePosition = pos; }
 
 void BaseSolver::setWavelength(double wavelength) { wvl = wavelength; }
 
-double BaseSolver::getLayerThickness(size_t index) { return layers[index].getThickness(); }
+void BaseSolver::setAlpha(double a) { alpha = a; }

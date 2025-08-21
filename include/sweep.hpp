@@ -7,10 +7,9 @@
 #include <utility>
 
 #include <basesolver.hpp>
+#include <distribution.hpp>
 #include <simulation.hpp>
 #include <utils.hpp>
-
-#define MAX_SPECTRUM_SIZE 100
 
 template<typename StepFn>
 void integrateTrapezoidal(Eigen::Index N, const Vector& X, StepFn&& step, double totInterval = 1.0)
@@ -40,121 +39,10 @@ void integrateTrapezoidal(Eigen::Index N, const Vector& X, StepFn&& step, double
   solver->resultTree(POWER_DIPOLES).moveFrom(out(POWER_DIPOLES));
 }
 
-template<typename T = Matrix> struct Distribution
-{ // Linear distribution
-
-  T values;
-
-  Distribution(double xLeft, double xRight, size_t numPoints = MAX_SPECTRUM_SIZE)
-  {
-    if constexpr (std::is_same_v<T, Matrix>) {
-      if (xLeft > xRight) { std::swap(xLeft, xRight); }
-      Eigen::Index N = toIndexChecked(numPoints);
-      values.resize(N, 1);
-      values.col(0) = Vector::LinSpaced(N, xLeft, xRight);
-    }
-    else {
-      static_assert(sizeof(T) == 0, "This constructor only supports Eigen::Matrix.");
-    }
-  }
-
-  Distribution(T value) :
-    values{std::move(value)}
-  {}
-
-  Distribution() = default;
-};
-
-struct NormalDistribution : public Distribution<>
-{
-
-  NormalDistribution(double xmin, double xmax, double x0, double sigma, size_t NumPoints = 20) :
-    Distribution(xmin, xmax, NumPoints)
-  {
-    values.conservativeResize(values.rows(), values.cols() + 1);
-    values.col(1) =
-      (1.0 / std::sqrt(2 * M_PI * (sigma * sigma))) * (-0.5 * ((values.col(0) - x0) / sigma).square()).exp();
-  }
-};
-
-struct FileDistribution : public Distribution<>
-{
-
-  FileDistribution(const std::string& filepath)
-  {
-    constexpr size_t ncols = 2;
-    values = Data::loadFromFile(filepath, ncols);
-    if (values.rows() > MAX_SPECTRUM_SIZE) downsample();
-    Data::sortRowsByFirstColumn(values);
-    normalize();
-  }
-
-private:
-  void normalize()
-  {
-    auto x = values.col(0);
-    auto y = values.col(1);
-    const Eigen::Index N = values.rows();
-
-    Vector dX = x.segment(1, N - 1) - x.segment(0, N - 1);
-    double integral;
-    if ((dX == dX(0)).all()) {
-      // Uniform spacing
-      integral = dX(0) * (0.5 * (values(0, 1) + values(N - 1, 1)) + y.segment(1, N - 2).sum());
-    }
-    else {
-      integral = (0.5 * (y.segment(0, N - 1) + y.segment(1, N - 1)) * dX).sum();
-    }
-
-    if (integral > 0.0) values.col(1) /= integral;
-  }
-
-  void downsample()
-  {
-    const Eigen::Index sampleSize = MAX_SPECTRUM_SIZE;
-    Eigen::Index stride = values.rows() / sampleSize;
-    Matrix newValues = values(Eigen::seq(0, Eigen::last, stride), Eigen::all);
-    values = newValues;
-  }
-};
-
-namespace dist {
-  // Utilities to make sure we can deduce Distribution correctly to intialize SDSweep
-  // Distribution is something that has .values.
-  template<class T>
-  concept HasValuesMember = requires(T t) { t.values; };
-
-  template<class Arg>
-  using deduced_value_t = std::conditional_t<HasValuesMember<std::remove_cvref_t<Arg>>,
-    std::remove_cvref_t<decltype(std::declval<Arg>().values)>,
-    std::remove_cvref_t<Arg>>;
-
-  // Raw value
-  template<class V> Distribution<std::remove_cvref_t<V>> as_distribution(V&& v)
-  {
-    return Distribution<std::remove_cvref_t<V>>(std::forward<V>(v));
-  }
-
-  // Distribution object with .values
-  template<HasValuesMember D> auto as_distribution(D&& d)
-  {
-    using V = std::remove_cvref_t<decltype(d.values)>;
-    using Base = Distribution<V>;
-
-    if constexpr (std::is_base_of_v<Base, std::remove_cvref_t<D>>) {
-      // slice
-      return Base(std::forward<D>(d));
-    }
-    else {
-      return Base(std::remove_cvref_t<decltype(d.values)>(d.values)); // just use the values
-    }
-  }
-
-} // namespace dist
-
 class ISweep
 {
 public:
+  virtual void attachSolver(BaseSolver* s) = 0;
   virtual void update() = 0;
   virtual ~ISweep() = default;
 };
@@ -212,6 +100,13 @@ public:
     spectrum{std::move(spectrumDist.values)}
   {}
 
+  SweepSpecDip(Distribution<DipoleT> dipoleDist, Distribution<SpectrumT> spectrumDist) :
+    dipolePositions{std::move(dipoleDist.values)},
+    spectrum{std::move(spectrumDist.values)}
+  {}
+
+  void attachSolver(BaseSolver* s) override { solver = s; }
+
   void update() override
   {
     if constexpr (std::is_same_v<DipoleT, Matrix> && std::is_same_v<SpectrumT, Matrix>) {
@@ -259,15 +154,26 @@ public:
 
   void update() override {}
 
+  void attachSolver(BaseSolver* s) {}
+
   bool isEmpty() const { return _sweepParams.empty(); }
 };
 
 class SweepManager
 {
 public:
+  SweepManager() :
+    _solver(nullptr)
+  {}
   explicit SweepManager(BaseSolver& solver) :
     _solver{&solver}
   {}
+
+  void attachSolver(BaseSolver& solver)
+  {
+    _solver = &solver;
+    _sdSweep->attachSolver(&solver);
+  }
 
   template<class DipArg, class SpecArg> void setSDSweep(DipArg&& dipArg, SpecArg&& specArg)
   {
@@ -280,13 +186,18 @@ public:
     auto dipole = dist::as_distribution(std::forward<DipArg>(dipArg));
     auto spectrum = dist::as_distribution(std::forward<SpecArg>(specArg));
 
-    _sdSweep = std::make_unique<SweepSpecDip<DipT, SpecT>>(_solver, std::move(dipole), std::move(spectrum));
+    if (!_solver) { _sdSweep = std::make_unique<SweepSpecDip<DipT, SpecT>>(std::move(dipole), std::move(spectrum)); }
+    else {
+      _sdSweep = std::make_unique<SweepSpecDip<DipT, SpecT>>(_solver, std::move(dipole), std::move(spectrum));
+    }
   }
 
   void addSweep(size_t layerNum, Distribution<> thicknesses) { _sweeps.emplace(layerNum, thicknesses); }
 
   void runSweeps()
   {
+    if (!_solver) throw std::runtime_error("SweepManager: no solver attached.");
+
     if (isEmpty()) {
       if (_sdSweep) { _sdSweep->update(); }
       else {
@@ -353,8 +264,24 @@ private:
 
   bool isEmpty() const { return _sweeps.empty(); }
 
-  BaseSolver* _solver; // non-owning
+  BaseSolver* _solver = nullptr; // non-owning
   std::unique_ptr<ISweep> _sdSweep;
   std::map<size_t, Distribution<>> _sweeps;
   std::vector<SweepLayer> _sweepTable;
+};
+
+struct SolverManager
+{
+  using SlvrPtr = std::unique_ptr<BaseSolver>;
+  using SmPtr = std::unique_ptr<SweepManager>;
+
+  SlvrPtr solver;
+  SmPtr sweepManager;
+
+  SolverManager(SlvrPtr s, SmPtr sm) :
+    solver{std::move(s)},
+    sweepManager{std::move(sm)}
+  {
+    sweepManager->attachSolver(*solver);
+  }
 };
