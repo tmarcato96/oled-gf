@@ -42,7 +42,6 @@ void integrateTrapezoidal(Eigen::Index N, const Vector& X, StepFn&& step, double
 class ISweep
 {
 public:
-  virtual void attachSolver(BaseSolver* s) = 0;
   virtual void update() = 0;
   virtual ~ISweep() = default;
 };
@@ -100,13 +99,6 @@ public:
     spectrum{std::move(spectrumDist.values)}
   {}
 
-  SweepSpecDip(Distribution<DipoleT> dipoleDist, Distribution<SpectrumT> spectrumDist) :
-    dipolePositions{std::move(dipoleDist.values)},
-    spectrum{std::move(spectrumDist.values)}
-  {}
-
-  void attachSolver(BaseSolver* s) override { solver = s; }
-
   void update() override
   {
     if constexpr (std::is_same_v<DipoleT, Matrix> && std::is_same_v<SpectrumT, Matrix>) {
@@ -154,26 +146,15 @@ public:
 
   void update() override {}
 
-  void attachSolver(BaseSolver* s) {}
-
   bool isEmpty() const { return _sweepParams.empty(); }
 };
 
 class SweepManager
 {
 public:
-  SweepManager() :
-    _solver(nullptr)
-  {}
   explicit SweepManager(BaseSolver& solver) :
     _solver{&solver}
   {}
-
-  void attachSolver(BaseSolver& solver)
-  {
-    _solver = &solver;
-    _sdSweep->attachSolver(&solver);
-  }
 
   template<class DipArg, class SpecArg> void setSDSweep(DipArg&& dipArg, SpecArg&& specArg)
   {
@@ -186,10 +167,7 @@ public:
     auto dipole = dist::as_distribution(std::forward<DipArg>(dipArg));
     auto spectrum = dist::as_distribution(std::forward<SpecArg>(specArg));
 
-    if (!_solver) { _sdSweep = std::make_unique<SweepSpecDip<DipT, SpecT>>(std::move(dipole), std::move(spectrum)); }
-    else {
-      _sdSweep = std::make_unique<SweepSpecDip<DipT, SpecT>>(_solver, std::move(dipole), std::move(spectrum));
-    }
+    _sdSweep = std::make_unique<SweepSpecDip<DipT, SpecT>>(_solver, std::move(dipole), std::move(spectrum));
   }
 
   void addSweep(size_t layerNum, Distribution<> thicknesses) { _sweeps.emplace(layerNum, thicknesses); }
@@ -264,7 +242,7 @@ private:
 
   bool isEmpty() const { return _sweeps.empty(); }
 
-  BaseSolver* _solver = nullptr; // non-owning
+  BaseSolver* _solver; // non-owning
   std::unique_ptr<ISweep> _sdSweep;
   std::map<size_t, Distribution<>> _sweeps;
   std::vector<SweepLayer> _sweepTable;
@@ -281,7 +259,5 @@ struct SolverManager
   SolverManager(SlvrPtr s, SmPtr sm) :
     solver{std::move(s)},
     sweepManager{std::move(sm)}
-  {
-    sweepManager->attachSolver(*solver);
-  }
+  {}
 };

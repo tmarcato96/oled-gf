@@ -33,8 +33,7 @@ int main(int argc, char* argv[])
   const std::filesystem::path dataPath = rootPath / "examples/data";
   const std::filesystem::path configFile = dataPath / "simulation.json";
 
-  auto manager = Data::ImportManager(configFile);
-  auto importer = manager.makeImporter();
+  auto importer = Data::ImportManager(configFile).makeImporter();
   auto solverManager = importer->solverFromFile();
   solverManager.sweepManager->runSweeps();
   auto simData = solverManager.sweepManager->getResults();

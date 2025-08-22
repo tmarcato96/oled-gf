@@ -64,7 +64,7 @@ private:
   void fillSpectrumModeHelper();
 
   std::unique_ptr<BaseSolver> makeSolver();
-  std::unique_ptr<SweepManager> makeSweepManager();
+  std::unique_ptr<SweepManager> makeSweepManager(BaseSolver& s);
 };
 
 // note to self: don't forget to differentiate between simulation and fitting!!!!

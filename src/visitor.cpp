@@ -261,9 +261,9 @@ std::unique_ptr<BaseSolver> ConfigVisitor::makeSolver()
   return solverPtr;
 }
 
-std::unique_ptr<SweepManager> ConfigVisitor::makeSweepManager()
+std::unique_ptr<SweepManager> ConfigVisitor::makeSweepManager(BaseSolver& s)
 {
-  auto smPtr = std::make_unique<SweepManager>();
+  auto smPtr = std::make_unique<SweepManager>(s);
   // Double dispatch the distributions
   std::visit(
     [&](auto const& x) {
@@ -283,7 +283,7 @@ std::unique_ptr<SweepManager> ConfigVisitor::makeSweepManager()
 SolverManager ConfigVisitor::configure()
 {
   auto solver = makeSolver();
-  auto sm = makeSweepManager();
+  auto sm = makeSweepManager(*solver);
   return SolverManager(std::move(solver), std::move(sm));
 }
 
