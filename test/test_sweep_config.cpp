@@ -31,7 +31,7 @@ int main(int argc, char* argv[])
   // Fitting filepath
   const std::filesystem::path rootPath = PROJECT_ROOT;
   const std::filesystem::path dataPath = rootPath / "examples/data";
-  const std::filesystem::path configFile = dataPath / "simulation.json";
+  const std::filesystem::path configFile = dataPath / "simulation_diss.json";
 
   auto importer = Data::ImportManager(configFile).makeImporter();
   auto solverManager = importer->solverFromFile();

@@ -106,7 +106,7 @@ int ResFunctor::inputs() const { return 2; }
 
 int ResFunctor::values() const { return checked_narrow_cast<int>(intensities.size()); }
 
-Fitting::FitRes Fitting::fit()
+void Fitting::fit()
 {
   setup();
 
@@ -133,16 +133,17 @@ Fitting::FitRes Fitting::fit()
   std::cout << "Status: " << status << '\n';
   std::cout << "Fitting result: " << fitParams << '\n' << '\n';
 
-  // simulation results
-  alpha = fitParams(1);
-  Eigen::ArrayXd optIntensities(matstack.x.rows());
-  optIntensities =
-    fitParams(0) * (fitParams(1) * residual.powerGlass.row(0) + (1 - fitParams(1)) * residual.powerGlass.row(1));
-  Eigen::ArrayXd::Map(&yFit[0], matstack.x.rows()) = optIntensities;
+  // fitting results
+  resultTree.insertAs(Vector(), "angle_exp");
+  resultTree.get<Vector>("angle_exp") = intensityData.col(0).segment(0, matstack.u.size());
 
-  Fitting::FitRes res{yExp, yFit, theta, fitParams};
+  resultTree["I_angle_exp"] = residual.intensities;
 
-  return res;
+  Vector IOpt(matstack.x.rows());
+  IOpt = fitParams(0) * (fitParams(1) * residual.powerGlass.row(0) + (1 - fitParams(1)) * residual.powerGlass.row(1));
+  resultTree["I_angle_fit"] = std::move(IOpt);
+
+  resultTree["dipole_orientation_fit"] = fitParams(1);
 };
 
 void Fitting::calculateEmissionSubstrate()

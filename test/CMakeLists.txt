@@ -30,3 +30,19 @@ target_compile_definitions(test_sweep_config PRIVATE PROJECT_ROOT="${CMAKE_SOURC
 
 add_test(NAME test_sweep_config
          COMMAND test_sweep_config)
+
+qt_add_executable(test_sweep_config_fit test_sweep_config_fit.cpp)
+target_link_libraries(test_sweep_config_fit PUBLIC OLEDFunctions oledgf_options oledgf_warnings
+                                    PRIVATE Qt::Qwt)
+target_compile_definitions(test_sweep_config_fit PRIVATE PROJECT_ROOT="${CMAKE_SOURCE_DIR}")
+
+add_test(NAME test_sweep_config_fit
+         COMMAND test_sweep_config_fit)
+
+qt_add_executable(test_sweep_config_angle test_sweep_config_angle.cpp)
+target_link_libraries(test_sweep_config_angle PUBLIC OLEDFunctions oledgf_options oledgf_warnings
+                                    PRIVATE Qt::Qwt)
+target_compile_definitions(test_sweep_config_angle PRIVATE PROJECT_ROOT="${CMAKE_SOURCE_DIR}")
+
+add_test(NAME test_sweep_config_angle
+         COMMAND test_sweep_config_angle)

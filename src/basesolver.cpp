@@ -30,6 +30,7 @@ BaseSolver::BaseSolver(const std::vector<Layer>& layers,
   // Initialize result Tree
   resultTree.insertAs<CMatrix>(CMatrix(), POWER_DIPOLES_U);
   resultTree.insertAs<Matrix>(Matrix(), POWER_DIPOLES_U_FRAC);
+  resultTree["alpha"] = alpha;
 }
 
 void BaseSolver::loadMaterialData()
@@ -49,8 +50,8 @@ void BaseSolver::loadMaterialData()
   matstack.epsilon.resize(matstack.numLayers);
   for (Eigen::Index i = 0; i < matstack.numLayers; ++i) {
     matstack.epsilon(i) = layers[toSize(i)].getMaterial().getEpsilon(wvl);
-    std::cout << "Layer " << i << "; Material: (" << matstack.epsilon(i).real() << ", " << matstack.epsilon(i).imag()
-              << ")\n";
+    std::cout << "Layer " << i << "; Material: (" << layers[toSize(i)].getMaterial().getRefIndex(wvl).real() << ", "
+              << layers[toSize(i)].getMaterial().getRefIndex(wvl).imag() << ")\n";
   }
 }
 

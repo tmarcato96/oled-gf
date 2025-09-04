@@ -256,6 +256,7 @@ struct SolverManager
   SlvrPtr solver;
   SmPtr sweepManager;
 
+  SolverManager() = default;
   SolverManager(SlvrPtr s, SmPtr sm) :
     solver{std::move(s)},
     sweepManager{std::move(sm)}

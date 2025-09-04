@@ -24,6 +24,7 @@ oledgf_setup_dependencies()
 target_compile_features(oledgf_options INTERFACE cxx_std_${CMAKE_CXX_STANDARD})
 
 add_subdirectory(src)
+add_subdirectory(gui/src)
 
 # Adding tests:
 include(CTest)

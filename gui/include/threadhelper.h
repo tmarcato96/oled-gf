@@ -2,86 +2,75 @@
 
 #include <basesolver.hpp>
 #include <fitting.hpp>
-#include <simulation.hpp>
 #include <indata.hpp>
 #include <polymap.hpp>
+#include <simulation.hpp>
 
 #include <set>
 #include <string>
 
-#include <QString>
-#include <QWidget>
-#include <QTimer>
 #include <QMutex>
-#include <QThread>
 #include <QPair>
 #include <QPen>
+#include <QString>
+#include <QThread>
+#include <QTimer>
+#include <QWidget>
 #include <QwtPlot>
-#include <qwt_series_data.h>
 #include <qwt_point_polar.h>
+#include <qwt_series_data.h>
 
 namespace UIthreading {
 
-    //workers
-    class Worker : public QObject {
-        Q_OBJECT
-        friend class ThreadManager;
-        static std::set<QString> _blacklist;
-        std::unique_ptr<BaseSolver> _solver;
-        QString _filepath;
-        Data::SolverMode _mode;
-        QMutex _workerMutex;
+  // workers
+  class Worker : public QObject
+  {
+    Q_OBJECT
+    friend class ThreadManager;
+    static std::set<QString> _blacklist;
+    SolverManager _solver;
+    QString _filepath;
+    Data::SolverMode _mode;
+    QMutex _workerMutex;
 
-        signals:
-            void solverStatus(bool status);
-            void errorSignal(const QString errorString);
+  signals:
+    void solverStatus(bool status);
+    void errorSignal(const QString errorString);
 
-        public:
-            Worker(const QString& filepath);
+  public:
+    Worker(const QString& filepath);
 
-            void loadFitPlotData();
-            void loadSimPlotData();
-            void loadPolarPlotData();
-            Data::SolverMode getMode();
+    void loadFitPlotData();
+    void loadSimPlotData();
+    void loadPolarPlotData();
+    Data::SolverMode getMode();
 
-            bool solverAvail();
-            void startSolver();
-            void restartSolver();
-            void restartSolver(const QString& configFilepath);
+    bool solverAvail();
+    void startSolver();
+    void restartSolver();
+    void restartSolver(const QString& configFilepath);
 
-            void exportResults(const QString& savePath); 
-    };
+    void exportResults(const QString& savePath);
+  };
 
-    class ThreadManager : public QObject {
-        Q_OBJECT
-        QThread _workerThread;
+  class ThreadManager : public QObject
+  {
+    Q_OBJECT
+    QThread _workerThread;
 
-        void init();
-        public:
-            Worker *worker;
-            
-            ThreadManager(const QString& configFilepath, QObject* parent=nullptr);
-            ~ThreadManager();
+    void init();
 
-            QFrame* makePlot(bool polarFlag);
-            
-        signals:
-            void solverStatus(bool status);
-            void errorSignal(const QString errorString);
-    };
+  public:
+    Worker* worker;
 
-    class PolarData : public QwtSeriesData<QwtPointPolar>
-    {
-        public:
-            PolarData();
-            PolarData(const QVector<QwtPointPolar>& points);
+    ThreadManager(const QString& configFilepath, QObject* parent = nullptr);
+    ~ThreadManager();
 
-            virtual size_t size() const override;
-            virtual QwtPointPolar sample(size_t i) const override;
-            virtual QRectF boundingRect() const override;
-            void push_back(QwtPointPolar elem);
-            
-        private:
-            QVector<QwtPointPolar> _points;
-    };
-}
+    QFrame* makePlot(bool polarFlag);
+
+  signals:
+    void solverStatus(bool status);
+    void errorSignal(const QString errorString);
+  };
+
+} // namespace UIthreading

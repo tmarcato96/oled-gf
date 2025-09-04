@@ -1,14 +1,15 @@
+
 #include <cmath>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
-#include <memory>
 #include <string>
 #include <vector>
 
 #include <Eigen/Core>
-#include <fitting.hpp>
+#include <indata.hpp>
 #include <matlayer.hpp>
+#include <simulation.hpp>
 #include <sweep.hpp>
 
 #include <QApplication>
@@ -19,6 +20,7 @@
 #include <qwt_plot_canvas.h>
 #include <qwt_plot_curve.h>
 #include <qwt_plot_zoomer.h>
+#include <qwt_scale_engine.h>
 #include <qwt_symbol.h>
 
 int main(int argc, char* argv[])
@@ -29,31 +31,16 @@ int main(int argc, char* argv[])
 
   // Fitting filepath
   const std::filesystem::path rootPath = PROJECT_ROOT;
-  const std::filesystem::path matPath = rootPath / "mat";
   const std::filesystem::path dataPath = rootPath / "examples/data";
-  const std::filesystem::path spectrumFilePath = dataPath / "6ML_PL.txt";
-  const std::filesystem::path fitFilePath = dataPath / "3ML_processed.txt";
+  const std::filesystem::path configFile = dataPath / "fitting.json";
 
-  // Set up stack
-
-  const double wavelength = 456;
-  std::vector<Layer> layers;
-
-  layers.emplace_back(Material(1.0, 0.0), -1.0);
-  layers.emplace_back(Material(1.7, 0.0), 35e-9, true);
-  layers.emplace_back(Material(1.52, 0.0), 5000e-9);
-  layers.emplace_back(Material(1.52, 0.0), -1.0);
-
-  // Spectrum
-  Distribution spectrum(wavelength);
-  // Dipole
-  Distribution dipolePos(17.5e-9);
-
-  auto solver = std::make_unique<Fitting>(fitFilePath, layers, 0.0, 90.0);
-  SweepManager sm(*solver);
-  sm.setSDSweep(dipolePos, spectrum);
-  sm.runSweeps();
-  solver->fit();
+  auto importer = Data::ImportManager(configFile).makeImporter();
+  auto solverManager = importer->solverFromFile();
+  solverManager.sweepManager->runSweeps();
+  if (auto* fit = dynamic_cast<Fitting*>(solverManager.solver.get())) { fit->fit(); }
+  else {
+    throw std::runtime_error("Couldn't downcast to fitting!");
+  }
 
   // Plot
   QApplication app(argc, argv);
@@ -61,11 +48,11 @@ int main(int argc, char* argv[])
 
   QwtPlot* plot = new QwtPlot();
 
-  Eigen::Index N = solver->resultTree.get<Vector>("angle_exp").size();
+  Eigen::Index N = solverManager.solver->resultTree.get<Vector>("angle_exp").size();
   QVector<double> x(N), yExp(N), yFit(N);
-  Eigen::Map<Vector>(x.data(), N) = solver->resultTree.get<Vector>("angle_exp");
-  Eigen::Map<Vector>(yExp.data(), N) = solver->resultTree.get<Vector>("I_angle_exp");
-  Eigen::Map<Vector>(yFit.data(), N) = solver->resultTree.get<Vector>("I_angle_fit");
+  Eigen::Map<Vector>(x.data(), N) = solverManager.solver->resultTree.get<Vector>("angle_exp");
+  Eigen::Map<Vector>(yExp.data(), N) = solverManager.solver->resultTree.get<Vector>("I_angle_exp");
+  Eigen::Map<Vector>(yFit.data(), N) = solverManager.solver->resultTree.get<Vector>("I_angle_fit");
 
   plot->setTitle("Simulation Results");
   plot->setCanvas(new QwtPlotCanvas());

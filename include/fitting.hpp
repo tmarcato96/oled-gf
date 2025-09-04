@@ -97,7 +97,7 @@ public:
     Eigen::VectorXd optParams;
   };
 
-  FitRes fit();
+  void fit();
   /*!< Member method of Fitting used to fit the emitted power leaving the substrate. The function uses the components of
   the power emitted simulated by calculateEmissionSubstrate() and the experimentally obtained intensities in order to
   compute the residuals for fitting. It uses the Levenberg-Marquadt algorithm to optimize the fittinng parameters and

@@ -102,30 +102,22 @@ void Simulation::calculateEmissionSubstrate()
 
   resultTree.insertAs<Vector>(Vector(), POWER_DIPOLES_SUB);
 
-  double uCriticalGlass =
-    std::real(std::sqrt(matstack.epsilon(matstack.numLayers - 1) / matstack.epsilon(dipoleLayer)));
-  auto uGlassIt =
-    std::find_if(matstack.u.begin(), matstack.u.end(), [uCriticalGlass](auto a) { return a > uCriticalGlass; });
-  auto uGlassIndex = uGlassIt - matstack.u.begin();
-
   thetaGlass = Eigen::real(Eigen::acos(Eigen::sqrt(
     1 - matstack.epsilon(dipoleLayer) / matstack.epsilon(matstack.numLayers - 1) * Eigen::pow(matstack.u, 2))));
   resultTree["angle"] = thetaGlass;
+  Vector apodization = Eigen::tan(thetaGlass);
 
   resultTree.get<Vector>("P_perp_sub") =
     ((Eigen::real(powerPerpUpPol.row(matstack.numLayers - 2))) *
       std::sqrt(std::real(matstack.epsilon(matstack.numLayers - 1) / matstack.epsilon(dipoleLayer))));
-  resultTree("P_perp_sub") /= Eigen::tan(thetaGlass);
-
-  // CMatrix powerParaUTot = powerParaUpPol + powerParaUsPol;
 
   resultTree.get<Vector>("P_para_p_sub") =
     ((Eigen::real(powerParaUpPol.row(matstack.numLayers - 2))) *
       std::sqrt(std::real(matstack.epsilon(matstack.numLayers - 1) / matstack.epsilon(dipoleLayer))));
-  resultTree("P_para_p_sub") /= Eigen::tan(thetaGlass);
 
   resultTree.get<Vector>("P_para_s_sub") =
     ((Eigen::real(powerParaUsPol.row(matstack.numLayers - 2))) *
       std::sqrt(std::real(matstack.epsilon(matstack.numLayers - 1) / matstack.epsilon(dipoleLayer))));
-  resultTree("P_para_s_sub") /= Eigen::tan(thetaGlass);
+
+  resultTree(POWER_DIPOLES_SUB) /= apodization;
 }
