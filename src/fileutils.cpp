@@ -49,6 +49,7 @@ Matrix Data::loadFromFile(const std::string& filepath, size_t ncols, char delimi
         data.push_back(std::stod(token));
         col++;
       } catch (const std::invalid_argument& e) {
+        continue;
         std::cerr << "Conversion error: " << e.what() << "for token: " << token << '\n';
       }
 

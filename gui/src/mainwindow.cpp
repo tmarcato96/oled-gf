@@ -352,7 +352,6 @@ void MainWindow::createCanvas()
 {
   if (_currentTab->plot == nullptr) {
     auto failurePlot = new QwtPlot(this);
-    failurePlot = new QwtPlot(this);
     failurePlot->setTitle("Backup Plot (tab failure)");
     failurePlot->setCanvasBackground(Qt::white);
 

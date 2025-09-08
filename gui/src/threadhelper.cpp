@@ -57,14 +57,13 @@ std::set<QString> Worker::_blacklist{};
 
 Worker::Worker(const QString& filepath) :
   _filepath{filepath}
-{
-  emit solverStatus(0);
-}
+{}
 
 void Worker::startSolver()
 {
-  _workerMutex.lock();
-  emit solverStatus(0);
+  QMutexLocker lock(&_workerMutex);
+  emit solverStatus(false);
+
   if (_blacklist.find(_filepath) != _blacklist.end()) {
     emit errorSignal("Solver already exists!");
     return;
@@ -79,8 +78,7 @@ void Worker::startSolver()
     _mode = Data::SolverMode::simulation;
   }
 
-  _workerMutex.unlock();
-  emit solverStatus(1);
+  emit solverStatus(true);
 }
 
 void Worker::restartSolver()
@@ -141,31 +139,94 @@ void Worker::exportResults(const QString& savePath)
 
 void Worker::loadFitPlotData()
 {
+  QMutexLocker lock(&_workerMutex);
   if (_solver.solver == nullptr || _mode != Data::SolverMode::fitting) {
     emit errorSignal("Wrong solver mode (There is some bug!)");
+    return;
   }
-  _workerMutex.lock();
   if (auto* fitSolver = dynamic_cast<Fitting*>(_solver.solver.get()); fitSolver != nullptr) { fitSolver->fit(); }
-  _workerMutex.unlock();
+
+  const Eigen::Index N = _solver.solver->resultTree.get<Vector>("angle_exp").size();
+  FitPlotData data;
+  data.x.resize(N);
+  data.yFit.resize(N);
+  data.yExp.resize(N);
+
+  Eigen::Map<Vector>(data.x.data(), N) = _solver.solver->resultTree.get<Vector>("angle_exp");
+  Eigen::Map<Vector>(data.yExp.data(), N) = _solver.solver->resultTree.get<Vector>("I_angle_exp");
+  Eigen::Map<Vector>(data.yFit.data(), N) = _solver.solver->resultTree.get<Vector>("I_angle_fit");
+
+  emit fitDataReady(std::move(data));
 }
 
 void Worker::loadSimPlotData()
-{ // make nicer later
-  //  if (_solver == nullptr || _mode != Data::SolverMode::simulation) {
-  //    emit errorSignal("Wrong solver mode (there is some bug in the code)");
-  //  }
+{
+  QMutexLocker lock(&_workerMutex);
+  if (_solver.solver == nullptr || _mode != Data::SolverMode::simulation) {
+    emit errorSignal("Wrong solver mode (There is some bug!)");
+    return;
+  }
+
+  size_t dipoleLayer = _solver.solver->getDipoleIndex() - 1;
+  const Eigen::Index N = _solver.solver->resultTree.get<Vector>("u").rows();
+  DissPlotData data;
+  data.u.resize(N);
+  data.perp.resize(N);
+  data.paraP.resize(N);
+  data.paraS.resize(N);
+
+  Eigen::Map<Vector>(data.u.data(), N) = _solver.solver->resultTree.get<Vector>("u");
+  Eigen::Map<Vector>(data.perp.data(), N) =
+    _solver.solver->resultTree.get<Matrix>("P_perp_uf").row(toIndex(dipoleLayer));
+  Eigen::Map<Vector>(data.paraP.data(), N) =
+    _solver.solver->resultTree.get<Matrix>("P_para_p_uf").row(toIndex(dipoleLayer));
+  Eigen::Map<Vector>(data.paraS.data(), N) =
+    _solver.solver->resultTree.get<Matrix>("P_para_s_uf").row(toIndex(dipoleLayer));
+
+  emit dissDataReady(std::move(data));
 }
 
 void Worker::loadPolarPlotData()
 {
+  QMutexLocker lock(&_workerMutex);
   if (_solver.solver == nullptr || _mode != Data::SolverMode::simulation) {
     emit errorSignal("Wrong solver mode (there is some bug in the code)");
+    return;
   }
-  _workerMutex.lock();
   if (auto* simSolver = dynamic_cast<Simulation*>(_solver.solver.get()); simSolver != nullptr) {
     simSolver->calculateEmissionSubstrate();
   }
-  _workerMutex.unlock();
+
+  PolarPlotData data;
+
+  const Vector& theta = _solver.solver->resultTree.get<Vector>("angle");
+  const Vector& IPerp = _solver.solver->resultTree.get<Vector>("P_perp_sub");
+  const Vector& IParaP = _solver.solver->resultTree.get<Vector>("P_para_p_sub");
+  const Vector& IParaS = _solver.solver->resultTree.get<Vector>("P_para_s_sub");
+  const Eigen::Index N = theta.size();
+
+  data.perp.resize(2 * N);
+  data.paraP.resize(2 * N);
+  data.paraS.resize(2 * N);
+
+  auto toDeg = [](double rad) { return rad * 180.0 / M_PI; };
+
+  for (Eigen::Index i = 0; i < N; ++i) {
+    const double angle = toDeg(theta[i]);
+
+    data.perp.push_back(QwtPointPolar(angle, IPerp[i]));
+    data.paraP.push_back(QwtPointPolar(angle, IParaP[i]));
+    data.paraS.push_back(QwtPointPolar(angle, IParaS[i]));
+  }
+  for (Eigen::Index i = 0; i < N; ++i) {
+    const double angleMir = 360 - toDeg(theta[i]);
+
+    data.perp.push_back(QwtPointPolar(angleMir, IPerp[i]));
+    data.paraP.push_back(QwtPointPolar(angleMir, IParaP[i]));
+    data.paraS.push_back(QwtPointPolar(angleMir, IParaS[i]));
+  }
+
+  emit polarDataReady(std::move(data));
 }
 
 Data::SolverMode Worker::getMode() { return _mode; }
@@ -182,8 +243,9 @@ ThreadManager::ThreadManager(const QString& configFilepath, QObject* parent) :
   worker = new Worker(configFilepath);
   worker->moveToThread(&_workerThread);
   connect(&_workerThread, &QThread::finished, worker, &QObject::deleteLater);
+  connect(this, &ThreadManager::requestStart, worker, &Worker::startSolver, Qt::QueuedConnection);
   _workerThread.start();
-  worker->startSolver();
+  emit requestStart();
 }
 
 ThreadManager::~ThreadManager()
@@ -201,61 +263,51 @@ QFrame* ThreadManager::makePlot(bool polarFlag)
 
   if (worker->getMode() == Data::SolverMode::fitting) {
     auto plot = new QwtPlot();
-    worker->loadFitPlotData();
-
-    const Eigen::Index N = worker->_solver.solver->resultTree.get<Vector>("angle_exp").size();
-    QVector<double> x(N), yExp(N), yFit(N);
-
-    Eigen::Map<Vector>(x.data(), N) = worker->_solver.solver->resultTree.get<Vector>("angle_exp");
-    Eigen::Map<Vector>(yExp.data(), N) = worker->_solver.solver->resultTree.get<Vector>("I_angle_exp");
-    Eigen::Map<Vector>(yFit.data(), N) = worker->_solver.solver->resultTree.get<Vector>("I_angle_fit");
-
     plot->setTitle("Fitting Results");
     plot->setCanvas(new QwtPlotCanvas());
     plot->setCanvasBackground(Qt::white);
     plot->setAxisTitle(QwtPlot::xBottom, "Angle");
     plot->setAxisTitle(QwtPlot::yLeft, "Intensity");
 
-    QwtPlotCurve* expCurve = new QwtPlotCurve("Exp");
-    QwtSymbol* symbol = new QwtSymbol(QwtSymbol::Ellipse, QBrush(Qt::blue), QPen(Qt::black), QSize(8, 8));
-    expCurve->setSymbol(symbol);
-    expCurve->setStyle(QwtPlotCurve::NoCurve); // No connecting line
-    expCurve->setLegendAttribute(QwtPlotCurve::LegendShowSymbol, true);
-    expCurve->setLegendAttribute(QwtPlotCurve::LegendShowLine, false);
-    expCurve->setSamples(x, yExp);
-    expCurve->attach(plot);
+    QMetaObject::Connection conn;
+    conn = QObject::connect(
+      worker,
+      &Worker::fitDataReady,
+      plot,
+      [plot, conn](FitPlotData data) mutable {
+        QwtPlotCurve* expCurve = new QwtPlotCurve("Exp");
+        QwtSymbol* symbol = new QwtSymbol(QwtSymbol::Ellipse, QBrush(Qt::blue), QPen(Qt::black), QSize(8, 8));
+        expCurve->setSymbol(symbol);
+        expCurve->setStyle(QwtPlotCurve::NoCurve); // No connecting line
+        expCurve->setLegendAttribute(QwtPlotCurve::LegendShowSymbol, true);
+        expCurve->setLegendAttribute(QwtPlotCurve::LegendShowLine, false);
+        expCurve->setSamples(data.x, data.yExp);
+        expCurve->attach(plot);
 
-    QwtPlotCurve* fitCurve = new QwtPlotCurve("Fit");
-    fitCurve->setLegendAttribute(QwtPlotCurve::LegendShowSymbol, false);
-    fitCurve->setLegendAttribute(QwtPlotCurve::LegendShowLine, true);
-    fitCurve->setSamples(x, yFit);
-    fitCurve->attach(plot);
+        QwtPlotCurve* fitCurve = new QwtPlotCurve("Fit");
+        fitCurve->setLegendAttribute(QwtPlotCurve::LegendShowSymbol, false);
+        fitCurve->setLegendAttribute(QwtPlotCurve::LegendShowLine, true);
+        fitCurve->setSamples(data.x, data.yFit);
+        fitCurve->attach(plot);
 
-    QwtPlotZoomer* zoomer = new QwtPlotZoomer(plot->canvas());
-    zoomer->setRubberBandPen(QColor(Qt::red));
-    zoomer->setTrackerPen(QColor(Qt::blue));
+        QwtPlotZoomer* zoomer = new QwtPlotZoomer(plot->canvas());
+        zoomer->setRubberBandPen(QColor(Qt::red));
+        zoomer->setTrackerPen(QColor(Qt::blue));
 
-    QwtLegend* legend = new QwtLegend();
-    plot->insertLegend(legend);
+        QwtLegend* legend = new QwtLegend();
+        plot->insertLegend(legend);
+
+        QObject::disconnect(conn);
+      },
+      Qt::QueuedConnection);
+
+    QMetaObject::invokeMethod(worker, "loadFitPlotData", Qt::QueuedConnection);
 
     return plot;
   }
   else {
     if (!polarFlag) {
       auto plot = new QwtPlot();
-      worker->loadSimPlotData();
-
-      size_t dipoleLayer = worker->_solver.solver->getDipoleIndex() - 1;
-      const Eigen::Index N = worker->_solver.solver->resultTree.get<Vector>("u").rows();
-      QVector<double> u(N), powerPerp(N), powerParaUs(N), powerParaUp(N);
-
-      Eigen::Map<Vector>(u.data(), N) = worker->_solver.solver->resultTree.get<Vector>("u");
-      Eigen::Map<Vector>(powerPerp.data(), N) =
-        worker->_solver.solver->resultTree.get<Matrix>("P_perp_uf").row(toIndex(dipoleLayer));
-      Eigen::Map<Vector>(powerParaUp.data(), N) =
-        worker->_solver.solver->resultTree.get<Matrix>("P_para_p_uf").row(toIndex(dipoleLayer));
-      Eigen::Map<Vector>(powerParaUs.data(), N) =
-        worker->_solver.solver->resultTree.get<Matrix>("P_para_s_uf").row(toIndex(dipoleLayer));
 
       plot->setTitle("Simulation Results");
       plot->setCanvas(new QwtPlotCanvas());
@@ -263,38 +315,51 @@ QFrame* ThreadManager::makePlot(bool polarFlag)
       plot->setAxisTitle(QwtPlot::xBottom, "In-plane wavevector");
       plot->setAxisTitle(QwtPlot::yLeft, "Dissipated Power (norm.)");
       plot->setAxisScaleEngine(QwtPlot::yLeft, new QwtLogScaleEngine());
-      const double yMin = 1e-7;
-      double yMax = std::max({*std::max_element(powerParaUs.constBegin(), powerParaUs.constEnd()),
-        *std::max_element(powerParaUp.constBegin(), powerParaUp.constEnd()),
-        *std::max_element(powerPerp.constBegin(), powerPerp.constEnd())});
-      plot->setAxisScale(QwtPlot::yLeft, yMin, yMax);
 
-      QwtPlotCurve* paraUsCurve = new QwtPlotCurve("s-Para");
-      paraUsCurve->setLegendAttribute(QwtPlotCurve::LegendShowSymbol, false);
-      paraUsCurve->setLegendAttribute(QwtPlotCurve::LegendShowLine, true);
-      paraUsCurve->setPen(QPen(Qt::red));
-      paraUsCurve->setSamples(u, powerParaUs);
-      paraUsCurve->attach(plot);
+      QMetaObject::Connection conn;
+      conn = QObject::connect(
+        worker,
+        &Worker::dissDataReady,
+        plot,
+        [plot, conn](DissPlotData data) mutable {
+          double yMax = std::max({*std::max_element(data.paraS.begin(), data.paraS.end()),
+            *std::max_element(data.paraP.begin(), data.paraP.end()),
+            *std::max_element(data.perp.begin(), data.perp.end())});
+          const double yMin = 1e-7;
+          plot->setAxisScale(QwtPlot::yLeft, yMin, yMax);
 
-      QwtPlotCurve* paraUpCurve = new QwtPlotCurve("p-Para");
-      paraUpCurve->setLegendAttribute(QwtPlotCurve::LegendShowSymbol, false);
-      paraUpCurve->setLegendAttribute(QwtPlotCurve::LegendShowLine, true);
-      paraUpCurve->setPen(QPen(Qt::blue));
-      paraUpCurve->setSamples(u, powerParaUp);
-      paraUpCurve->attach(plot);
+          QwtPlotCurve* paraUsCurve = new QwtPlotCurve("s-Para");
+          paraUsCurve->setLegendAttribute(QwtPlotCurve::LegendShowSymbol, false);
+          paraUsCurve->setLegendAttribute(QwtPlotCurve::LegendShowLine, true);
+          paraUsCurve->setPen(QPen(Qt::red));
+          paraUsCurve->setSamples(data.u, data.paraS);
+          paraUsCurve->attach(plot);
 
-      QwtPlotCurve* perpCurve = new QwtPlotCurve("(p)-Perp");
-      perpCurve->setLegendAttribute(QwtPlotCurve::LegendShowSymbol, false);
-      perpCurve->setLegendAttribute(QwtPlotCurve::LegendShowLine, true);
-      perpCurve->setPen(QPen(Qt::green));
-      perpCurve->setSamples(u, powerPerp);
-      perpCurve->attach(plot);
+          QwtPlotCurve* paraUpCurve = new QwtPlotCurve("p-Para");
+          paraUpCurve->setLegendAttribute(QwtPlotCurve::LegendShowSymbol, false);
+          paraUpCurve->setLegendAttribute(QwtPlotCurve::LegendShowLine, true);
+          paraUpCurve->setPen(QPen(Qt::blue));
+          paraUpCurve->setSamples(data.u, data.paraP);
+          paraUpCurve->attach(plot);
 
-      QwtPlotZoomer* zoomer = new QwtPlotZoomer(plot->canvas());
-      zoomer->setRubberBandPen(QColor(Qt::red));
-      zoomer->setTrackerPen(QColor(Qt::blue));
-      QwtLegend* legend = new QwtLegend();
-      plot->insertLegend(legend);
+          QwtPlotCurve* perpCurve = new QwtPlotCurve("(p)-Perp");
+          perpCurve->setLegendAttribute(QwtPlotCurve::LegendShowSymbol, false);
+          perpCurve->setLegendAttribute(QwtPlotCurve::LegendShowLine, true);
+          perpCurve->setPen(QPen(Qt::green));
+          perpCurve->setSamples(data.u, data.perp);
+          perpCurve->attach(plot);
+
+          QwtPlotZoomer* zoomer = new QwtPlotZoomer(plot->canvas());
+          zoomer->setRubberBandPen(QColor(Qt::red));
+          zoomer->setTrackerPen(QColor(Qt::blue));
+          QwtLegend* legend = new QwtLegend();
+          plot->insertLegend(legend);
+
+          QObject::disconnect(conn);
+        },
+        Qt::QueuedConnection);
+
+      QMetaObject::invokeMethod(worker, "loadSimPlotData", Qt::QueuedConnection);
 
       return plot;
     }
@@ -307,62 +372,51 @@ QFrame* ThreadManager::makePlot(bool polarFlag)
       polarPlot->setScale(QwtPolar::Radius, 0.0, 0.6); // VERY IMPORTANT
       auto zoomer = new QwtPolarMagnifier(polarPlot->canvas());
 
-      worker->loadPolarPlotData();
+      QMetaObject::Connection conn;
+      conn = QObject::connect(
+        worker,
+        &Worker::polarDataReady,
+        polarPlot,
+        [polarPlot, conn](PolarPlotData data) mutable {
+          PolarData* polarPerp = new PolarData();
+          polarPerp->pts = data.perp;
+          QwtPolarCurve* perpCurve = new QwtPolarCurve("Perp");
+          perpCurve->setLegendAttribute(QwtPolarCurve::LegendShowSymbol, false);
+          perpCurve->setLegendAttribute(QwtPolarCurve::LegendShowLine, true);
+          perpCurve->setPen(QPen(Qt::blue));
+          perpCurve->setData(polarPerp);
+          perpCurve->attach(polarPlot);
 
-      PolarData* perpPoints = new PolarData();
-      PolarData* paraPPoints = new PolarData();
-      PolarData* paraSPoints = new PolarData();
+          PolarData* polarParaP = new PolarData();
+          polarParaP->pts = data.paraP;
+          QwtPolarCurve* paraPCurve = new QwtPolarCurve("p-Para");
+          paraPCurve->setLegendAttribute(QwtPolarCurve::LegendShowSymbol, false);
+          paraPCurve->setLegendAttribute(QwtPolarCurve::LegendShowLine, true);
+          paraPCurve->setPen(QPen(Qt::red));
+          paraPCurve->setData(polarParaP);
+          paraPCurve->attach(polarPlot);
 
-      const Vector& theta = worker->_solver.solver->resultTree.get<Vector>("angle");
-      const Vector& IPerp = worker->_solver.solver->resultTree.get<Vector>("P_perp_sub");
-      const Vector& IParaP = worker->_solver.solver->resultTree.get<Vector>("P_para_p_sub");
-      const Vector& IParaS = worker->_solver.solver->resultTree.get<Vector>("P_para_s_sub");
-      const Eigen::Index N = theta.size();
+          PolarData* polarParaS = new PolarData();
+          polarParaS->pts = data.paraS;
+          QwtPolarCurve* paraSCurve = new QwtPolarCurve("s-Para");
+          paraSCurve->setLegendAttribute(QwtPolarCurve::LegendShowSymbol, false);
+          paraSCurve->setLegendAttribute(QwtPolarCurve::LegendShowLine, true);
+          paraSCurve->setPen(QPen(Qt::green));
+          paraSCurve->setData(polarParaS);
+          paraSCurve->attach(polarPlot);
 
-      auto toDeg = [](double rad) { return rad * 180.0 / M_PI; };
+          QwtPolarGrid* grid = new QwtPolarGrid();
+          grid->setPen(QPen(Qt::gray));
+          grid->attach(polarPlot);
 
-      for (Eigen::Index i = 0; i < N; ++i) {
-        const double angle = toDeg(theta[i]);
+          QwtLegend* legend = new QwtLegend();
+          polarPlot->insertLegend(legend);
 
-        perpPoints->pts.push_back(QwtPointPolar(angle, IPerp[i]));
-        paraPPoints->pts.push_back(QwtPointPolar(angle, IParaP[i]));
-        paraSPoints->pts.push_back(QwtPointPolar(angle, IParaS[i]));
-      }
-      for (Eigen::Index i = 0; i < N; ++i) {
-        const double angleMir = 360 - toDeg(theta[i]);
+          QObject::disconnect(conn);
+        },
+        Qt::QueuedConnection);
 
-        perpPoints->pts.push_back(QwtPointPolar(angleMir, IPerp[i]));
-        paraPPoints->pts.push_back(QwtPointPolar(angleMir, IParaP[i]));
-        paraSPoints->pts.push_back(QwtPointPolar(angleMir, IParaS[i]));
-      }
-
-      QwtPolarCurve* perpCurve = new QwtPolarCurve("Perp");
-      perpCurve->setLegendAttribute(QwtPolarCurve::LegendShowSymbol, false);
-      perpCurve->setLegendAttribute(QwtPolarCurve::LegendShowLine, true);
-      perpCurve->setPen(QPen(Qt::blue));
-      perpCurve->setData(perpPoints);
-      perpCurve->attach(polarPlot);
-
-      QwtPolarCurve* paraPCurve = new QwtPolarCurve("p-Para");
-      paraPCurve->setLegendAttribute(QwtPolarCurve::LegendShowSymbol, false);
-      paraPCurve->setLegendAttribute(QwtPolarCurve::LegendShowLine, true);
-      paraPCurve->setPen(QPen(Qt::red));
-      paraPCurve->setData(paraPPoints);
-      paraPCurve->attach(polarPlot);
-
-      QwtPolarCurve* paraSCurve = new QwtPolarCurve("s-Para");
-      paraSCurve->setLegendAttribute(QwtPolarCurve::LegendShowSymbol, false);
-      paraSCurve->setLegendAttribute(QwtPolarCurve::LegendShowLine, true);
-      paraSCurve->setPen(QPen(Qt::green));
-      paraSCurve->setData(paraSPoints);
-      paraSCurve->attach(polarPlot);
-
-      QwtPolarGrid* grid = new QwtPolarGrid();
-      grid->setPen(QPen(Qt::gray));
-      grid->attach(polarPlot);
-
-      QwtLegend* legend = new QwtLegend();
-      polarPlot->insertLegend(legend);
+      QMetaObject::invokeMethod(worker, "loadPolarPlotData", Qt::QueuedConnection);
 
       return polarPlot;
     }

@@ -15,12 +15,27 @@
 #include <QString>
 #include <QThread>
 #include <QTimer>
+#include <QVector>
 #include <QWidget>
 #include <QwtPlot>
 #include <qwt_point_polar.h>
 #include <qwt_series_data.h>
 
 namespace UIthreading {
+
+  struct FitPlotData
+  {
+    QVector<double> x, yExp, yFit;
+  };
+  struct DissPlotData
+  {
+    QVector<double> u, perp, paraP, paraS;
+  };
+
+  struct PolarPlotData
+  {
+    QVector<QwtPointPolar> perp, paraP, paraS;
+  };
 
   // workers
   class Worker : public QObject
@@ -36,21 +51,26 @@ namespace UIthreading {
   signals:
     void solverStatus(bool status);
     void errorSignal(const QString errorString);
+    void fitDataReady(FitPlotData);
+    void dissDataReady(DissPlotData);
+    void polarDataReady(PolarPlotData);
 
   public:
     Worker(const QString& filepath);
 
-    void loadFitPlotData();
-    void loadSimPlotData();
-    void loadPolarPlotData();
     Data::SolverMode getMode();
 
     bool solverAvail();
-    void startSolver();
     void restartSolver();
     void restartSolver(const QString& configFilepath);
 
     void exportResults(const QString& savePath);
+
+  public slots:
+    void startSolver();
+    void loadFitPlotData();
+    void loadSimPlotData();
+    void loadPolarPlotData();
   };
 
   class ThreadManager : public QObject
@@ -71,6 +91,7 @@ namespace UIthreading {
   signals:
     void solverStatus(bool status);
     void errorSignal(const QString errorString);
+    void requestStart();
   };
 
 } // namespace UIthreading
