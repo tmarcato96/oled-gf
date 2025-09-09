@@ -4,7 +4,7 @@
 #include <QEvent>
 #include <QList>
 #include <QMainWindow>
-#include <QStackedWidget>
+#include <QTabWidget>
 #include <QVBoxLayout>
 
 #include <qwt_plot.h>
@@ -28,9 +28,10 @@ protected:
   void createCanvas();
 
   QList<MonitoredTab*> _tabList;
-  QStackedWidget* _centralStack;
+  QTabWidget* _centralStack;
   MonitoredTab* _currentTab;
   QVBoxLayout* _previewLayout;
+  UIthreading::ThreadManager* _thread;
   bool _plotStatus;
 
 public:
@@ -42,6 +43,7 @@ public:
 
   void newCurrentBlankTab(const QString& label = "");
   void newCurrentTabFromFile(const QString& configFilepath, const QString& label = "");
+  void resetJob(const QString& configFilepath);
 
 protected slots:
   void onOpen();

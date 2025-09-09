@@ -41,7 +41,7 @@ namespace Data {
       std::cout << _filepath << std::endl;
       _policy.parse();
       auto root = _policy.getJsonTree();
-      root->traverse();
+      root->traverse(*_visitor);
       if (_visitor->isSimulation()) _smode = SolverMode::simulation;
       else _smode = SolverMode::fitting;
     }

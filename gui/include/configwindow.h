@@ -1,53 +1,220 @@
-#include <QWidget>
+#include <QButtonGroup>
 #include <QComboBox>
-#include <QStackedWidget>
-#include <QScrollArea>
-#include <QVBoxLayout>
-#include <QFormLayout>
-#include <QLineEdit>
-#include <QWheelEvent>
 #include <QDoubleSpinBox>
-#include <QPushButton>
+#include <QFormLayout>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QLineEdit>
+#include <QPushButton>
+#include <QRadioButton>
+#include <QScrollArea>
+#include <QStackedWidget>
+#include <QVBoxLayout>
+#include <QWheelEvent>
+#include <QWidget>
 
-class LayerStackWidget : public QWidget {
-    Q_OBJECT
-public:
-    LayerStackWidget(QWidget *parent = nullptr);
+#include <jsonsimplecpp/node.hpp>
 
-    QList<QVariantMap> getLayersData() const;
-
-public slots:
-    void addLayer();
-
-    void removeLayer(QWidget *layerWidget);
-
-private:
-    QWidget *container;
-    QVBoxLayout *stackLayout;
-    QList<QWidget*> layerWidgets;
-    QComboBox *modeCombo;
-    QStackedWidget *modeFields;
+struct JsonSerializablePage
+{
+  virtual ~JsonSerializablePage() = default;
+  virtual void toJson(Json::JsonNode<>::Object& root) const = 0;
 };
 
-class NoWheelSpinBox : public QDoubleSpinBox {
-    Q_OBJECT
+class DissipationPage final
+  : public QWidget
+  , public JsonSerializablePage
+{
+  Q_OBJECT
+  QLineEdit* startEdit{};
+  QLineEdit* stopEdit{};
+
 public:
-    explicit NoWheelSpinBox(QWidget *parent = nullptr)
-        : QDoubleSpinBox(parent)
-    {
-        setDecimals(8);
-        setFocusPolicy(Qt::ClickFocus); // only focus when clicked
-    }
+  explicit DissipationPage(QWidget* parent = nullptr);
+
+  void toJson(Json::JsonNode<>::Object& root) const override;
+};
+
+class AngleSweepPage final
+  : public QWidget
+  , public JsonSerializablePage
+{
+  Q_OBJECT
+  QLineEdit* startEdit{};
+  QLineEdit* stopEdit{};
+
+public:
+  explicit AngleSweepPage(QWidget* parent = nullptr);
+
+  void toJson(Json::JsonNode<>::Object& root) const override;
+};
+
+class SpectrumConstantPage final
+  : public QWidget
+  , public JsonSerializablePage
+{
+  Q_OBJECT
+  QLineEdit* wvlEdit{};
+
+public:
+  explicit SpectrumConstantPage(QWidget* parent = nullptr);
+
+  void toJson(Json::JsonNode<>::Object& root) const override;
+};
+
+class SpectrumFilePage final
+  : public QWidget
+  , public JsonSerializablePage
+{
+  Q_OBJECT
+  QLineEdit* pathEdit{};
+
+public:
+  explicit SpectrumFilePage(QWidget* parent = nullptr);
+
+  void toJson(Json::JsonNode<>::Object& root) const override;
+};
+
+class SpectrumGaussianPage final
+  : public QWidget
+  , public JsonSerializablePage
+{
+  Q_OBJECT
+  QLineEdit *xminEdit{}, *xmaxEdit{}, *x0Edit{}, *sigmaEdit{}, *numEdit{};
+
+public:
+  explicit SpectrumGaussianPage(QWidget* parent = nullptr);
+
+  void toJson(Json::JsonNode<>::Object& root) const override;
+};
+
+class DipoleConstantPage final
+  : public QWidget
+  , public JsonSerializablePage
+{
+  Q_OBJECT
+  QLineEdit* dipEdit{};
+
+public:
+  explicit DipoleConstantPage(QWidget* parent = nullptr);
+
+  void toJson(Json::JsonNode<>::Object& root) const override;
+};
+
+class DipoleUniformPage final
+  : public QWidget
+  , public JsonSerializablePage
+{
+  Q_OBJECT
+  QLineEdit *zminEdit{}, *zmaxEdit{}, *numEdit{};
+
+public:
+  explicit DipoleUniformPage(QWidget* parent = nullptr);
+
+  void toJson(Json::JsonNode<>::Object& root) const override;
+};
+
+class MaterialConstantPage final
+  : public QWidget
+  , public JsonSerializablePage
+{
+  Q_OBJECT
+  QLineEdit *matnEdit{}, *matkEdit{};
+
+public:
+  explicit MaterialConstantPage(QWidget* parent = nullptr);
+
+  void toJson(Json::JsonNode<>::Object& root) const override;
+};
+
+class MaterialFilePage final
+  : public QWidget
+  , public JsonSerializablePage
+{
+  Q_OBJECT
+  QLineEdit* pathEdit{};
+
+public:
+  explicit MaterialFilePage(QWidget* parent = nullptr);
+
+  void toJson(Json::JsonNode<>::Object& root) const override;
+};
+
+class FitFilePage final
+  : public QWidget
+  , public JsonSerializablePage
+{
+  Q_OBJECT
+  QLineEdit* pathEdit{};
+
+public:
+  explicit FitFilePage(QWidget* parent = nullptr);
+
+  void toJson(Json::JsonNode<>::Object& root) const override;
+};
+
+class LayerPage final
+  : public QWidget
+  , public JsonSerializablePage
+{
+  Q_OBJECT
+  QLineEdit* thicknessEdit{};
+  QStackedWidget* matStack;
+
+public:
+  LayerPage(QButtonGroup* emitterGroup, QWidget* parent = nullptr);
+
+  void toJson(Json::JsonNode<>::Object& root) const override;
+
+  QRadioButton* emitterCheck = nullptr;
+
+signals:
+  void removeRequested(LayerPage* self);
+};
+
+class LayerStackWidget : public QWidget
+{
+  Q_OBJECT
+public:
+  LayerStackWidget(QWidget* parent = nullptr);
+
+  QList<QVariantMap> getLayersData() const;
+
+  void makeTree();
+
+public slots:
+  void addLayer();
+
+  void removeLayer(LayerPage* layerWidget);
+
+private:
+  QWidget* container;
+  QVBoxLayout* stackLayout;
+  QList<LayerPage*> layerWidgets;
+  QComboBox* modeCombo;
+  QStackedWidget *modeFields, *sweepStack, *spectrumStack, *dipStack;
+  QTabWidget* stackTab;
+  QButtonGroup* emitterGroup = nullptr;
+};
+
+class NoWheelSpinBox : public QDoubleSpinBox
+{
+  Q_OBJECT
+public:
+  explicit NoWheelSpinBox(QWidget* parent = nullptr) :
+    QDoubleSpinBox(parent)
+  {
+    setDecimals(8);
+    setFocusPolicy(Qt::ClickFocus); // only focus when clicked
+  }
 
 protected:
-    void wheelEvent(QWheelEvent *event) override {
-        // Only accept wheel events if we already have focus
-        if (hasFocus()) {
-            QDoubleSpinBox::wheelEvent(event);
-        } else {
-            event->ignore();
-        }
+  void wheelEvent(QWheelEvent* event) override
+  {
+    // Only accept wheel events if we already have focus
+    if (hasFocus()) { QDoubleSpinBox::wheelEvent(event); }
+    else {
+      event->ignore();
     }
+  }
 };

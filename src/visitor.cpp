@@ -25,7 +25,7 @@ void ConfigVisitor::operator()(const std::unique_ptr<JsonObject>& mapptr)
       _depth > 1 ? _helperQueue.push(it->first) : throw std::runtime_error("File format error: empty field!");
     else {
       _helperQueue.push(it->first);
-      it->second->traverse();
+      it->second->traverse(*this);
     }
     if (_depth == 1) fillBaseField();
   }
@@ -41,7 +41,7 @@ void ConfigVisitor::operator()(const std::unique_ptr<JsonList>& listptr)
       else throw std::runtime_error("File format error: empty field!");
     }
     else {
-      (*it)->traverse();
+      (*it)->traverse(*this);
     }
     if (_depth == 1) fillBaseField();
   }

@@ -180,8 +180,9 @@ void MainWindow::newConfigFile()
 void MainWindow::newCurrentBlankTab(const QString& label)
 {
 
+  _centralStack = new QTabWidget(this);
   auto* newTab = new MonitoredTab(this);
-  _centralStack->addWidget(newTab);
+  _centralStack->addTab(newTab, "Tab");
 
   PreviewTab* preview = new PreviewTab(newTab->plot, label, this);
   newTab->setPreviewTab(preview);
@@ -199,7 +200,8 @@ void MainWindow::newCurrentBlankTab(const QString& label)
 
 MainWindow::MainWindow() :
   QMainWindow(nullptr),
-  _plotStatus{0}
+  _plotStatus{0},
+  _thread{nullptr}
 { // create tab and display plot
   resize(1000, 800);
   setWindowTitle("OLED-GF");
@@ -209,8 +211,8 @@ MainWindow::MainWindow() :
   createPreviewTabs(); // takes care of _previewLayout
   createCentralWidget();
 
-  newCurrentBlankTab();
-  createCanvas();
+  // newCurrentBlankTab();
+  //   createCanvas();
 }
 
 void MainWindow::newCurrentTabFromFile(const QString& configFilepath, const QString& label)
@@ -226,11 +228,6 @@ void MainWindow::createMenus()
 
   // File menu
   QMenu* fileMenu = menuBar->addMenu(tr("&File"));
-
-  // make config file
-  auto configAction = new QAction("make config", this);
-  connect(configAction, &QAction::triggered, this, [this]() { newConfigFile(); });
-  fileMenu->addAction(configAction);
 
   auto loadAction = new QAction("load", this);
   connect(loadAction, &QAction::triggered, this, &MainWindow::onLoad);
@@ -259,15 +256,15 @@ void MainWindow::createMenus()
   // Plot
   QMenu* plotMenu = menuBar->addMenu(tr("&Plot"));
 
-  auto fitPlotAction = new QAction("show fitting plot", this);
+  auto fitPlotAction = new QAction("Fitting plot", this);
   connect(fitPlotAction, &QAction::triggered, this, [this]() { displayPlot(Data::SolverMode::fitting); });
   plotMenu->addAction(fitPlotAction);
 
-  auto plotDisAction = new QAction("show dissipation plot", this);
+  auto plotDisAction = new QAction("Dissipation plot", this);
   connect(plotDisAction, &QAction::triggered, this, [this]() { displayPlot(Data::SolverMode::simulation); });
   plotMenu->addAction(plotDisAction);
 
-  auto plotPolarAction = new QAction("show polar plot", this);
+  auto plotPolarAction = new QAction("Polar plot", this);
   connect(plotPolarAction, &QAction::triggered, this, [this]() { displayPolarPlot(); });
   plotMenu->addAction(plotPolarAction);
 
@@ -302,10 +299,8 @@ void MainWindow::createToolbar()
 
   auto startAction = new QAction(QIcon::fromTheme(Icon::MediaPlaybackStart), "Start Plot", this);
   connect(startAction, &QAction::triggered, this, [this]() {
-    if (this->_currentTab->_thread != nullptr) {
-      auto solverMode = this->_currentTab->_thread->worker->getMode();
-      displayPlot(solverMode);
-    }
+    auto layerStack = _centralStack->findChild<LayerStackWidget*>("layerStack");
+    layerStack->makeTree();
   });
   toolBar->addAction(startAction);
 
@@ -344,7 +339,10 @@ void MainWindow::createPreviewTabs()
 
 void MainWindow::createCentralWidget()
 {
-  _centralStack = new QStackedWidget(this);
+  _centralStack = new QTabWidget();
+  LayerStackWidget* layerStack = new LayerStackWidget;
+  layerStack->setObjectName("layerStack");
+  _centralStack->addTab(layerStack, "Stack Configuration");
   setCentralWidget(_centralStack);
 }
 
@@ -417,7 +415,7 @@ void MainWindow::onLoad()
   if (!filePath.isEmpty()) {
     settings.setValue("lastOpenDir", QFileInfo(filePath).absolutePath());
     // open the file
-    _currentTab->resetJob(filePath);
+    resetJob(filePath);
   }
 }
 
@@ -489,21 +487,28 @@ void MainWindow::savePlot()
 
 void MainWindow::displayPlot(Data::SolverMode calledMode)
 {
-  if (_currentTab->_thread == nullptr) QMessageBox::warning(this, tr("missing job"), tr("Please start a job first!"));
-  else if (_currentTab->_thread->worker->getMode() != calledMode)
+  if (_thread == nullptr) QMessageBox::warning(this, tr("missing job"), tr("Please start a job first!"));
+  else if (_thread->worker->getMode() != calledMode)
     QMessageBox::warning(this, tr("job mode mismatch"), tr("The plot type selected does not match the job mode!"));
   else {
-    _currentTab->setPlot(0);
-    refreshPreviewTab(_currentTab);
+    auto plot = _thread->makePlot(false);
+    QString plotLabel = "Plot";
+    switch (calledMode) {
+    case Data::SolverMode::fitting: plotLabel.prepend("Fit "); break;
+    case Data::SolverMode::simulation: plotLabel.prepend("Dissipation "); break;
+    }
+    _centralStack->addTab(plot, plotLabel);
+    _centralStack->setCurrentWidget(plot);
   }
 }
 
 void MainWindow::displayPolarPlot()
 {
-  if (_currentTab->_thread == nullptr) QMessageBox::warning(this, tr("missing job"), tr("Please start a job first!"));
+  if (_thread == nullptr) QMessageBox::warning(this, tr("missing job"), tr("Please start a job first!"));
   else {
-    _currentTab->setPlot(1);
-    refreshPreviewTab(_currentTab);
+    auto plot = _thread->makePlot(true);
+    _centralStack->addTab(plot, "Polar Plot");
+    _centralStack->setCurrentWidget(plot);
   }
 }
 
@@ -512,4 +517,11 @@ void MainWindow::deletePlot()
   _currentTab->makeCanvas();
   refreshPreviewTab(_currentTab);
   _plotStatus = 0;
+}
+
+void MainWindow::resetJob(const QString& configFilepath)
+{
+
+  if (_thread == nullptr) _thread = new UIthreading::ThreadManager(configFilepath, this);
+  else _thread->worker->restartSolver(configFilepath);
 }
