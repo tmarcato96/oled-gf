@@ -276,6 +276,7 @@ void MainWindow::displayPolarPlot()
   if (_thread == nullptr) QMessageBox::warning(this, tr("missing job"), tr("Please start a job first!"));
   else {
     auto plot = _thread->makePlot(true);
+    if (_centralStack->count() > 1) _centralStack->removeTab(1);
     _centralStack->addTab(plot, "Polar Plot");
     _centralStack->setCurrentWidget(plot);
   }
@@ -286,6 +287,10 @@ void MainWindow::resetJob(const QString& configFilepath)
 
   if (_thread == nullptr) {
     _thread = new UIthreading::ThreadManager(configFilepath, this);
+    connect(_thread, &UIthreading::ThreadManager::errorSignal, this, [this](const QString& msg) {
+      QMessageBox::critical(this, tr("Solver error"), msg);
+      setUIRunning(false);
+    });
     processWorkerSignals();
   }
   else {
