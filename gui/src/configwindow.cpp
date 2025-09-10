@@ -7,6 +7,7 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
+#include <QMessageBox>
 #include <QPushButton>
 #include <QRadioButton>
 #include <QScrollArea>
@@ -226,8 +227,41 @@ void LayerStackWidget::removeLayer(LayerPage* layerWidget)
   layerWidget->deleteLater();
 }
 
-void LayerStackWidget::makeTree()
+bool LayerStackWidget::makeTree(const std::string& configFilePath, QStringList* outErrors)
 {
+  QStringList errors;
+
+  // Validate first
+  if (modeCombo->currentIndex() == 1) {
+    if (auto* p = dynamic_cast<JsonSerializablePage*>(sweepStack->currentWidget())) { p->validate(errors); }
+  }
+  else {
+    if (auto* p = dynamic_cast<JsonSerializablePage*>(modeFields->currentWidget())) p->validate(errors);
+  }
+
+  if (auto* p = dynamic_cast<JsonSerializablePage*>(spectrumStack->currentWidget())) { p->validate(errors); }
+
+  if (auto* p = dynamic_cast<JsonSerializablePage*>(dipStack->currentWidget())) { p->validate(errors); }
+
+  double alpha;
+  {
+    bool ok = false;
+    alpha = stackTab->widget(1)->findChild<QLineEdit*>("alphaEdit")->text().toDouble(&ok);
+    if (!ok) errors << "Emitter: dipole orientation is not a number";
+  }
+
+  for (auto layer : layerWidgets) {
+    auto* lPtr = dynamic_cast<JsonSerializablePage*>(layer);
+    if (lPtr) lPtr->validate(errors);
+  }
+
+  if (!emitterGroup->checkedButton()) { errors << "At least one layer must be marked as Emitter!"; }
+
+  if (!errors.isEmpty()) {
+    if (outErrors) *outErrors = errors;
+    return false;
+  }
+
   using JsonNode = Json::JsonNode<>;
   using JsonObject = JsonNode::Object;
 
@@ -237,7 +271,6 @@ void LayerStackWidget::makeTree()
   if (page == 1) {
     // Simulation
     if (auto* p = dynamic_cast<JsonSerializablePage*>(sweepStack->currentWidget())) { p->toJson(*rootObject); }
-    double alpha = stackTab->widget(1)->findChild<QLineEdit*>("alphaEdit")->text().toDouble();
     (*rootObject)["alpha"] = std::make_unique<JsonNode>(alpha);
   }
   else if (page == 0) {
@@ -261,11 +294,13 @@ void LayerStackWidget::makeTree()
   JsonNode root;
   root.value = std::move(rootObject);
 
-  std::filesystem::path rootPath = PROJECT_ROOT;
-  std::filesystem::path dataPath = rootPath / "examples/data/test.json";
-  std::ofstream os(dataPath);
-
-  root.print(os);
+  std::ofstream cfgOs(configFilePath);
+  if (!cfgOs) {
+    if (outErrors) *outErrors << "Failed to open config file for writing.";
+    return false;
+  }
+  root.print(cfgOs);
+  return true;
 }
 
 DissipationPage::DissipationPage(QWidget* parent) :
@@ -274,8 +309,11 @@ DissipationPage::DissipationPage(QWidget* parent) :
   auto* l = new QHBoxLayout(this);
   startEdit = new QLineEdit;
   startEdit->setObjectName("dissStartEdit");
+  startEdit->setValidator(new QDoubleValidator(0, 4, 2));
+
   stopEdit = new QLineEdit;
   stopEdit->setObjectName("dissStopEdit");
+  stopEdit->setValidator(new QDoubleValidator(0, 4, 2));
 
   l->addWidget(new QLabel("In-plane wavevector (norm)"));
   l->addWidget(startEdit);
@@ -296,14 +334,30 @@ void DissipationPage::toJson(Json::JsonNode<>::Object& root) const
   root["sweep"] = std::make_unique<JsonNode>(std::move(sweepObj));
 }
 
+bool DissipationPage::validate(QStringList& errors) const
+{
+  bool ok1 = false, ok2 = false;
+  const double start = startEdit->text().toDouble(&ok1);
+  const double stop = stopEdit->text().toDouble(&ok2);
+
+  if (!ok1) errors << "Dissipation: start is not a number.";
+  if (!ok2) errors << "Dissipation: stop is not a number.";
+  if (ok1 && ok2 && start >= stop) errors << "Dissipation: start must be less than stop.";
+
+  return errors.isEmpty();
+}
+
 AngleSweepPage::AngleSweepPage(QWidget* parent) :
   QWidget(parent)
 {
   auto* l = new QHBoxLayout(this);
   startEdit = new QLineEdit;
   startEdit->setObjectName("angleStartEdit");
+  startEdit->setValidator(new QDoubleValidator(0, 90, 2));
+
   stopEdit = new QLineEdit;
   stopEdit->setObjectName("angleStopEdit");
+  stopEdit->setValidator(new QDoubleValidator(0, 90, 2));
 
   l->addWidget(new QLabel("Angle"));
   l->addWidget(startEdit);
@@ -324,6 +378,20 @@ void AngleSweepPage::toJson(Json::JsonNode<>::Object& root) const
   root["sweep"] = std::make_unique<JsonNode>(std::move(sweepObj));
 }
 
+bool AngleSweepPage::validate(QStringList& errors) const
+{
+
+  bool ok1 = false, ok2 = false;
+  const double start = startEdit->text().toDouble(&ok1);
+  const double stop = stopEdit->text().toDouble(&ok2);
+
+  if (!ok1) errors << "AngleSweep: start is not a number.";
+  if (!ok2) errors << "AngleSweep: stop is not a number.";
+  if (ok1 && ok2 && start >= stop) errors << "AngleSweep: start must be less than stop.";
+
+  return errors.isEmpty();
+}
+
 SpectrumConstantPage::SpectrumConstantPage(QWidget* parent) :
   QWidget(parent)
 {
@@ -333,7 +401,7 @@ SpectrumConstantPage::SpectrumConstantPage(QWidget* parent) :
 
   wvlEdit = new QLineEdit;
   wvlEdit->setObjectName("wvlConstant");
-  wvlEdit->setValidator(new QDoubleValidator(0.0, 1e9, 6, wvlEdit));
+  wvlEdit->setValidator(new QDoubleValidator(200, 5000, 2, wvlEdit));
 
   l->addWidget(new QLabel("Wavelength (nm)"));
   l->addWidget(wvlEdit);
@@ -345,6 +413,16 @@ void SpectrumConstantPage::toJson(Json::JsonNode<>::Object& root) const
   using JsonNode = Json::JsonNode<>;
 
   root["spectrum"] = std::make_unique<JsonNode>(wvlEdit->text().toDouble());
+}
+
+bool SpectrumConstantPage::validate(QStringList& errors) const
+{
+  bool ok = false;
+  wvlEdit->text().toDouble(&ok);
+
+  if (!ok) errors << "Constant Spectrum: wavelength is not a number.";
+
+  return errors.isEmpty();
 }
 
 SpectrumFilePage::SpectrumFilePage(QWidget* parent) :
@@ -374,6 +452,17 @@ void SpectrumFilePage::toJson(Json::JsonNode<>::Object& root) const
   root["spectrum"] = std::make_unique<JsonNode>(pathEdit->text().toStdString());
 }
 
+bool SpectrumFilePage::validate(QStringList& errors) const
+{
+
+  bool ok = false;
+  if (!pathEdit->text().isEmpty()) ok = true;
+
+  if (!ok) errors << "Spectrum: file missing.";
+
+  return errors.isEmpty();
+}
+
 SpectrumGaussianPage::SpectrumGaussianPage(QWidget* parent) :
   QWidget(parent)
 {
@@ -381,10 +470,15 @@ SpectrumGaussianPage::SpectrumGaussianPage(QWidget* parent) :
   l->setContentsMargins(0, 0, 0, 0);
 
   xminEdit = new QLineEdit;
+  xminEdit->setValidator(new QDoubleValidator(200, 5000, 2));
   xmaxEdit = new QLineEdit;
+  xmaxEdit->setValidator(new QDoubleValidator(200, 5000, 2));
   x0Edit = new QLineEdit;
+  x0Edit->setValidator(new QDoubleValidator(200, 5000, 2));
   sigmaEdit = new QLineEdit;
+  sigmaEdit->setValidator(new QDoubleValidator(1e-5, 5000, 2));
   numEdit = new QLineEdit;
+  numEdit->setValidator(new QDoubleValidator(1, 200, 0));
 
   l->addRow("Min", xminEdit);
   l->addRow("Max", xmaxEdit);
@@ -410,6 +504,28 @@ void SpectrumGaussianPage::toJson(Json::JsonNode<>::Object& root) const
   root["spectrum"] = std::make_unique<JsonNode>(std::move(distObject));
 }
 
+bool SpectrumGaussianPage::validate(QStringList& errors) const
+{
+
+  bool ok1 = false, ok2 = false, ok3 = false, ok4 = false, ok5 = false;
+  const double xmin = xminEdit->text().toDouble(&ok1);
+  const double xmax = xmaxEdit->text().toDouble(&ok2);
+  const double x0 = x0Edit->text().toDouble(&ok3);
+  sigmaEdit->text().toDouble(&ok4);
+  numEdit->text().toDouble(&ok5);
+
+  if (!ok1) errors << "Gaussian Spectrum: xmin is not a number.";
+  if (!ok2) errors << "Gaussian Spectrum: xmax is not a number.";
+  if (!ok3) errors << "Gaussian Spectrum: x0 is not a number.";
+  if (!ok4) errors << "Gaussian Spectrum: sigma is not a number.";
+  if (!ok5) errors << "Gaussian Spectrum: N is not a number.";
+  if (ok1 && ok2 && ok3 && ok4 && ok5 && xmin >= xmax) errors << "Gaussian Spectrum: xmin must be less than xmax.";
+  if (ok1 && ok2 && ok3 && ok4 && ok5 && xmin < xmax && (x0 <= xmin || x0 >= xmax))
+    errors << "Gaussian Spectrum: x0 must be between xmin and xmax";
+
+  return errors.isEmpty();
+}
+
 DipoleConstantPage::DipoleConstantPage(QWidget* parent) :
   QWidget(parent)
 {
@@ -419,6 +535,7 @@ DipoleConstantPage::DipoleConstantPage(QWidget* parent) :
   l->setSpacing(4);
 
   dipEdit = new QLineEdit;
+  dipEdit->setValidator(new QDoubleValidator(0, 1, 4));
   l->addWidget(dipEdit);
 }
 
@@ -430,6 +547,16 @@ void DipoleConstantPage::toJson(Json::JsonNode<>::Object& root) const
   root["dipole"] = std::make_unique<JsonNode>(dipEdit->text().toDouble());
 }
 
+bool DipoleConstantPage::validate(QStringList& errors) const
+{
+  bool ok = false;
+  dipEdit->text().toDouble(&ok);
+
+  if (!ok) errors << "Emitter: dipole position  is not a number.";
+
+  return errors.isEmpty();
+}
+
 DipoleUniformPage::DipoleUniformPage(QWidget* parent) :
   QWidget(parent)
 {
@@ -437,8 +564,11 @@ DipoleUniformPage::DipoleUniformPage(QWidget* parent) :
   l->setContentsMargins(0, 0, 0, 0);
 
   zminEdit = new QLineEdit;
+  zminEdit->setValidator(new QDoubleValidator(0, 1, 4));
   zmaxEdit = new QLineEdit;
+  zmaxEdit->setValidator(new QDoubleValidator(0, 1, 4));
   numEdit = new QLineEdit;
+  numEdit->setValidator(new QDoubleValidator(1, 50, 0));
 
   l->addRow("Min", zminEdit);
   l->addRow("Max", zmaxEdit);
@@ -460,13 +590,31 @@ void DipoleUniformPage::toJson(Json::JsonNode<>::Object& root) const
   root["dipole"] = std::make_unique<JsonNode>(std::move(distObject));
 }
 
+bool DipoleUniformPage::validate(QStringList& errors) const
+{
+
+  bool ok1 = false, ok2 = false, ok3 = false;
+  const double zmin = zminEdit->text().toDouble(&ok1);
+  const double zmax = zmaxEdit->text().toDouble(&ok2);
+  numEdit->text().toDouble(&ok3);
+
+  if (!ok1) errors << "Emitter: dipole zmin is not a number.";
+  if (!ok2) errors << "Emitter: dipole zmax is not a number.";
+  if (!ok3) errors << "Emitter: dipole N is not a number.";
+  if (ok1 && ok2 && ok3 && zmin >= zmax) errors << "Emitter: dipole zmin must be less than zmax.";
+
+  return errors.isEmpty();
+}
+
 MaterialConstantPage::MaterialConstantPage(QWidget* parent) :
   QWidget(parent)
 {
 
   auto* l = new QHBoxLayout(this);
   matnEdit = new QLineEdit;
+  matnEdit->setValidator(new QDoubleValidator(0, 100, 2));
   matkEdit = new QLineEdit;
+  matkEdit->setValidator(new QDoubleValidator(0, 100, 6));
 
   l->addWidget(new QLabel("n"));
   l->addWidget(matnEdit);
@@ -484,6 +632,19 @@ void MaterialConstantPage::toJson(Json::JsonNode<>::Object& root) const
   matList->push_back(std::make_unique<JsonNode>(matnEdit->text().toDouble()));
   matList->push_back(std::make_unique<JsonNode>(matkEdit->text().toDouble()));
   root["material"] = std::make_unique<JsonNode>(std::move(matList));
+}
+
+bool MaterialConstantPage::validate(QStringList& errors) const
+{
+
+  bool ok1 = false, ok2 = false;
+  matnEdit->text().toDouble(&ok1);
+  matkEdit->text().toDouble(&ok2);
+
+  if (!ok1) errors << "Material: n is not a number.";
+  if (!ok2) errors << "Material: k is not a number.";
+
+  return errors.isEmpty();
 }
 
 MaterialFilePage::MaterialFilePage(QWidget* parent) :
@@ -511,6 +672,17 @@ void MaterialFilePage::toJson(Json::JsonNode<>::Object& root) const
   using JsonNode = Json::JsonNode<>;
 
   root["material"] = std::make_unique<JsonNode>(pathEdit->text().toStdString());
+}
+
+bool MaterialFilePage::validate(QStringList& errors) const
+{
+
+  bool ok = false;
+  if (!pathEdit->text().isEmpty()) ok = true;
+
+  if (!ok) errors << "Material: file missing.";
+
+  return errors.isEmpty();
 }
 
 FitFilePage::FitFilePage(QWidget* parent) :
@@ -544,6 +716,17 @@ void FitFilePage::toJson(Json::JsonNode<>::Object& root) const
   using JsonNode = Json::JsonNode<>;
 
   root["fitData"] = std::make_unique<JsonNode>(pathEdit->text().toStdString());
+}
+
+bool FitFilePage::validate(QStringList& errors) const
+{
+
+  bool ok = false;
+  if (!pathEdit->text().isEmpty()) ok = true;
+
+  if (!ok) errors << "Fitting: file missing.";
+
+  return errors.isEmpty();
 }
 
 LayerPage::LayerPage(QButtonGroup* emitterGroup, QWidget* parent) :
@@ -581,6 +764,7 @@ LayerPage::LayerPage(QButtonGroup* emitterGroup, QWidget* parent) :
   f->addRow(matStack);
 
   thicknessEdit = new QLineEdit;
+  thicknessEdit->setValidator(new QDoubleValidator(0, 1, 4));
   f->addRow("Thickness (m)", thicknessEdit);
 
   // Remove button
@@ -598,4 +782,16 @@ void LayerPage::toJson(Json::JsonNode<>::Object& root) const
   root["emitter"] = std::make_unique<JsonNode>(emitterFlag);
 
   if (auto* p = dynamic_cast<JsonSerializablePage*>(matStack->currentWidget())) { p->toJson(root); }
+}
+
+bool LayerPage::validate(QStringList& errors) const
+{
+  bool ok = false;
+  thicknessEdit->text().toDouble(&ok);
+
+  if (!ok) errors << "Layer: thickness is not a number.";
+
+  if (auto* p = dynamic_cast<JsonSerializablePage*>(matStack->currentWidget())) p->validate(errors);
+
+  return errors.isEmpty();
 }
