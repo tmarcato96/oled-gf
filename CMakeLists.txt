@@ -13,6 +13,8 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 set(CMAKE_TRY_COMPILE_TARGET_TYPE "STATIC_LIBRARY")
 
+set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
+
 include(cmake/PreventInSourceBuilds.cmake)
 include(Dependencies.cmake)
 include(ProjectOptions.cmake)
@@ -32,3 +34,13 @@ include(CTest)
 if(BUILD_TESTING)
   add_subdirectory(test)
 endif()
+
+set(CPACK_PACKAGE_NAME "OLEDgf")
+set(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}")
+
+if (APPLE)
+  set(CPACK_GENERATOR "DragNDrop")
+  set(CPACK_DMG_VOLUME_NAME "OLEDgf")
+  endif()
+
+include(CPack)

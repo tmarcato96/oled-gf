@@ -36,7 +36,7 @@ if(NOT DEFINED CMAKE_PREFIX_PATH)
 endif()
 
 
-find_package(Qt6 REQUIRED COMPONENTS Core Widgets Svg Concurrent OpenGL PrintSupport)
+find_package(Qt6 REQUIRED COMPONENTS Core Widgets Svg Concurrent OpenGL PrintSupport DBus)
 
 function(oledgf_setup_dependencies)
 

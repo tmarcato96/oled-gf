@@ -884,7 +884,7 @@ LayerPage::LayerPage(QButtonGroup* emitterGroup, QWidget* parent) :
   f->addRow(matStack);
 
   thicknessEdit = new QLineEdit;
-  thicknessEdit->setValidator(new QDoubleValidator(0, 1, 4));
+  thicknessEdit->setValidator(new QDoubleValidator(-1, 1, 4));
   f->addRow("Thickness (m)", thicknessEdit);
 
   // Remove button
