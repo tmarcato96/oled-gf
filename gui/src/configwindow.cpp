@@ -21,6 +21,7 @@
 #include "configwindow.h"
 #include <jsonsimplecpp/node.hpp>
 
+// Helpers
 namespace {
   inline void adjustStackHeight(QStackedWidget* stack)
   {
@@ -44,6 +45,8 @@ namespace {
 
     adjustStackHeight(stack);
   }
+
+  void setError(QWidget* w, bool on) { w->setStyleSheet(on ? "border: 1px solid red;" : ""); }
 } // namespace
 
 LayerStackWidget::LayerStackWidget(QWidget* parent) :
@@ -336,15 +339,31 @@ void DissipationPage::toJson(Json::JsonNode<>::Object& root) const
 
 bool DissipationPage::validate(QStringList& errors) const
 {
+  bool hasError = false;
+  setError(startEdit, hasError);
+  setError(stopEdit, hasError);
+
   bool ok1 = false, ok2 = false;
   const double start = startEdit->text().toDouble(&ok1);
   const double stop = stopEdit->text().toDouble(&ok2);
 
-  if (!ok1) errors << "Dissipation: start is not a number.";
-  if (!ok2) errors << "Dissipation: stop is not a number.";
-  if (ok1 && ok2 && start >= stop) errors << "Dissipation: start must be less than stop.";
-
-  return errors.isEmpty();
+  if (!ok1) {
+    errors << "Dissipation: start is not a number.";
+    hasError = true;
+    setError(startEdit, hasError);
+  }
+  if (!ok2) {
+    errors << "Dissipation: stop is not a number.";
+    hasError = true;
+    setError(stopEdit, hasError);
+  }
+  if (!hasError && start >= stop) {
+    errors << "Dissipation: start must be less than stop.";
+    hasError = true;
+    setError(startEdit, hasError);
+    setError(stopEdit, hasError);
+  }
+  return !hasError;
 }
 
 AngleSweepPage::AngleSweepPage(QWidget* parent) :
@@ -380,16 +399,32 @@ void AngleSweepPage::toJson(Json::JsonNode<>::Object& root) const
 
 bool AngleSweepPage::validate(QStringList& errors) const
 {
+  bool hasError = false;
+  setError(startEdit, hasError);
+  setError(stopEdit, hasError);
 
   bool ok1 = false, ok2 = false;
   const double start = startEdit->text().toDouble(&ok1);
   const double stop = stopEdit->text().toDouble(&ok2);
 
-  if (!ok1) errors << "AngleSweep: start is not a number.";
-  if (!ok2) errors << "AngleSweep: stop is not a number.";
-  if (ok1 && ok2 && start >= stop) errors << "AngleSweep: start must be less than stop.";
+  if (!ok1) {
+    errors << "AngleSweep: start is not a number.";
+    hasError = true;
+    setError(startEdit, hasError);
+  }
+  if (!ok2) {
+    errors << "AngleSweep: stop is not a number.";
+    hasError = true;
+    setError(stopEdit, hasError);
+  }
+  if (!hasError && start >= stop) {
+    errors << "AngleSweep: start must be less than stop.";
+    hasError = true;
+    setError(startEdit, hasError);
+    setError(stopEdit, hasError);
+  }
 
-  return errors.isEmpty();
+  return !hasError;
 }
 
 SpectrumConstantPage::SpectrumConstantPage(QWidget* parent) :
@@ -417,12 +452,19 @@ void SpectrumConstantPage::toJson(Json::JsonNode<>::Object& root) const
 
 bool SpectrumConstantPage::validate(QStringList& errors) const
 {
+  bool hasError = false;
+  setError(wvlEdit, hasError);
+
   bool ok = false;
   wvlEdit->text().toDouble(&ok);
 
-  if (!ok) errors << "Constant Spectrum: wavelength is not a number.";
+  if (!ok) {
+    errors << "Constant Spectrum: wavelength is not a number.";
+    hasError = true;
+    setError(wvlEdit, hasError);
+  }
 
-  return errors.isEmpty();
+  return !hasError;
 }
 
 SpectrumFilePage::SpectrumFilePage(QWidget* parent) :
@@ -454,13 +496,16 @@ void SpectrumFilePage::toJson(Json::JsonNode<>::Object& root) const
 
 bool SpectrumFilePage::validate(QStringList& errors) const
 {
+  bool hasError = false;
+  setError(pathEdit, hasError);
 
-  bool ok = false;
-  if (!pathEdit->text().isEmpty()) ok = true;
+  if (pathEdit->text().isEmpty()) {
+    errors << "Spectrum: file missing.";
+    hasError = true;
+    setError(pathEdit, hasError);
+  }
 
-  if (!ok) errors << "Spectrum: file missing.";
-
-  return errors.isEmpty();
+  return !hasError;
 }
 
 SpectrumGaussianPage::SpectrumGaussianPage(QWidget* parent) :
@@ -506,6 +551,12 @@ void SpectrumGaussianPage::toJson(Json::JsonNode<>::Object& root) const
 
 bool SpectrumGaussianPage::validate(QStringList& errors) const
 {
+  bool hasError = false;
+  setError(xminEdit, hasError);
+  setError(xmaxEdit, hasError);
+  setError(x0Edit, hasError);
+  setError(sigmaEdit, hasError);
+  setError(numEdit, hasError);
 
   bool ok1 = false, ok2 = false, ok3 = false, ok4 = false, ok5 = false;
   const double xmin = xminEdit->text().toDouble(&ok1);
@@ -514,16 +565,45 @@ bool SpectrumGaussianPage::validate(QStringList& errors) const
   sigmaEdit->text().toDouble(&ok4);
   numEdit->text().toDouble(&ok5);
 
-  if (!ok1) errors << "Gaussian Spectrum: xmin is not a number.";
-  if (!ok2) errors << "Gaussian Spectrum: xmax is not a number.";
-  if (!ok3) errors << "Gaussian Spectrum: x0 is not a number.";
-  if (!ok4) errors << "Gaussian Spectrum: sigma is not a number.";
-  if (!ok5) errors << "Gaussian Spectrum: N is not a number.";
-  if (ok1 && ok2 && ok3 && ok4 && ok5 && xmin >= xmax) errors << "Gaussian Spectrum: xmin must be less than xmax.";
-  if (ok1 && ok2 && ok3 && ok4 && ok5 && xmin < xmax && (x0 <= xmin || x0 >= xmax))
+  if (!ok1) {
+    errors << "Gaussian Spectrum: xmin is not a number.";
+    hasError = true;
+    setError(xminEdit, hasError);
+  }
+  if (!ok2) {
+    errors << "Gaussian Spectrum: xmax is not a number.";
+    hasError = true;
+    setError(xmaxEdit, hasError);
+  }
+  if (!ok3) {
+    errors << "Gaussian Spectrum: x0 is not a number.";
+    hasError = true;
+    setError(x0Edit, hasError);
+  }
+  if (!ok4) {
+    errors << "Gaussian Spectrum: sigma is not a number.";
+    hasError = true;
+    setError(sigmaEdit, hasError);
+  }
+  if (!ok5) {
+    errors << "Gaussian Spectrum: N is not a number.";
+    hasError = true;
+    setError(numEdit, hasError);
+  }
+  if (!hasError && xmin >= xmax) {
+    errors << "Gaussian Spectrum: xmin must be less than xmax.";
+    hasError = true;
+    setError(xminEdit, hasError);
+    setError(xmaxEdit, hasError);
+  }
+  if (!hasError && (x0 <= xmin || x0 >= xmax)) {
     errors << "Gaussian Spectrum: x0 must be between xmin and xmax";
-
-  return errors.isEmpty();
+    hasError = true;
+    setError(xminEdit, hasError);
+    setError(xmaxEdit, hasError);
+    setError(x0Edit, hasError);
+  }
+  return !hasError;
 }
 
 DipoleConstantPage::DipoleConstantPage(QWidget* parent) :
@@ -549,12 +629,18 @@ void DipoleConstantPage::toJson(Json::JsonNode<>::Object& root) const
 
 bool DipoleConstantPage::validate(QStringList& errors) const
 {
+  bool hasError = false;
+  setError(dipEdit, hasError);
+
   bool ok = false;
   dipEdit->text().toDouble(&ok);
 
-  if (!ok) errors << "Emitter: dipole position  is not a number.";
-
-  return errors.isEmpty();
+  if (!ok) {
+    errors << "Emitter: dipole position  is not a number.";
+    hasError = true;
+    setError(dipEdit, hasError);
+  }
+  return !hasError;
 }
 
 DipoleUniformPage::DipoleUniformPage(QWidget* parent) :
@@ -592,18 +678,38 @@ void DipoleUniformPage::toJson(Json::JsonNode<>::Object& root) const
 
 bool DipoleUniformPage::validate(QStringList& errors) const
 {
+  bool hasError = false;
+  setError(zminEdit, hasError);
+  setError(zmaxEdit, hasError);
+  setError(numEdit, hasError);
 
   bool ok1 = false, ok2 = false, ok3 = false;
   const double zmin = zminEdit->text().toDouble(&ok1);
   const double zmax = zmaxEdit->text().toDouble(&ok2);
   numEdit->text().toDouble(&ok3);
 
-  if (!ok1) errors << "Emitter: dipole zmin is not a number.";
-  if (!ok2) errors << "Emitter: dipole zmax is not a number.";
-  if (!ok3) errors << "Emitter: dipole N is not a number.";
-  if (ok1 && ok2 && ok3 && zmin >= zmax) errors << "Emitter: dipole zmin must be less than zmax.";
-
-  return errors.isEmpty();
+  if (!ok1) {
+    errors << "Emitter: dipole zmin is not a number.";
+    hasError = true;
+    setError(zminEdit, hasError);
+  }
+  if (!ok2) {
+    errors << "Emitter: dipole zmax is not a number.";
+    hasError = true;
+    setError(zmaxEdit, hasError);
+  }
+  if (!ok3) {
+    errors << "Emitter: dipole N is not a number.";
+    hasError = true;
+    setError(numEdit, hasError);
+  }
+  if (!hasError && zmin >= zmax) {
+    errors << "Emitter: dipole zmin must be less than zmax.";
+    hasError = true;
+    setError(zminEdit, hasError);
+    setError(zmaxEdit, hasError);
+  }
+  return !hasError;
 }
 
 MaterialConstantPage::MaterialConstantPage(QWidget* parent) :
@@ -636,15 +742,25 @@ void MaterialConstantPage::toJson(Json::JsonNode<>::Object& root) const
 
 bool MaterialConstantPage::validate(QStringList& errors) const
 {
-
+  bool hasError = false;
+  setError(matnEdit, hasError);
+  setError(matkEdit, hasError);
   bool ok1 = false, ok2 = false;
   matnEdit->text().toDouble(&ok1);
   matkEdit->text().toDouble(&ok2);
 
-  if (!ok1) errors << "Material: n is not a number.";
-  if (!ok2) errors << "Material: k is not a number.";
+  if (!ok1) {
+    errors << "Material: n is not a number.";
+    hasError = true;
+    setError(matnEdit, hasError);
+  }
+  if (!ok2) {
+    errors << "Material: k is not a number.";
+    hasError = true;
+    setError(matkEdit, hasError);
+  }
 
-  return errors.isEmpty();
+  return !hasError;
 }
 
 MaterialFilePage::MaterialFilePage(QWidget* parent) :
@@ -676,13 +792,15 @@ void MaterialFilePage::toJson(Json::JsonNode<>::Object& root) const
 
 bool MaterialFilePage::validate(QStringList& errors) const
 {
+  bool hasError = false;
+  setError(pathEdit, hasError);
 
-  bool ok = false;
-  if (!pathEdit->text().isEmpty()) ok = true;
-
-  if (!ok) errors << "Material: file missing.";
-
-  return errors.isEmpty();
+  if (pathEdit->text().isEmpty()) {
+    errors << "Material: file missing.";
+    hasError = true;
+    setError(pathEdit, hasError);
+  }
+  return !hasError;
 }
 
 FitFilePage::FitFilePage(QWidget* parent) :
@@ -720,13 +838,15 @@ void FitFilePage::toJson(Json::JsonNode<>::Object& root) const
 
 bool FitFilePage::validate(QStringList& errors) const
 {
+  bool hasError = false;
+  setError(pathEdit, hasError);
 
-  bool ok = false;
-  if (!pathEdit->text().isEmpty()) ok = true;
-
-  if (!ok) errors << "Fitting: file missing.";
-
-  return errors.isEmpty();
+  if (pathEdit->text().isEmpty()) {
+    errors << "Fitting: file missing.";
+    hasError = true;
+    setError(pathEdit, hasError);
+  }
+  return !hasError;
 }
 
 LayerPage::LayerPage(QButtonGroup* emitterGroup, QWidget* parent) :
@@ -786,12 +906,19 @@ void LayerPage::toJson(Json::JsonNode<>::Object& root) const
 
 bool LayerPage::validate(QStringList& errors) const
 {
+  bool hasError = false;
+  setError(thicknessEdit, hasError);
+
   bool ok = false;
   thicknessEdit->text().toDouble(&ok);
 
-  if (!ok) errors << "Layer: thickness is not a number.";
+  if (!ok) {
+    errors << "Layer: thickness is not a number.";
+    hasError = true;
+    setError(thicknessEdit, hasError);
+  }
 
-  if (auto* p = dynamic_cast<JsonSerializablePage*>(matStack->currentWidget())) p->validate(errors);
+  if (auto* p = dynamic_cast<JsonSerializablePage*>(matStack->currentWidget())) hasError = !(p->validate(errors));
 
-  return errors.isEmpty();
+  return !hasError;
 }

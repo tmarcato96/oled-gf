@@ -22,7 +22,7 @@ struct JsonSerializablePage
 
   virtual void toJson(Json::JsonNode<>::Object& root) const = 0;
 
-  virtual bool validate(QStringList& errors) const { return true; };
+  virtual bool validate(QStringList& errors) const = 0;
 };
 
 class DissipationPage final
