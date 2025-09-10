@@ -20,6 +20,10 @@
 #include "configwindow.h"
 #include <jsonsimplecpp/node.hpp>
 
+#ifndef PROJECT_ROOT
+    #define PROJECT_ROOT "./"
+#endif
+
 namespace {
   inline void adjustStackHeight(QStackedWidget* stack)
   {

@@ -11,6 +11,9 @@
 #include <utils.hpp>
 
 #define MAX_SPECTRUM_SIZE 100
+#ifndef M_PI
+    #define M_PI 3.14159265358979323846
+#endif
 
 template<typename T = Matrix> struct Distribution
 { // Linear distribution
