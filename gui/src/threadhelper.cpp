@@ -84,7 +84,7 @@ void Worker::startSolver()
 void Worker::restartSolver()
 {
   _workerMutex.lock();
-  emit solverStatus(0);
+  emit solverStatus(false);
   if (_blacklist.find(_filepath) == _blacklist.end()) {
     emit errorSignal("Start the solver first before attempting to restart!");
     return;
@@ -99,7 +99,7 @@ void Worker::restartSolver()
   }
 
   _workerMutex.unlock();
-  emit solverStatus(1);
+  emit solverStatus(true);
 }
 
 void Worker::restartSolver(const QString& solverPath)
@@ -109,7 +109,7 @@ void Worker::restartSolver(const QString& solverPath)
     emit errorSignal("Start the solver first before attempting to restart!");
     return;
   }
-  emit solverStatus(0);
+  emit solverStatus(false);
   _filepath = solverPath;
 
   auto importer = Data::ImportManager(_filepath.toStdString()).makeImporter();
@@ -122,7 +122,7 @@ void Worker::restartSolver(const QString& solverPath)
   }
 
   _workerMutex.unlock();
-  emit solverStatus(1);
+  emit solverStatus(true);
 }
 
 void Worker::exportResults(const QString& savePath)
@@ -244,6 +244,7 @@ ThreadManager::ThreadManager(const QString& configFilepath, QObject* parent) :
   worker->moveToThread(&_workerThread);
   connect(&_workerThread, &QThread::finished, worker, &QObject::deleteLater);
   connect(this, &ThreadManager::requestStart, worker, &Worker::startSolver, Qt::QueuedConnection);
+  connect(worker, &Worker::solverStatus, this, &ThreadManager::solverStatus);
   _workerThread.start();
   emit requestStart();
 }

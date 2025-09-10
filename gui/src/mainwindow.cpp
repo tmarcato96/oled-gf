@@ -15,6 +15,7 @@
 #include <QSettings>
 #include <QStackedWidget>
 #include <QStandardPaths>
+#include <QStatusBar>
 #include <QString>
 #include <QTextStream>
 #include <QTimer>
@@ -78,6 +79,7 @@ MainWindow::MainWindow() :
   createToolbar();
   createWorkspace();
   createCentralWidget();
+  createStatusBar();
 }
 
 void MainWindow::createMenus()
@@ -88,36 +90,24 @@ void MainWindow::createMenus()
   // File menu
   QMenu* fileMenu = menuBar->addMenu(tr("&File"));
 
-  auto loadAction = new QAction("load", this);
-  connect(loadAction, &QAction::triggered, this, &MainWindow::onLoad);
-  fileMenu->addAction(loadAction);
-
-  // Job menu
-  QMenu* jobMenu = menuBar->addMenu(tr("&Job"));
-
-  auto newBlankJobAction = new QAction("new blank job", this);
-  jobMenu->addAction(newBlankJobAction);
-
-  auto newJobAction = new QAction("new job", this);
-  jobMenu->addAction(newJobAction);
-
-  auto restartJobAction = new QAction("restart job", this);
-  jobMenu->addAction(restartJobAction);
+  _loadAction = new QAction("load", this);
+  connect(_loadAction, &QAction::triggered, this, &MainWindow::onLoad);
+  fileMenu->addAction(_loadAction);
 
   // Plot
   QMenu* plotMenu = menuBar->addMenu(tr("&Plot"));
 
-  auto fitPlotAction = new QAction("Fitting plot", this);
-  connect(fitPlotAction, &QAction::triggered, this, [this]() { displayPlot(Data::SolverMode::fitting); });
-  plotMenu->addAction(fitPlotAction);
+  _fitPlotAction = new QAction("Fitting plot", this);
+  connect(_fitPlotAction, &QAction::triggered, this, [this]() { displayPlot(Data::SolverMode::fitting); });
+  plotMenu->addAction(_fitPlotAction);
 
-  auto plotDisAction = new QAction("Dissipation plot", this);
-  connect(plotDisAction, &QAction::triggered, this, [this]() { displayPlot(Data::SolverMode::simulation); });
-  plotMenu->addAction(plotDisAction);
+  _dissPlotAction = new QAction("Dissipation plot", this);
+  connect(_dissPlotAction, &QAction::triggered, this, [this]() { displayPlot(Data::SolverMode::simulation); });
+  plotMenu->addAction(_dissPlotAction);
 
-  auto plotPolarAction = new QAction("Polar plot", this);
-  connect(plotPolarAction, &QAction::triggered, this, [this]() { displayPolarPlot(); });
-  plotMenu->addAction(plotPolarAction);
+  _polarPlotAction = new QAction("Polar plot", this);
+  connect(_polarPlotAction, &QAction::triggered, this, [this]() { displayPolarPlot(); });
+  plotMenu->addAction(_polarPlotAction);
 }
 
 void MainWindow::createToolbar()
@@ -126,12 +116,12 @@ void MainWindow::createToolbar()
   QToolBar* toolBar = addToolBar(tr("Main Toolbar"));
   toolBar->setToolButtonStyle(Qt::ToolButtonIconOnly);
 
-  auto importAction = new QAction(QIcon::fromTheme(Icon::DocumentOpen), "Import", this);
-  connect(importAction, &QAction::triggered, this, &MainWindow::onLoad);
-  toolBar->addAction(importAction);
+  _importAction = new QAction(QIcon::fromTheme(Icon::DocumentOpen), "Import", this);
+  connect(_importAction, &QAction::triggered, this, &MainWindow::onLoad);
+  toolBar->addAction(_importAction);
 
-  auto startAction = new QAction(QIcon::fromTheme(Icon::MediaPlaybackStart), "Run", this);
-  connect(startAction, &QAction::triggered, this, [this]() {
+  _runAction = new QAction(QIcon::fromTheme(Icon::MediaPlaybackStart), "Run", this);
+  connect(_runAction, &QAction::triggered, this, [this]() {
     if (_workspaceDir.isEmpty()) {
 
       const QString defaultDir = QStandardPaths::writableLocation(QStandardPaths::DesktopLocation);
@@ -159,7 +149,7 @@ void MainWindow::createToolbar()
 
     this->resetJob(QString(configFilePath.c_str()));
   });
-  toolBar->addAction(startAction);
+  toolBar->addAction(_runAction);
 
   auto helpAction = new QAction(QIcon::fromTheme(Icon::HelpFaq), "Help", this);
   toolBar->addAction(helpAction);
@@ -169,7 +159,7 @@ void MainWindow::createWorkspace()
 {
   QDockWidget* dock = new QDockWidget("Workspace", this);
   dock->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea);
-  dock->setMinimumWidth(220);
+  dock->setMinimumWidth(150);
   dock->setMaximumWidth(310);
 
   QScrollArea* scrollArea = new QScrollArea(dock);
@@ -234,6 +224,18 @@ void MainWindow::createCentralWidget()
   setCentralWidget(_centralStack);
 }
 
+void MainWindow::createStatusBar()
+{
+  _solverStatusLabel = new QLabel(tr("Ready"), this);
+  _solverProgress = new QProgressBar(this);
+  _solverProgress->setFixedWidth(140);
+  _solverProgress->setTextVisible(false);
+  _solverProgress->setVisible(false);
+
+  statusBar()->addWidget(_solverStatusLabel);
+  statusBar()->addPermanentWidget(_solverProgress);
+}
+
 void MainWindow::onExit() { close(); }
 
 void MainWindow::onLoad()
@@ -282,8 +284,14 @@ void MainWindow::displayPolarPlot()
 void MainWindow::resetJob(const QString& configFilepath)
 {
 
-  if (_thread == nullptr) _thread = new UIthreading::ThreadManager(configFilepath, this);
-  else _thread->worker->restartSolver(configFilepath);
+  if (_thread == nullptr) {
+    _thread = new UIthreading::ThreadManager(configFilepath, this);
+    processWorkerSignals();
+  }
+  else {
+    _thread->worker->restartSolver(configFilepath);
+    processWorkerSignals();
+  }
 }
 
 void MainWindow::onChangeWorkspace()
@@ -300,4 +308,39 @@ void MainWindow::onChangeWorkspace()
   QSettings settings("Segfault Inc.", "OLEDgf");
   settings.setValue("workspaceDir", _workspaceDir);
   emit workspaceChanged(_workspaceDir);
+}
+
+void MainWindow::setUIRunning(bool running)
+{
+  if (running) {
+    _solverStatusLabel->setText(tr("Running..."));
+    _solverProgress->setRange(0, 0);
+    _solverProgress->setVisible(true);
+  }
+  else {
+    _solverStatusLabel->setText(tr("Ready"));
+    _solverProgress->setVisible(false);
+  }
+
+  if (_runAction) _runAction->setEnabled(!running);
+  if (_importAction) _importAction->setEnabled(!running);
+  if (_loadAction) _loadAction->setEnabled(!running);
+  if (_fitPlotAction) _fitPlotAction->setEnabled(!running);
+  if (_dissPlotAction) _dissPlotAction->setEnabled(!running);
+  if (_polarPlotAction) _polarPlotAction->setEnabled(!running);
+}
+
+void MainWindow::processWorkerSignals()
+{
+  setUIRunning(true);
+
+  static QMetaObject::Connection conn;
+  if (conn) QObject::disconnect(conn);
+
+  conn = connect(
+    _thread,
+    &UIthreading::ThreadManager::solverStatus,
+    this,
+    [this](bool finished) { setUIRunning(!finished); },
+    Qt::QueuedConnection);
 }
