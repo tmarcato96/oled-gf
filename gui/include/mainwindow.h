@@ -2,6 +2,7 @@
 
 #include <QAction>
 #include <QEvent>
+#include <QLabel>
 #include <QList>
 #include <QMainWindow>
 #include <QTabWidget>
@@ -24,10 +25,15 @@ protected:
   void createWorkspace();
   void createCentralWidget();
 
+  QLabel* _workspacePathLabel;
+  QString _workspaceDir;
   QTabWidget* _centralStack;
   QVBoxLayout* _previewLayout;
   UIthreading::ThreadManager* _thread;
   bool _plotStatus;
+
+signals:
+  void workspaceChanged(const QString& dir);
 
 public:
   MainWindow();
@@ -40,4 +46,6 @@ protected slots:
 
   void displayPlot(Data::SolverMode calledMode);
   void displayPolarPlot();
+
+  void onChangeWorkspace();
 };

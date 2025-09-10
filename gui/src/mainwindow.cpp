@@ -38,6 +38,31 @@
 #include <qwt_plot_curve.h>
 #include <qwt_polar_plot.h>
 
+// Helpers
+namespace {
+  QString lastTwoSegments(const QString& path)
+  {
+    if (path.isEmpty()) return QString();
+
+    QDir d(path);
+    const QString abs = d.absolutePath();
+    QDir nd(abs);
+
+    const QString last = nd.dirName();
+    if (!nd.cdUp()) return last;
+
+    const QString parent = nd.dirName();
+    return parent.isEmpty() ? last : (parent + QDir::separator() + last);
+  }
+
+  void setWorkspaceLabel(QLabel* label, const QString& path)
+  {
+    const QString shown = lastTwoSegments(path);
+    label->setText(shown.isEmpty() ? QObject::tr("<not set>") : shown);
+    label->setToolTip(path);
+  }
+} // namespace
+
 MainWindow::MainWindow() :
   QMainWindow(nullptr),
   _plotStatus{0},
@@ -45,6 +70,9 @@ MainWindow::MainWindow() :
 { // create tab and display plot
   resize(1000, 800);
   setWindowTitle("OLED-GF");
+  // DEV ONLY — remove after testing
+  QSettings settings("Segfault Inc.", "OLEDgf");
+  settings.remove("workspaceDir");
 
   createMenus();
   createToolbar();
@@ -99,18 +127,28 @@ void MainWindow::createToolbar()
   toolBar->setToolButtonStyle(Qt::ToolButtonIconOnly);
 
   auto importAction = new QAction(QIcon::fromTheme(Icon::DocumentOpen), "Import", this);
+  connect(importAction, &QAction::triggered, this, &MainWindow::onLoad);
   toolBar->addAction(importAction);
 
-  auto startAction = new QAction(QIcon::fromTheme(Icon::MediaPlaybackStart), "Start Plot", this);
+  auto startAction = new QAction(QIcon::fromTheme(Icon::MediaPlaybackStart), "Run", this);
   connect(startAction, &QAction::triggered, this, [this]() {
-    auto dir = QFileDialog::getExistingDirectory(
-      this, tr("Open Directory"), {}, QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks);
+    if (_workspaceDir.isEmpty()) {
 
-    if (dir.isEmpty()) return;
+      const QString defaultDir = QStandardPaths::writableLocation(QStandardPaths::DesktopLocation);
+
+      const QString dir = QFileDialog::getExistingDirectory(
+        this, tr("Open Directory"), defaultDir, QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks);
+      if (dir.isEmpty()) return;
+
+      _workspaceDir = dir;
+      QSettings settings("Segfault Inc.", "OLEDgf");
+      settings.setValue("workspaceDir", _workspaceDir);
+      emit workspaceChanged(_workspaceDir);
+    }
 
     auto layerStack = _centralStack->findChild<LayerStackWidget*>("layerStack");
 
-    std::filesystem::path workspacePath(dir.toStdString());
+    std::filesystem::path workspacePath(_workspaceDir.toStdString());
     std::filesystem::path configFilePath = workspacePath / "tmp.json";
 
     QStringList errors;
@@ -129,7 +167,7 @@ void MainWindow::createToolbar()
 
 void MainWindow::createWorkspace()
 {
-  QDockWidget* dock = new QDockWidget("Preview Sidebar", this);
+  QDockWidget* dock = new QDockWidget("Workspace", this);
   dock->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea);
   dock->setMinimumWidth(220);
   dock->setMaximumWidth(310);
@@ -142,13 +180,49 @@ void MainWindow::createWorkspace()
   QWidget* container = new QWidget(scrollArea);
   container->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Minimum);
 
-  _previewLayout = new QVBoxLayout(container);
-  _previewLayout->setSpacing(6);
+  auto* vbox = new QVBoxLayout(container);
+  vbox->setContentsMargins(6, 6, 6, 6);
+  vbox->setSpacing(8);
 
-  container->setLayout(_previewLayout);
+  auto* header = new QWidget(container);
+  auto* headerLayout = new QVBoxLayout(header);
+  headerLayout->setContentsMargins(0, 0, 0, 0);
+  headerLayout->setSpacing(6);
+  headerLayout->setSizeConstraint(QLayout::SetFixedSize);
+
+  auto* title = new QLabel(tr("Workspace"), header);
+  title->setAlignment(Qt::AlignHCenter);
+
+  _workspacePathLabel = new QLabel(header);
+  _workspacePathLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
+  _workspacePathLabel->setAlignment(Qt::AlignHCenter);
+  _workspacePathLabel->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
+
+  auto* changeBtn = new QPushButton(tr("Change..."), header);
+  connect(changeBtn, &QPushButton::clicked, this, &MainWindow::onChangeWorkspace);
+
+  headerLayout->addWidget(title);
+  headerLayout->addWidget(_workspacePathLabel);
+  headerLayout->addWidget(changeBtn);
+  header->setLayout(headerLayout);
+
+  vbox->addStretch();
+  vbox->addWidget(header, 0, Qt::AlignHCenter);
+  vbox->addStretch();
+
+  container->setLayout(vbox);
   scrollArea->setWidget(container);
   dock->setWidget(scrollArea);
   addDockWidget(Qt::LeftDockWidgetArea, dock);
+
+  QSettings settings("Segfault Inc.", "OLEDgf");
+  _workspaceDir = settings.value("workspaceDir").toString();
+
+  setWorkspaceLabel(_workspacePathLabel, _workspaceDir);
+
+  connect(this, &MainWindow::workspaceChanged, this, [this](const QString& dir) {
+    setWorkspaceLabel(_workspacePathLabel, dir);
+  });
 }
 
 void MainWindow::createCentralWidget()
@@ -164,7 +238,7 @@ void MainWindow::onExit() { close(); }
 
 void MainWindow::onLoad()
 {
-  QSettings settings("SegFault Inc.", "OLEDgf");
+  QSettings settings("Segfault Inc.", "OLEDgf");
   QString lastDir =
     settings.value("lastOpenDir", QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation)).toString();
 
@@ -210,4 +284,20 @@ void MainWindow::resetJob(const QString& configFilepath)
 
   if (_thread == nullptr) _thread = new UIthreading::ThreadManager(configFilepath, this);
   else _thread->worker->restartSolver(configFilepath);
+}
+
+void MainWindow::onChangeWorkspace()
+{
+  const QString startDir =
+    _workspaceDir.isEmpty() ? QStandardPaths::writableLocation(QStandardPaths::DesktopLocation) : _workspaceDir;
+
+  const QString dir = QFileDialog::getExistingDirectory(
+    this, tr("Select Workspace"), startDir, QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks);
+
+  if (dir.isEmpty()) return;
+
+  _workspaceDir = dir;
+  QSettings settings("Segfault Inc.", "OLEDgf");
+  settings.setValue("workspaceDir", _workspaceDir);
+  emit workspaceChanged(_workspaceDir);
 }
