@@ -244,6 +244,8 @@ ThreadManager::ThreadManager(const QString& configFilepath, QObject* parent) :
   worker->moveToThread(&_workerThread);
   connect(&_workerThread, &QThread::finished, worker, &QObject::deleteLater);
   connect(this, &ThreadManager::requestStart, worker, &Worker::startSolver, Qt::QueuedConnection);
+  connect(this, &ThreadManager::requestRestart, worker, [this](const QString& cfg) 
+  {worker->restartSolver(cfg);}, Qt::QueuedConnection);
   _workerThread.start();
   emit requestStart();
 }
@@ -253,6 +255,8 @@ ThreadManager::~ThreadManager()
   _workerThread.quit();
   _workerThread.wait();
 }
+
+void ThreadManager::restartSolver(const QString& configFilePath) {emit requestRestart(configFilePath);}
 
 QFrame* ThreadManager::makePlot(bool polarFlag)
 {

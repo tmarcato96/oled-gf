@@ -62,12 +62,12 @@ namespace UIthreading {
 
     bool solverAvail();
     void restartSolver();
-    void restartSolver(const QString& configFilepath);
 
     void exportResults(const QString& savePath);
 
   public slots:
     void startSolver();
+    void restartSolver(const QString& configFilepath);
     void loadFitPlotData();
     void loadSimPlotData();
     void loadPolarPlotData();
@@ -83,6 +83,7 @@ namespace UIthreading {
   public:
     Worker* worker;
 
+    void restartSolver(const QString& configFilepath);
     ThreadManager(const QString& configFilepath, QObject* parent = nullptr);
     ~ThreadManager();
 
@@ -91,6 +92,7 @@ namespace UIthreading {
   signals:
     void solverStatus(bool status);
     void errorSignal(const QString errorString);
+    void requestRestart(const QString& configFilepath);
     void requestStart();
   };
 
