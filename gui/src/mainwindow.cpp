@@ -294,7 +294,7 @@ void MainWindow::resetJob(const QString& configFilepath)
     processWorkerSignals();
   }
   else {
-    _thread->worker->restartSolver(configFilepath);
+    _thread->restartSolver(configFilepath);
     processWorkerSignals();
   }
 }

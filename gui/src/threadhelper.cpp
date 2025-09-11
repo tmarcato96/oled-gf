@@ -176,6 +176,8 @@ void Worker::loadFitPlotData()
   Eigen::Map<Vector>(data.yExp.data(), N) = _solver.solver->resultTree.get<Vector>("I_angle_exp");
   Eigen::Map<Vector>(data.yFit.data(), N) = _solver.solver->resultTree.get<Vector>("I_angle_fit");
 
+  data.fitRes = _solver.solver->resultTree.get<double>("dipole_orientation_fit");
+
   emit fitDataReady(std::move(data));
 }
 
@@ -281,11 +283,19 @@ ThreadManager::ThreadManager(const QString& configFilepath, QObject* parent) :
   worker->moveToThread(&_workerThread);
   connect(&_workerThread, &QThread::finished, worker, &QObject::deleteLater);
   connect(this, &ThreadManager::requestStart, worker, &Worker::startSolver, Qt::QueuedConnection);
+  connect(
+    this,
+    &ThreadManager::requestRestart,
+    worker,
+    [this](const QString& cfg) { worker->restartSolver(cfg); },
+    Qt::QueuedConnection);
   connect(worker, &Worker::solverStatus, this, &ThreadManager::solverStatus);
   connect(worker, &Worker::errorSignal, this, &ThreadManager::errorSignal, Qt::QueuedConnection);
   _workerThread.start();
   emit requestStart();
 }
+
+void ThreadManager::restartSolver(const QString& configFilePath) { emit requestRestart(configFilePath); }
 
 ThreadManager::~ThreadManager()
 {
