@@ -88,6 +88,7 @@ namespace UIthreading {
     ~ThreadManager();
 
     QFrame* makePlot(bool polarFlag);
+    QWidget* makeFitPlot();
 
     void restartSolver(const QString& configFilePath);
 

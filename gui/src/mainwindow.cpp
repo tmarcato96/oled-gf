@@ -259,11 +259,17 @@ void MainWindow::displayPlot(Data::SolverMode calledMode)
   else if (_thread->worker->getMode() != calledMode)
     QMessageBox::warning(this, tr("job mode mismatch"), tr("The plot type selected does not match the job mode!"));
   else {
-    auto plot = _thread->makePlot(false);
     QString plotLabel = "Plot";
+    QWidget* plot;
     switch (calledMode) {
-    case Data::SolverMode::fitting: plotLabel.prepend("Fit "); break;
-    case Data::SolverMode::simulation: plotLabel.prepend("Dissipation "); break;
+    case Data::SolverMode::fitting:
+      plotLabel.prepend("Fit ");
+      plot = _thread->makeFitPlot();
+      break;
+    case Data::SolverMode::simulation:
+      plotLabel.prepend("Dissipation ");
+      plot = _thread->makePlot(false);
+      break;
     }
     if (_centralStack->count() > 1) _centralStack->removeTab(1);
     _centralStack->addTab(plot, plotLabel);
