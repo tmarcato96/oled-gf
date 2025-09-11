@@ -21,6 +21,7 @@
 #include <QLabel>
 #include <QMainWindow>
 #include <QPen>
+#include <QPushButton>
 #include <QScrollArea>
 #include <QVBoxLayout>
 #include <QwtPlot>
@@ -334,6 +335,10 @@ QWidget* ThreadManager::makeFitPlot()
     resultLabel->setAlignment(Qt::AlignTop | Qt::AlignLeft);
     resultLabel->setMaximumWidth(140);
     vbox->addWidget(resultLabel);
+
+    auto* saveButton = new QPushButton("Save data...", rightPanel);
+    vbox->addWidget(saveButton);
+
     vbox->addStretch();
 
     hbox->addWidget(plot, 1);
@@ -346,7 +351,7 @@ QWidget* ThreadManager::makeFitPlot()
       worker,
       &Worker::fitDataReady,
       plot,
-      [plot, conn, resultLabel, legend](FitPlotData data) mutable {
+      [plot, conn, resultLabel](FitPlotData data) mutable {
         QwtPlotCurve* expCurve = new QwtPlotCurve("Exp");
         QwtSymbol* symbol = new QwtSymbol(QwtSymbol::Ellipse, QBrush(Qt::blue), QPen(Qt::black), QSize(8, 8));
         expCurve->setSymbol(symbol);
@@ -502,5 +507,4 @@ QFrame* ThreadManager::makePlot(bool polarFlag)
 
     return polarPlot;
   }
-}
 }
