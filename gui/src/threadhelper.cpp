@@ -303,8 +303,6 @@ ThreadManager::~ThreadManager()
   _workerThread.wait();
 }
 
-void ThreadManager::restartSolver(const QString& configFilePath) {emit requestRestart(configFilePath);}
-
 QFrame* ThreadManager::makePlot(bool polarFlag)
 {
   if (!worker->solverAvail()) {

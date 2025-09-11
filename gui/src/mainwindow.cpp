@@ -142,7 +142,7 @@ void MainWindow::createToolbar()
     std::filesystem::path configFilePath = workspacePath / "tmp.json";
 
     QStringList errors;
-    if (!layerStack->makeTree(configFilePath, &errors)) {
+    if (!layerStack->makeTree(configFilePath.string(), &errors)) {
       QMessageBox::warning(this, tr("Invalid configuration"), errors.join("\n"));
       return;
     }

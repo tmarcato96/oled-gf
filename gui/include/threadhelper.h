@@ -69,7 +69,6 @@ namespace UIthreading {
   public slots:
     void restartSolver(const QString& configFilepath);
     void startSolver();
-    void restartSolver(const QString& configFilepath);
     void loadFitPlotData();
     void loadSimPlotData();
     void loadPolarPlotData();
@@ -91,14 +90,11 @@ namespace UIthreading {
 
     QFrame* makePlot(bool polarFlag);
 
-    void restartSolver(const QString& configFilePath);
-
   signals:
     void solverStatus(bool status);
     void errorSignal(const QString errorString);
     void requestRestart(const QString& configFilepath);
     void requestStart();
-    void requestRestart(const QString& configFilePath);
   };
 
 } // namespace UIthreading
