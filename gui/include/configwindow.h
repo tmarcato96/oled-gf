@@ -9,6 +9,7 @@
 #include <QRadioButton>
 #include <QScrollArea>
 #include <QStackedWidget>
+#include <QStringList>
 #include <QVBoxLayout>
 #include <QWheelEvent>
 #include <QWidget>
@@ -18,7 +19,10 @@
 struct JsonSerializablePage
 {
   virtual ~JsonSerializablePage() = default;
+
   virtual void toJson(Json::JsonNode<>::Object& root) const = 0;
+
+  virtual bool validate(QStringList& errors) const = 0;
 };
 
 class DissipationPage final
@@ -33,6 +37,8 @@ public:
   explicit DissipationPage(QWidget* parent = nullptr);
 
   void toJson(Json::JsonNode<>::Object& root) const override;
+
+  bool validate(QStringList& errors) const override;
 };
 
 class AngleSweepPage final
@@ -47,6 +53,7 @@ public:
   explicit AngleSweepPage(QWidget* parent = nullptr);
 
   void toJson(Json::JsonNode<>::Object& root) const override;
+  bool validate(QStringList& errors) const override;
 };
 
 class SpectrumConstantPage final
@@ -60,6 +67,7 @@ public:
   explicit SpectrumConstantPage(QWidget* parent = nullptr);
 
   void toJson(Json::JsonNode<>::Object& root) const override;
+  bool validate(QStringList& errors) const override;
 };
 
 class SpectrumFilePage final
@@ -73,6 +81,7 @@ public:
   explicit SpectrumFilePage(QWidget* parent = nullptr);
 
   void toJson(Json::JsonNode<>::Object& root) const override;
+  bool validate(QStringList& errors) const override;
 };
 
 class SpectrumGaussianPage final
@@ -86,6 +95,7 @@ public:
   explicit SpectrumGaussianPage(QWidget* parent = nullptr);
 
   void toJson(Json::JsonNode<>::Object& root) const override;
+  bool validate(QStringList& errors) const override;
 };
 
 class DipoleConstantPage final
@@ -99,6 +109,7 @@ public:
   explicit DipoleConstantPage(QWidget* parent = nullptr);
 
   void toJson(Json::JsonNode<>::Object& root) const override;
+  bool validate(QStringList& errors) const override;
 };
 
 class DipoleUniformPage final
@@ -112,6 +123,7 @@ public:
   explicit DipoleUniformPage(QWidget* parent = nullptr);
 
   void toJson(Json::JsonNode<>::Object& root) const override;
+  bool validate(QStringList& errors) const override;
 };
 
 class MaterialConstantPage final
@@ -125,6 +137,7 @@ public:
   explicit MaterialConstantPage(QWidget* parent = nullptr);
 
   void toJson(Json::JsonNode<>::Object& root) const override;
+  bool validate(QStringList& errors) const override;
 };
 
 class MaterialFilePage final
@@ -138,6 +151,7 @@ public:
   explicit MaterialFilePage(QWidget* parent = nullptr);
 
   void toJson(Json::JsonNode<>::Object& root) const override;
+  bool validate(QStringList& errors) const override;
 };
 
 class FitFilePage final
@@ -151,6 +165,7 @@ public:
   explicit FitFilePage(QWidget* parent = nullptr);
 
   void toJson(Json::JsonNode<>::Object& root) const override;
+  bool validate(QStringList& errors) const override;
 };
 
 class LayerPage final
@@ -165,6 +180,7 @@ public:
   LayerPage(QButtonGroup* emitterGroup, QWidget* parent = nullptr);
 
   void toJson(Json::JsonNode<>::Object& root) const override;
+  bool validate(QStringList& errors) const override;
 
   QRadioButton* emitterCheck = nullptr;
 
@@ -180,7 +196,7 @@ public:
 
   QList<QVariantMap> getLayersData() const;
 
-  void makeTree();
+  bool makeTree(const std::string& configFilePath, QStringList* outErrors);
 
 public slots:
   void addLayer();

@@ -26,6 +26,7 @@ namespace UIthreading {
   struct FitPlotData
   {
     QVector<double> x, yExp, yFit;
+    double fitRes;
   };
   struct DissPlotData
   {
@@ -66,6 +67,7 @@ namespace UIthreading {
     void exportResults(const QString& savePath);
 
   public slots:
+    void restartSolver(const QString& configFilepath);
     void startSolver();
     void restartSolver(const QString& configFilepath);
     void loadFitPlotData();
@@ -89,11 +91,14 @@ namespace UIthreading {
 
     QFrame* makePlot(bool polarFlag);
 
+    void restartSolver(const QString& configFilePath);
+
   signals:
     void solverStatus(bool status);
     void errorSignal(const QString errorString);
     void requestRestart(const QString& configFilepath);
     void requestStart();
+    void requestRestart(const QString& configFilePath);
   };
 
 } // namespace UIthreading

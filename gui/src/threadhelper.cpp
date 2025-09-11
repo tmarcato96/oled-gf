@@ -45,12 +45,7 @@ struct PolarData : QwtSeriesData<QwtPointPolar>
   QVector<QwtPointPolar> pts;
   size_t size() const override { return static_cast<size_t>(pts.size()); }
   QwtPointPolar sample(size_t i) const override { return pts[static_cast<int>(i)]; }
-  QRectF boundingRect() const override
-  {
-    static QRectF rect;
-    if (rect.width() < 0.0) rect = qwtBoundingRect(*this);
-    return rect;
-  }
+  QRectF boundingRect() const override { return qwtBoundingRect(*this); }
 };
 
 std::set<QString> Worker::_blacklist{};
@@ -69,60 +64,85 @@ void Worker::startSolver()
     return;
   }
   _blacklist.insert(_filepath);
-  auto importer = Data::ImportManager(_filepath.toStdString()).makeImporter();
-  _solver = importer->solverFromFile();
-  _solver.sweepManager->runSweeps(); // heavier computations
 
-  if (importer->getSolverMode() == Data::SolverMode::fitting) _mode = Data::SolverMode::fitting;
-  else {
-    _mode = Data::SolverMode::simulation;
+  try {
+    auto importer = Data::ImportManager(_filepath.toStdString()).makeImporter();
+    _solver = importer->solverFromFile();
+    _solver.sweepManager->runSweeps(); // heavier computations
+
+    if (importer->getSolverMode() == Data::SolverMode::fitting) _mode = Data::SolverMode::fitting;
+    else {
+      _mode = Data::SolverMode::simulation;
+    }
+
+    emit solverStatus(true);
+  } catch (const std::exception& e) {
+    emit errorSignal(QString::fromUtf8(e.what()));
+    emit solverStatus(true);
+  } catch (...) {
+    emit errorSignal(tr("Uknown error in startSolver()"));
+    emit solverStatus(true);
   }
-
-  emit solverStatus(true);
 }
 
 void Worker::restartSolver()
 {
-  _workerMutex.lock();
-  emit solverStatus(0);
-  if (_blacklist.find(_filepath) == _blacklist.end()) {
-    emit errorSignal("Start the solver first before attempting to restart!");
-    return;
-  }
-  auto importer = Data::ImportManager(_filepath.toStdString()).makeImporter();
-  _solver = importer->solverFromFile(); // heavier computations
-  _solver.sweepManager->runSweeps();
+  QMutexLocker lock(&_workerMutex);
+  emit solverStatus(false);
 
-  if (importer->getSolverMode() == Data::SolverMode::fitting) _mode = Data::SolverMode::fitting;
-  else {
-    _mode = Data::SolverMode::simulation;
-  }
+  try {
+    if (_blacklist.find(_filepath) == _blacklist.end()) {
+      emit errorSignal("Start the solver first before attempting to restart!");
+      return;
+    }
+    auto importer = Data::ImportManager(_filepath.toStdString()).makeImporter();
+    _solver = importer->solverFromFile(); // heavier computations
+    _solver.sweepManager->runSweeps();
 
-  _workerMutex.unlock();
-  emit solverStatus(1);
+    if (importer->getSolverMode() == Data::SolverMode::fitting) _mode = Data::SolverMode::fitting;
+    else {
+      _mode = Data::SolverMode::simulation;
+    }
+
+    emit solverStatus(true);
+  } catch (const std::exception& e) {
+    emit errorSignal(QString::fromUtf8(e.what()));
+    emit solverStatus(true);
+  } catch (...) {
+    emit errorSignal(tr("Uknown error in startSolver()"));
+    emit solverStatus(true);
+  }
 }
 
 void Worker::restartSolver(const QString& solverPath)
 {
-  _workerMutex.lock();
-  if (_blacklist.find(_filepath) == _blacklist.end()) {
-    emit errorSignal("Start the solver first before attempting to restart!");
-    return;
+  QMutexLocker lock(&_workerMutex);
+  emit solverStatus(false);
+
+  try {
+    if (_blacklist.find(_filepath) == _blacklist.end()) {
+      emit errorSignal("Start the solver first before attempting to restart!");
+      return;
+    }
+
+    _filepath = solverPath;
+    auto importer = Data::ImportManager(_filepath.toStdString()).makeImporter();
+    _solver = importer->solverFromFile(); // heavier computations
+    _solver.sweepManager->runSweeps();
+
+    if (importer->getSolverMode() == Data::SolverMode::fitting) _mode = Data::SolverMode::fitting;
+    else {
+      _mode = Data::SolverMode::simulation;
+    }
+
+    emit solverStatus(true);
+  } catch (const std::exception& e) {
+    emit errorSignal(QString::fromUtf8(e.what()));
+    emit solverStatus(true);
+  } catch (...) {
+    emit errorSignal(tr("Uknown error in startSolver()"));
+    emit solverStatus(true);
   }
-  emit solverStatus(0);
-  _filepath = solverPath;
-
-  auto importer = Data::ImportManager(_filepath.toStdString()).makeImporter();
-  _solver = importer->solverFromFile();
-  _solver.sweepManager->runSweeps(); // heavier computations
-
-  if (importer->getSolverMode() == Data::SolverMode::fitting) _mode = Data::SolverMode::fitting;
-  else {
-    _mode = Data::SolverMode::simulation;
-  }
-
-  _workerMutex.unlock();
-  emit solverStatus(1);
 }
 
 void Worker::exportResults(const QString& savePath)
@@ -155,6 +175,8 @@ void Worker::loadFitPlotData()
   Eigen::Map<Vector>(data.x.data(), N) = _solver.solver->resultTree.get<Vector>("angle_exp");
   Eigen::Map<Vector>(data.yExp.data(), N) = _solver.solver->resultTree.get<Vector>("I_angle_exp");
   Eigen::Map<Vector>(data.yFit.data(), N) = _solver.solver->resultTree.get<Vector>("I_angle_fit");
+
+  data.fitRes = _solver.solver->resultTree.get<double>("dipole_orientation_fit");
 
   emit fitDataReady(std::move(data));
 }
@@ -205,25 +227,42 @@ void Worker::loadPolarPlotData()
   const Vector& IParaS = _solver.solver->resultTree.get<Vector>("P_para_s_sub");
   const Eigen::Index N = theta.size();
 
-  data.perp.resize(2 * N);
-  data.paraP.resize(2 * N);
-  data.paraS.resize(2 * N);
+  auto safeMaxCoeff = [](const Vector& v) {
+    double maxVal = -std::numeric_limits<double>::infinity();
+    for (Eigen::Index i = 0; i < v.size(); ++i) {
+      const double val = v[i];
+      if (std::isfinite(val)) {
+        if (val > maxVal) maxVal = val;
+      }
+    }
+    return (maxVal == -std::numeric_limits<double>::infinity()) ? 0.0 : maxVal;
+  };
+
+  auto safe = [](double d) { return (d > 0) ? d : 1.0; };
+
+  const double maxPerp = safeMaxCoeff(IPerp);
+  const double maxParaP = safeMaxCoeff(IParaP);
+  const double maxParaS = safeMaxCoeff(IParaS);
+
+  data.perp.reserve(2 * N);
+  data.paraP.reserve(2 * N);
+  data.paraS.reserve(2 * N);
 
   auto toDeg = [](double rad) { return rad * 180.0 / M_PI; };
 
   for (Eigen::Index i = 0; i < N; ++i) {
     const double angle = toDeg(theta[i]);
 
-    data.perp.push_back(QwtPointPolar(angle, IPerp[i]));
-    data.paraP.push_back(QwtPointPolar(angle, IParaP[i]));
-    data.paraS.push_back(QwtPointPolar(angle, IParaS[i]));
+    data.perp.push_back(QwtPointPolar(angle, IPerp[i] / safe(maxPerp)));
+    data.paraP.push_back(QwtPointPolar(angle, IParaP[i] / safe(maxParaP)));
+    data.paraS.push_back(QwtPointPolar(angle, IParaS[i] / safe(maxParaS)));
   }
   for (Eigen::Index i = 0; i < N; ++i) {
     const double angleMir = 360 - toDeg(theta[i]);
 
-    data.perp.push_back(QwtPointPolar(angleMir, IPerp[i]));
-    data.paraP.push_back(QwtPointPolar(angleMir, IParaP[i]));
-    data.paraS.push_back(QwtPointPolar(angleMir, IParaS[i]));
+    data.perp.push_back(QwtPointPolar(angleMir, IPerp[i] / safe(maxPerp)));
+    data.paraP.push_back(QwtPointPolar(angleMir, IParaP[i] / safe(maxParaP)));
+    data.paraS.push_back(QwtPointPolar(angleMir, IParaS[i] / safe(maxParaS)));
   }
 
   emit polarDataReady(std::move(data));
@@ -244,11 +283,19 @@ ThreadManager::ThreadManager(const QString& configFilepath, QObject* parent) :
   worker->moveToThread(&_workerThread);
   connect(&_workerThread, &QThread::finished, worker, &QObject::deleteLater);
   connect(this, &ThreadManager::requestStart, worker, &Worker::startSolver, Qt::QueuedConnection);
-  connect(this, &ThreadManager::requestRestart, worker, [this](const QString& cfg) 
-  {worker->restartSolver(cfg);}, Qt::QueuedConnection);
+  connect(
+    this,
+    &ThreadManager::requestRestart,
+    worker,
+    [this](const QString& cfg) { worker->restartSolver(cfg); },
+    Qt::QueuedConnection);
+  connect(worker, &Worker::solverStatus, this, &ThreadManager::solverStatus);
+  connect(worker, &Worker::errorSignal, this, &ThreadManager::errorSignal, Qt::QueuedConnection);
   _workerThread.start();
   emit requestStart();
 }
+
+void ThreadManager::restartSolver(const QString& configFilePath) { emit requestRestart(configFilePath); }
 
 ThreadManager::~ThreadManager()
 {
@@ -369,11 +416,10 @@ QFrame* ThreadManager::makePlot(bool polarFlag)
     }
     else {
       QwtPolarPlot* polarPlot = new QwtPolarPlot();
-      polarPlot->setAutoReplot(false);
       polarPlot->setAzimuthOrigin(M_PI_2);
       polarPlot->setScale(QwtPolar::Azimuth, 0.0, 360.0, 30.0); // major tick each 30°
       polarPlot->setScaleMaxMinor(QwtPolar::Azimuth, 2);
-      polarPlot->setScale(QwtPolar::Radius, 0.0, 0.6); // VERY IMPORTANT
+      polarPlot->setScale(QwtPolar::Radius, 0.0, 1.0); // VERY IMPORTANT
       auto zoomer = new QwtPolarMagnifier(polarPlot->canvas());
 
       QMetaObject::Connection conn;
@@ -415,6 +461,8 @@ QFrame* ThreadManager::makePlot(bool polarFlag)
 
           QwtLegend* legend = new QwtLegend();
           polarPlot->insertLegend(legend);
+
+          polarPlot->replot();
 
           QObject::disconnect(conn);
         },
