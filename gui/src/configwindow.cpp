@@ -259,6 +259,9 @@ bool LayerStackWidget::makeTree(const std::string& configFilePath, QStringList* 
   }
 
   if (!emitterGroup->checkedButton()) { errors << "At least one layer must be marked as Emitter!"; }
+  if (emitterGroup->checkedId() == -2 || (emitterGroup->checkedId() == -1 - layerWidgets.size())) {
+    errors << "Emitter cannot be in the outer layers!";
+  }
 
   if (!errors.isEmpty()) {
     if (outErrors) *outErrors = errors;
