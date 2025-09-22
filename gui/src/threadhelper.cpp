@@ -17,9 +17,11 @@
 #include <QVector>
 #include <QWidget>
 
+#include <QFileDialog>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QMainWindow>
+#include <QMessageBox>
 #include <QPen>
 #include <QPushButton>
 #include <QScrollArea>
@@ -43,6 +45,46 @@
 #include <qwt_series_data.h>
 
 using namespace UIthreading;
+
+void FitPlotData::exportToCsv(const QString& filePath) const
+{
+  std::ofstream out(filePath.toStdString());
+  if (!out.is_open()) throw std::runtime_error("Failed to open file for writing: " + filePath.toStdString());
+
+  // Header
+  out << "Fitting Result," << fitRes << '\n';
+  out << "Angle (deg),Experimental,Fitting\n";
+  for (qsizetype i = 0; i < x.size(); ++i) { out << x[i] * 180 / M_PI << ',' << yExp[i] << ',' << yFit[i] << '\n'; }
+}
+
+void DissPlotData::exportToCsv(const QString& filePath) const
+{
+  std::ofstream out(filePath.toStdString());
+  if (!out.is_open()) throw std::runtime_error("Failed to open file for writing: " + filePath.toStdString());
+
+  // Header
+  out << "In-plane wavevector (u),P_perp,P_para_p,P_para_s\n";
+  for (qsizetype i = 0; i < u.size(); ++i) {
+    out << u[i] << ',' << perp[i] << ',' << paraP[i] << ',' << paraS[i] << '\n';
+  }
+}
+
+void PolarPlotData::exportToCsv(const QString& filePath) const
+{
+  std::ofstream out(filePath.toStdString());
+  if (!out.is_open()) throw std::runtime_error("Failed to open file for writing: " + filePath.toStdString());
+
+  // Header
+  out << "Angle (deg),P_perp,P_para_p,P_para_s\n";
+  auto N = perp.size();
+  for (qsizetype i = 0; i < N / 2; ++i) {
+    out << perp[i].azimuth() << ',' << perp[i].radius() << ',' << paraP[i].radius() << ',' << paraS[i].radius() << '\n';
+  }
+  for (qsizetype i = N / 2 + 1; i < N; ++i) {
+    out << perp[i].azimuth() - 360 << ',' << perp[i].radius() << ',' << paraP[i].radius() << ',' << paraS[i].radius()
+        << '\n';
+  }
+}
 
 struct PolarData : QwtSeriesData<QwtPointPolar>
 {
@@ -147,18 +189,6 @@ void Worker::restartSolver(const QString& solverPath)
     emit errorSignal(tr("Uknown error in startSolver()"));
     emit solverStatus(true);
   }
-}
-
-void Worker::exportResults(const QString& savePath)
-{
-  // if (_solver == nullptr) {
-  //   emit errorSignal("Start the solver before exporting results!");
-  //   return;
-  // }
-  // std::ofstream output(savePath.toStdString());
-  //_workerMutex.lock();
-  // Data::Exporter(*_solver, output).print();
-  //_workerMutex.unlock();
 }
 
 void Worker::loadFitPlotData()
@@ -344,6 +374,18 @@ QWidget* ThreadManager::makeFitPlot()
     hbox->addWidget(plot, 1);
     hbox->addWidget(rightPanel, 0);
 
+    auto latestData = std::make_shared<FitPlotData>();
+    connect(saveButton, &QPushButton::clicked, container, [container, latestData]() {
+      QString fileName = QFileDialog::getSaveFileName(container, tr("Save CSV"), "", tr("CSV Files (*.csv)"));
+      if (!fileName.isEmpty()) {
+        try {
+          latestData->exportToCsv(fileName);
+        } catch (const std::exception& e) {
+          QMessageBox::critical(container, tr("Export Error"), e.what());
+        }
+      }
+    });
+
     connect(plot, &QwtPlot::legendDataChanged, legend, &QwtLegend::updateLegend);
 
     QMetaObject::Connection conn;
@@ -351,7 +393,7 @@ QWidget* ThreadManager::makeFitPlot()
       worker,
       &Worker::fitDataReady,
       plot,
-      [plot, conn, resultLabel](FitPlotData data) mutable {
+      [plot, conn, resultLabel, latestData](FitPlotData data) mutable {
         QwtPlotCurve* expCurve = new QwtPlotCurve("Exp");
         QwtSymbol* symbol = new QwtSymbol(QwtSymbol::Ellipse, QBrush(Qt::blue), QPen(Qt::black), QSize(8, 8));
         expCurve->setSymbol(symbol);
@@ -375,6 +417,8 @@ QWidget* ThreadManager::makeFitPlot()
 
         plot->replot();
 
+        *latestData = std::move(data);
+
         QObject::disconnect(conn);
       },
       Qt::QueuedConnection);
@@ -385,126 +429,192 @@ QWidget* ThreadManager::makeFitPlot()
   }
 }
 
-QFrame* ThreadManager::makePlot(bool polarFlag)
+QWidget* ThreadManager::makeDissPlot()
 {
-  if (!worker->solverAvail()) {
-    emit errorSignal("Start the solver before trying to plot!");
-    return nullptr;
-  }
+  auto* container = new QWidget;
+  auto* hbox = new QHBoxLayout(container);
+  hbox->setContentsMargins(0, 0, 0, 0);
+  hbox->setSpacing(8);
 
-  if (!polarFlag) {
-    auto plot = new QwtPlot();
+  auto plot = new QwtPlot();
+  plot->setTitle("Simulation Results");
+  plot->setCanvas(new QwtPlotCanvas());
+  plot->setCanvasBackground(Qt::white);
+  plot->setAxisTitle(QwtPlot::xBottom, "In-plane wavevector");
+  plot->setAxisTitle(QwtPlot::yLeft, "Dissipated Power (norm.)");
+  plot->setAxisScaleEngine(QwtPlot::yLeft, new QwtLogScaleEngine());
 
-    plot->setTitle("Simulation Results");
-    plot->setCanvas(new QwtPlotCanvas());
-    plot->setCanvasBackground(Qt::white);
-    plot->setAxisTitle(QwtPlot::xBottom, "In-plane wavevector");
-    plot->setAxisTitle(QwtPlot::yLeft, "Dissipated Power (norm.)");
-    plot->setAxisScaleEngine(QwtPlot::yLeft, new QwtLogScaleEngine());
+  auto* rightPanel = new QWidget;
+  auto* vbox = new QVBoxLayout(rightPanel);
+  vbox->setContentsMargins(0, 0, 0, 0);
+  vbox->setSpacing(6);
 
-    QMetaObject::Connection conn;
-    conn = QObject::connect(
-      worker,
-      &Worker::dissDataReady,
-      plot,
-      [plot, conn](DissPlotData data) mutable {
-        double yMax = std::max({*std::max_element(data.paraS.begin(), data.paraS.end()),
-          *std::max_element(data.paraP.begin(), data.paraP.end()),
-          *std::max_element(data.perp.begin(), data.perp.end())});
-        const double yMin = 1e-7;
-        plot->setAxisScale(QwtPlot::yLeft, yMin, yMax);
+  auto* legend = new QwtLegend(rightPanel);
+  vbox->addWidget(legend);
 
-        QwtPlotCurve* paraUsCurve = new QwtPlotCurve("s-Para");
-        paraUsCurve->setLegendAttribute(QwtPlotCurve::LegendShowSymbol, false);
-        paraUsCurve->setLegendAttribute(QwtPlotCurve::LegendShowLine, true);
-        paraUsCurve->setPen(QPen(Qt::red));
-        paraUsCurve->setSamples(data.u, data.paraS);
-        paraUsCurve->attach(plot);
+  auto* saveButton = new QPushButton("Save data...", rightPanel);
+  vbox->addWidget(saveButton);
 
-        QwtPlotCurve* paraUpCurve = new QwtPlotCurve("p-Para");
-        paraUpCurve->setLegendAttribute(QwtPlotCurve::LegendShowSymbol, false);
-        paraUpCurve->setLegendAttribute(QwtPlotCurve::LegendShowLine, true);
-        paraUpCurve->setPen(QPen(Qt::blue));
-        paraUpCurve->setSamples(data.u, data.paraP);
-        paraUpCurve->attach(plot);
+  vbox->addStretch();
 
-        QwtPlotCurve* perpCurve = new QwtPlotCurve("(p)-Perp");
-        perpCurve->setLegendAttribute(QwtPlotCurve::LegendShowSymbol, false);
-        perpCurve->setLegendAttribute(QwtPlotCurve::LegendShowLine, true);
-        perpCurve->setPen(QPen(Qt::green));
-        perpCurve->setSamples(data.u, data.perp);
-        perpCurve->attach(plot);
+  hbox->addWidget(plot, 1);
+  hbox->addWidget(rightPanel, 0);
 
-        QwtPlotZoomer* zoomer = new QwtPlotZoomer(plot->canvas());
-        zoomer->setRubberBandPen(QColor(Qt::red));
-        zoomer->setTrackerPen(QColor(Qt::blue));
-        QwtLegend* legend = new QwtLegend();
-        plot->insertLegend(legend);
+  auto latestData = std::make_shared<DissPlotData>();
+  connect(saveButton, &QPushButton::clicked, container, [container, latestData]() {
+    QString fileName = QFileDialog::getSaveFileName(container, tr("Save CSV"), "", tr("CSV Files (*.csv)"));
+    if (!fileName.isEmpty()) {
+      try {
+        latestData->exportToCsv(fileName);
+      } catch (const std::exception& e) {
+        QMessageBox::critical(container, tr("Export Error"), e.what());
+      }
+    }
+  });
 
-        QObject::disconnect(conn);
-      },
-      Qt::QueuedConnection);
+  connect(plot, &QwtPlot::legendDataChanged, legend, &QwtLegend::updateLegend);
 
-    QMetaObject::invokeMethod(worker, "loadSimPlotData", Qt::QueuedConnection);
+  QMetaObject::Connection conn;
+  conn = QObject::connect(
+    worker,
+    &Worker::dissDataReady,
+    plot,
+    [plot, conn, latestData](DissPlotData data) mutable {
+      double yMax = std::max({*std::max_element(data.paraS.begin(), data.paraS.end()),
+        *std::max_element(data.paraP.begin(), data.paraP.end()),
+        *std::max_element(data.perp.begin(), data.perp.end())});
+      const double yMin = 1e-7;
+      plot->setAxisScale(QwtPlot::yLeft, yMin, yMax);
 
-    return plot;
-  }
-  else {
-    QwtPolarPlot* polarPlot = new QwtPolarPlot();
-    polarPlot->setAzimuthOrigin(M_PI_2);
-    polarPlot->setScale(QwtPolar::Azimuth, 0.0, 360.0, 30.0); // major tick each 30°
-    polarPlot->setScaleMaxMinor(QwtPolar::Azimuth, 2);
-    polarPlot->setScale(QwtPolar::Radius, 0.0, 1.0); // VERY IMPORTANT
-    auto zoomer = new QwtPolarMagnifier(polarPlot->canvas());
+      QwtPlotCurve* paraUsCurve = new QwtPlotCurve("s-Para");
+      paraUsCurve->setLegendAttribute(QwtPlotCurve::LegendShowSymbol, false);
+      paraUsCurve->setLegendAttribute(QwtPlotCurve::LegendShowLine, true);
+      paraUsCurve->setPen(QPen(Qt::red));
+      paraUsCurve->setSamples(data.u, data.paraS);
+      paraUsCurve->attach(plot);
 
-    QMetaObject::Connection conn;
-    conn = QObject::connect(
-      worker,
-      &Worker::polarDataReady,
-      polarPlot,
-      [polarPlot, conn](PolarPlotData data) mutable {
-        PolarData* polarPerp = new PolarData();
-        polarPerp->pts = data.perp;
-        QwtPolarCurve* perpCurve = new QwtPolarCurve("Perp");
-        perpCurve->setLegendAttribute(QwtPolarCurve::LegendShowSymbol, false);
-        perpCurve->setLegendAttribute(QwtPolarCurve::LegendShowLine, true);
-        perpCurve->setPen(QPen(Qt::blue));
-        perpCurve->setData(polarPerp);
-        perpCurve->attach(polarPlot);
+      QwtPlotCurve* paraUpCurve = new QwtPlotCurve("p-Para");
+      paraUpCurve->setLegendAttribute(QwtPlotCurve::LegendShowSymbol, false);
+      paraUpCurve->setLegendAttribute(QwtPlotCurve::LegendShowLine, true);
+      paraUpCurve->setPen(QPen(Qt::blue));
+      paraUpCurve->setSamples(data.u, data.paraP);
+      paraUpCurve->attach(plot);
 
-        PolarData* polarParaP = new PolarData();
-        polarParaP->pts = data.paraP;
-        QwtPolarCurve* paraPCurve = new QwtPolarCurve("p-Para");
-        paraPCurve->setLegendAttribute(QwtPolarCurve::LegendShowSymbol, false);
-        paraPCurve->setLegendAttribute(QwtPolarCurve::LegendShowLine, true);
-        paraPCurve->setPen(QPen(Qt::red));
-        paraPCurve->setData(polarParaP);
-        paraPCurve->attach(polarPlot);
+      QwtPlotCurve* perpCurve = new QwtPlotCurve("(p)-Perp");
+      perpCurve->setLegendAttribute(QwtPlotCurve::LegendShowSymbol, false);
+      perpCurve->setLegendAttribute(QwtPlotCurve::LegendShowLine, true);
+      perpCurve->setPen(QPen(Qt::green));
+      perpCurve->setSamples(data.u, data.perp);
+      perpCurve->attach(plot);
 
-        PolarData* polarParaS = new PolarData();
-        polarParaS->pts = data.paraS;
-        QwtPolarCurve* paraSCurve = new QwtPolarCurve("s-Para");
-        paraSCurve->setLegendAttribute(QwtPolarCurve::LegendShowSymbol, false);
-        paraSCurve->setLegendAttribute(QwtPolarCurve::LegendShowLine, true);
-        paraSCurve->setPen(QPen(Qt::green));
-        paraSCurve->setData(polarParaS);
-        paraSCurve->attach(polarPlot);
+      QwtPlotZoomer* zoomer = new QwtPlotZoomer(plot->canvas());
+      zoomer->setRubberBandPen(QColor(Qt::red));
+      zoomer->setTrackerPen(QColor(Qt::blue));
 
-        QwtPolarGrid* grid = new QwtPolarGrid();
-        grid->setPen(QPen(Qt::gray));
-        grid->attach(polarPlot);
+      plot->replot();
 
-        QwtLegend* legend = new QwtLegend();
-        polarPlot->insertLegend(legend);
+      *latestData = std::move(data);
 
-        polarPlot->replot();
+      QObject::disconnect(conn);
+    },
+    Qt::QueuedConnection);
 
-        QObject::disconnect(conn);
-      },
-      Qt::QueuedConnection);
+  QMetaObject::invokeMethod(worker, "loadSimPlotData", Qt::QueuedConnection);
 
-    QMetaObject::invokeMethod(worker, "loadPolarPlotData", Qt::QueuedConnection);
+  return container;
+}
 
-    return polarPlot;
-  }
+QWidget* ThreadManager::makePolarPlot()
+{
+
+  auto* container = new QWidget;
+  auto* hbox = new QHBoxLayout(container);
+  hbox->setContentsMargins(0, 0, 0, 0);
+  hbox->setSpacing(8);
+
+  QwtPolarPlot* polarPlot = new QwtPolarPlot();
+  polarPlot->setAzimuthOrigin(M_PI_2);
+  polarPlot->setScale(QwtPolar::Azimuth, 0.0, 360.0, 30.0); // major tick each 30°
+  polarPlot->setScaleMaxMinor(QwtPolar::Azimuth, 2);
+  polarPlot->setScale(QwtPolar::Radius, 0.0, 1.0); // VERY IMPORTANT
+  auto zoomer = new QwtPolarMagnifier(polarPlot->canvas());
+
+  auto* rightPanel = new QWidget;
+  auto* vbox = new QVBoxLayout(rightPanel);
+  vbox->setContentsMargins(0, 0, 0, 0);
+  vbox->setSpacing(6);
+
+  auto* legend = new QwtLegend(rightPanel);
+  vbox->addWidget(legend);
+
+  auto* saveButton = new QPushButton("Save data...", rightPanel);
+  vbox->addWidget(saveButton);
+
+  vbox->addStretch();
+
+  hbox->addWidget(polarPlot, 1);
+  hbox->addWidget(rightPanel, 0);
+
+  auto latestData = std::make_shared<PolarPlotData>();
+  connect(saveButton, &QPushButton::clicked, container, [container, latestData]() {
+    QString fileName = QFileDialog::getSaveFileName(container, tr("Save CSV"), "", tr("CSV Files (*.csv)"));
+    if (!fileName.isEmpty()) {
+      try {
+        latestData->exportToCsv(fileName);
+      } catch (const std::exception& e) {
+        QMessageBox::critical(container, tr("Export Error"), e.what());
+      }
+    }
+  });
+
+  connect(polarPlot, &QwtPolarPlot::legendDataChanged, legend, &QwtLegend::updateLegend);
+
+  QMetaObject::Connection conn;
+  conn = QObject::connect(
+    worker,
+    &Worker::polarDataReady,
+    polarPlot,
+    [polarPlot, conn, latestData](PolarPlotData data) mutable {
+      PolarData* polarPerp = new PolarData();
+      polarPerp->pts = data.perp;
+      QwtPolarCurve* perpCurve = new QwtPolarCurve("Perp");
+      perpCurve->setLegendAttribute(QwtPolarCurve::LegendShowSymbol, false);
+      perpCurve->setLegendAttribute(QwtPolarCurve::LegendShowLine, true);
+      perpCurve->setPen(QPen(Qt::blue));
+      perpCurve->setData(polarPerp);
+      perpCurve->attach(polarPlot);
+
+      PolarData* polarParaP = new PolarData();
+      polarParaP->pts = data.paraP;
+      QwtPolarCurve* paraPCurve = new QwtPolarCurve("p-Para");
+      paraPCurve->setLegendAttribute(QwtPolarCurve::LegendShowSymbol, false);
+      paraPCurve->setLegendAttribute(QwtPolarCurve::LegendShowLine, true);
+      paraPCurve->setPen(QPen(Qt::red));
+      paraPCurve->setData(polarParaP);
+      paraPCurve->attach(polarPlot);
+
+      PolarData* polarParaS = new PolarData();
+      polarParaS->pts = data.paraS;
+      QwtPolarCurve* paraSCurve = new QwtPolarCurve("s-Para");
+      paraSCurve->setLegendAttribute(QwtPolarCurve::LegendShowSymbol, false);
+      paraSCurve->setLegendAttribute(QwtPolarCurve::LegendShowLine, true);
+      paraSCurve->setPen(QPen(Qt::green));
+      paraSCurve->setData(polarParaS);
+      paraSCurve->attach(polarPlot);
+
+      QwtPolarGrid* grid = new QwtPolarGrid();
+      grid->setPen(QPen(Qt::gray));
+      grid->attach(polarPlot);
+
+      polarPlot->replot();
+
+      *latestData = std::move(data);
+
+      QObject::disconnect(conn);
+    },
+    Qt::QueuedConnection);
+
+  QMetaObject::invokeMethod(worker, "loadPolarPlotData", Qt::QueuedConnection);
+
+  return container;
 }

@@ -23,19 +23,33 @@
 
 namespace UIthreading {
 
-  struct FitPlotData
+  struct Exportable
+  {
+
+    virtual ~Exportable() = default;
+
+    virtual void exportToCsv(const QString& filePath) const = 0;
+  };
+
+  struct FitPlotData : public Exportable
   {
     QVector<double> x, yExp, yFit;
     double fitRes;
+
+    void exportToCsv(const QString& filePath) const override;
   };
-  struct DissPlotData
+  struct DissPlotData : public Exportable
   {
     QVector<double> u, perp, paraP, paraS;
+
+    void exportToCsv(const QString& filePath) const override;
   };
 
-  struct PolarPlotData
+  struct PolarPlotData : public Exportable
   {
     QVector<QwtPointPolar> perp, paraP, paraS;
+
+    void exportToCsv(const QString& filePath) const override;
   };
 
   // workers
@@ -64,8 +78,6 @@ namespace UIthreading {
     bool solverAvail();
     void restartSolver();
 
-    void exportResults(const QString& savePath);
-
   public slots:
     void restartSolver(const QString& configFilepath);
     void startSolver();
@@ -87,7 +99,8 @@ namespace UIthreading {
     ThreadManager(const QString& configFilepath, QObject* parent = nullptr);
     ~ThreadManager();
 
-    QFrame* makePlot(bool polarFlag);
+    QWidget* makeDissPlot();
+    QWidget* makePolarPlot();
     QWidget* makeFitPlot();
 
     void restartSolver(const QString& configFilePath);

@@ -268,7 +268,7 @@ void MainWindow::displayPlot(Data::SolverMode calledMode)
       break;
     case Data::SolverMode::simulation:
       plotLabel.prepend("Dissipation ");
-      plot = _thread->makePlot(false);
+      plot = _thread->makeDissPlot();
       break;
     }
     if (_centralStack->count() > 1) _centralStack->removeTab(1);
@@ -281,7 +281,7 @@ void MainWindow::displayPolarPlot()
 {
   if (_thread == nullptr) QMessageBox::warning(this, tr("missing job"), tr("Please start a job first!"));
   else {
-    auto plot = _thread->makePlot(true);
+    auto plot = _thread->makePolarPlot();
     if (_centralStack->count() > 1) _centralStack->removeTab(1);
     _centralStack->addTab(plot, "Polar Plot");
     _centralStack->setCurrentWidget(plot);
