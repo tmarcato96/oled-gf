@@ -6,6 +6,7 @@
 #include <QEvent>
 #include <QFile>
 #include <QFileDialog>
+#include <QListWidget>
 #include <QMainWindow>
 #include <QMenu>
 #include <QMenuBar>
@@ -93,21 +94,6 @@ void MainWindow::createMenus()
   _loadAction = new QAction("load", this);
   connect(_loadAction, &QAction::triggered, this, &MainWindow::onLoad);
   fileMenu->addAction(_loadAction);
-
-  // Plot
-  QMenu* plotMenu = menuBar->addMenu(tr("&Plot"));
-
-  _fitPlotAction = new QAction("Fitting plot", this);
-  connect(_fitPlotAction, &QAction::triggered, this, [this]() { displayPlot(Data::SolverMode::fitting); });
-  plotMenu->addAction(_fitPlotAction);
-
-  _dissPlotAction = new QAction("Dissipation plot", this);
-  connect(_dissPlotAction, &QAction::triggered, this, [this]() { displayPlot(Data::SolverMode::simulation); });
-  plotMenu->addAction(_dissPlotAction);
-
-  _polarPlotAction = new QAction("Polar plot", this);
-  connect(_polarPlotAction, &QAction::triggered, this, [this]() { displayPolarPlot(); });
-  plotMenu->addAction(_polarPlotAction);
 }
 
 void MainWindow::createToolbar()
@@ -253,38 +239,96 @@ void MainWindow::onLoad()
   }
 }
 
-void MainWindow::displayPlot(Data::SolverMode calledMode)
+void MainWindow::displayResultWindow()
 {
-  if (_thread == nullptr) QMessageBox::warning(this, tr("missing job"), tr("Please start a job first!"));
-  else if (_thread->worker->getMode() != calledMode)
-    QMessageBox::warning(this, tr("job mode mismatch"), tr("The plot type selected does not match the job mode!"));
-  else {
-    QString plotLabel = "Plot";
-    QWidget* plot;
-    switch (calledMode) {
-    case Data::SolverMode::fitting:
-      plotLabel.prepend("Fit ");
-      plot = _thread->makeFitPlot();
-      break;
-    case Data::SolverMode::simulation:
-      plotLabel.prepend("Dissipation ");
-      plot = _thread->makeDissPlot();
-      break;
-    }
-    if (_centralStack->count() > 1) _centralStack->removeTab(1);
-    _centralStack->addTab(plot, plotLabel);
-    _centralStack->setCurrentWidget(plot);
+  if (_resultsList) _resultsList->clear();
+  if (_centralStack->count() > 1) _centralStack->removeTab(1);
+
+  _resultsPage = new QWidget;
+  auto* hbox = new QHBoxLayout(_resultsPage);
+  hbox->setContentsMargins(0, 0, 0, 0);
+  hbox->setSpacing(8);
+
+  // List of Results
+  _resultsList = new QListWidget(_resultsPage);
+  _resultsList->setSelectionMode(QAbstractItemView::SingleSelection);
+  _resultsList->setFixedWidth(150);
+
+  const auto mode = _thread ? _thread->worker->getMode() : Data::SolverMode::simulation;
+  size_t placeholderNum;
+  if (mode == Data::SolverMode::fitting) {
+    _resultsList->addItem(tr("Fitting plot"));
+    placeholderNum = 1;
   }
+  else {
+    _resultsList->addItem(tr("Dissipation plot"));
+    _resultsList->addItem(tr("Substrate emission (polar)"));
+    _resultsList->addItem(tr("Mode contributions"));
+    placeholderNum = 4;
+  }
+
+  // Plot area
+  _resultsPlots = new QStackedWidget(_resultsPage);
+  for (size_t i = 0; i < placeholderNum; ++i) { _resultsPlots->addWidget(new QWidget); }
+
+  hbox->addWidget(_resultsList);
+  hbox->addWidget(_resultsPlots, 1);
+
+  connect(_resultsList, &QListWidget::currentRowChanged, this, [this](int row) {
+    if (row < 0) return;
+    ensurePlotCreated(row);
+    _resultsPlots->setCurrentIndex(row);
+  });
+
+  _centralStack->addTab(_resultsPage, tr("Results"));
+  _centralStack->setCurrentWidget(_resultsPage);
 }
 
-void MainWindow::displayPolarPlot()
+void MainWindow::ensurePlotCreated(int row)
 {
-  if (_thread == nullptr) QMessageBox::warning(this, tr("missing job"), tr("Please start a job first!"));
-  else {
-    auto plot = _thread->makePolarPlot();
-    if (_centralStack->count() > 1) _centralStack->removeTab(1);
-    _centralStack->addTab(plot, "Polar Plot");
-    _centralStack->setCurrentWidget(plot);
+  if (!_thread) return;
+
+  const auto mode = _thread->worker->getMode();
+
+  switch (mode) {
+  case Data::SolverMode::fitting:
+    switch (row) {
+    case 0:
+      if (!_plotFit) {
+        _plotFit = _thread->makeFitPlot();
+        _resultsPlots->removeWidget(_resultsPlots->widget(0));
+        _resultsPlots->insertWidget(0, _plotFit);
+      }
+      break;
+    }
+    break;
+  case Data::SolverMode::simulation:
+    switch (row) {
+    case 0:
+      if (!_plotDiss) {
+        _plotDiss = _thread->makeDissPlot();
+        _resultsPlots->removeWidget(_resultsPlots->widget(0));
+        _resultsPlots->insertWidget(0, _plotDiss);
+      }
+      break;
+
+    case 1:
+      if (!_plotPolar) {
+        _plotPolar = _thread->makePolarPlot();
+        _resultsPlots->removeWidget(_resultsPlots->widget(1));
+        _resultsPlots->insertWidget(1, _plotPolar);
+      }
+      break;
+
+    case 2:
+      if (!_plotMode) {
+        _plotMode = _thread->makeModePlot();
+        _resultsPlots->removeWidget(_resultsPlots->widget(2));
+        _resultsPlots->insertWidget(2, _plotMode);
+      }
+      break;
+    }
+    break;
   }
 }
 
@@ -296,6 +340,9 @@ void MainWindow::resetJob(const QString& configFilepath)
     connect(_thread, &UIthreading::ThreadManager::errorSignal, this, [this](const QString& msg) {
       QMessageBox::critical(this, tr("Solver error"), msg);
       setUIRunning(false);
+    });
+    connect(_thread, &UIthreading::ThreadManager::solverStatus, this, [this](bool finished) {
+      if (finished) displayResultWindow();
     });
     processWorkerSignals();
   }
@@ -336,9 +383,6 @@ void MainWindow::setUIRunning(bool running)
   if (_runAction) _runAction->setEnabled(!running);
   if (_importAction) _importAction->setEnabled(!running);
   if (_loadAction) _loadAction->setEnabled(!running);
-  if (_fitPlotAction) _fitPlotAction->setEnabled(!running);
-  if (_dissPlotAction) _dissPlotAction->setEnabled(!running);
-  if (_polarPlotAction) _polarPlotAction->setEnabled(!running);
 }
 
 void MainWindow::processWorkerSignals()

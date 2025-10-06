@@ -52,6 +52,13 @@ namespace UIthreading {
     void exportToCsv(const QString& filePath) const override;
   };
 
+  struct ModePlotData : public Exportable
+  {
+    QVector<double> outcoupling, substrate, waveguide, evanescent;
+
+    void exportToCsv(const QString& filePath) const override;
+  };
+
   // workers
   class Worker : public QObject
   {
@@ -69,6 +76,7 @@ namespace UIthreading {
     void fitDataReady(FitPlotData);
     void dissDataReady(DissPlotData);
     void polarDataReady(PolarPlotData);
+    void modeDataReady(ModePlotData);
 
   public:
     Worker(const QString& filepath);
@@ -84,6 +92,7 @@ namespace UIthreading {
     void loadFitPlotData();
     void loadSimPlotData();
     void loadPolarPlotData();
+    void loadModePlotData();
   };
 
   class ThreadManager : public QObject
@@ -102,6 +111,7 @@ namespace UIthreading {
     QWidget* makeDissPlot();
     QWidget* makePolarPlot();
     QWidget* makeFitPlot();
+    QWidget* makeModePlot();
 
     void restartSolver(const QString& configFilePath);
 

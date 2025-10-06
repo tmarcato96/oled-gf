@@ -50,8 +50,8 @@ void BaseSolver::loadMaterialData()
   matstack.epsilon.resize(matstack.numLayers);
   for (Eigen::Index i = 0; i < matstack.numLayers; ++i) {
     matstack.epsilon(i) = layers[toSize(i)].getMaterial().getEpsilon(wvl);
-    std::cout << "Layer " << i << "; Material: (" << layers[toSize(i)].getMaterial().getRefIndex(wvl).real() << ", "
-              << layers[toSize(i)].getMaterial().getRefIndex(wvl).imag() << ")\n";
+    std::cout << "Layer " << i << "; Material: (" << layers[toSize(i)].getMaterial().getEpsilon(wvl).real() << ", "
+              << layers[toSize(i)].getMaterial().getEpsilon(wvl).imag() << ")\n";
   }
 }
 
@@ -378,13 +378,13 @@ void BaseSolver::calculate()
   calculateGFCoeffs();
 
   calculateLifetime(bPerp, bPara);
-  double bPerpSum = 1.0 - q + q * (1.0 + bPerp.sum());
-  double bParaSum = 1.0 - q + q * (1.0 + bPara.sum());
+  bPerpSum = 1.0 - q + q * (1.0 + bPerp.sum());
+  bParaSum = 1.0 - q + q * (1.0 + bPara.sum());
   calculateDissPower(bPerpSum, bParaSum);
 
   // normalizing dissipated power by alpha to get efficiency
-  resultTree("P_perp_uf") *= alpha;
-  resultTree("P_para_p_uf", "P_para_s_uf") *= (1 - alpha);
+  // resultTree("P_perp_uf") *= alpha;
+  // resultTree("P_para_p_uf", "P_para_s_uf") *= (1 - alpha);
   resultTree["u"] = matstack.u;
 
   // Loggin

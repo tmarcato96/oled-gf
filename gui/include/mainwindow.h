@@ -4,8 +4,10 @@
 #include <QEvent>
 #include <QLabel>
 #include <QList>
+#include <QListWidget>
 #include <QMainWindow>
 #include <QProgressBar>
+#include <QStackedWidget>
 #include <QTabWidget>
 #include <QVBoxLayout>
 
@@ -27,6 +29,8 @@ protected:
   void createCentralWidget();
   void createStatusBar();
 
+  void ensurePlotCreated(int row);
+
   // Solver status and enablin/disabling actions
   void setUIRunning(bool running);
   void processWorkerSignals();
@@ -34,9 +38,18 @@ protected:
   QLabel* _workspacePathLabel;
   QString _workspaceDir;
   QTabWidget* _centralStack;
+  QWidget* _resultsPage = nullptr;
+  QListWidget* _resultsList = nullptr;
+  QStackedWidget* _resultsPlots = nullptr;
   QVBoxLayout* _previewLayout;
   UIthreading::ThreadManager* _thread;
   bool _plotStatus;
+
+  // Plot widgets
+  QWidget* _plotDiss = nullptr;
+  QWidget* _plotPolar = nullptr;
+  QWidget* _plotFit = nullptr;
+  QWidget* _plotMode = nullptr;
 
   // Solver status bar
   QLabel* _solverStatusLabel = nullptr;
@@ -46,9 +59,6 @@ protected:
   QAction* _runAction = nullptr;
   QAction* _importAction = nullptr;
   QAction* _loadAction = nullptr;
-  QAction* _fitPlotAction = nullptr;
-  QAction* _dissPlotAction = nullptr;
-  QAction* _polarPlotAction = nullptr;
 
 signals:
   void workspaceChanged(const QString& dir);
@@ -62,8 +72,7 @@ protected slots:
   void onLoad();
   void onExit();
 
-  void displayPlot(Data::SolverMode calledMode);
-  void displayPolarPlot();
+  void displayResultWindow();
 
   void onChangeWorkspace();
 };

@@ -48,4 +48,6 @@ public:
   void update() override;
 
   void calculateEmissionSubstrate();
+
+  void calculateOutcoupling();
 };

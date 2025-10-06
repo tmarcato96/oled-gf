@@ -86,6 +86,8 @@ void PolarPlotData::exportToCsv(const QString& filePath) const
   }
 }
 
+void ModePlotData::exportToCsv(const QString& filePath) const {}
+
 struct PolarData : QwtSeriesData<QwtPointPolar>
 {
   QVector<QwtPointPolar> pts;
@@ -302,6 +304,26 @@ void Worker::loadPolarPlotData()
   emit polarDataReady(std::move(data));
 }
 
+void Worker::loadModePlotData()
+{
+  QMutexLocker lock(&_workerMutex);
+  if (_solver.solver == nullptr || _mode != Data::SolverMode::simulation) {
+    emit errorSignal("Wrong solver mode (There is some bug!)");
+    return;
+  }
+  if (auto* simSolver = dynamic_cast<Simulation*>(_solver.solver.get()); simSolver != nullptr) {
+    simSolver->calculateOutcoupling();
+  }
+
+  ModePlotData data;
+  data.outcoupling.push_back(_solver.solver->resultTree.get<double>("outcoupling_para"));
+  data.substrate.push_back(_solver.solver->resultTree.get<double>("substrate_para"));
+  data.waveguide.push_back(_solver.solver->resultTree.get<double>("waveguide_para"));
+  data.evanescent.push_back(_solver.solver->resultTree.get<double>("evanescent_para"));
+
+  emit modeDataReady(std::move(data));
+}
+
 Data::SolverMode Worker::getMode() { return _mode; }
 
 bool Worker::solverAvail()
@@ -426,6 +448,10 @@ QWidget* ThreadManager::makeFitPlot()
     QMetaObject::invokeMethod(worker, "loadFitPlotData", Qt::QueuedConnection);
 
     return container;
+  }
+  else {
+    emit errorSignal(tr("Fitting plot not available in simulation mode."));
+    return nullptr;
   }
 }
 
@@ -615,6 +641,111 @@ QWidget* ThreadManager::makePolarPlot()
     Qt::QueuedConnection);
 
   QMetaObject::invokeMethod(worker, "loadPolarPlotData", Qt::QueuedConnection);
+
+  return container;
+}
+
+QWidget* ThreadManager::makeModePlot()
+{
+  auto* container = new QWidget;
+  auto* hbox = new QHBoxLayout(container);
+  hbox->setContentsMargins(0, 0, 0, 0);
+  hbox->setSpacing(8);
+
+  auto* plot = new QwtPlot();
+  plot->setTitle("Mode contributions");
+  plot->setCanvas(new QwtPlotCanvas());
+  plot->setCanvasBackground(Qt::white);
+  plot->setAxisTitle(QwtPlot::yLeft, "Mode contributions");
+  plot->setAxisScale(QwtPlot::yLeft, 0.0, 1.0);
+
+  auto* rightPanel = new QWidget;
+  auto* vbox = new QVBoxLayout(rightPanel);
+  vbox->setContentsMargins(0, 0, 0, 0);
+  vbox->setSpacing(6);
+
+  auto* legend = new QwtLegend(rightPanel);
+  vbox->addWidget(legend);
+
+  auto* ocLabel = new QLabel("Outcoupling: -", rightPanel);
+  ocLabel->setAlignment(Qt::AlignTop | Qt::AlignLeft);
+  ocLabel->setMaximumWidth(140);
+  auto* subLabel = new QLabel("Substrate: -", rightPanel);
+  subLabel->setAlignment(Qt::AlignTop | Qt::AlignLeft);
+  subLabel->setMaximumWidth(140);
+  auto* wgLabel = new QLabel("Waveguided: -", rightPanel);
+  wgLabel->setAlignment(Qt::AlignTop | Qt::AlignLeft);
+  wgLabel->setMaximumWidth(140);
+  auto* ecLabel = new QLabel("Evanescent: -", rightPanel);
+  ecLabel->setAlignment(Qt::AlignTop | Qt::AlignLeft);
+  ecLabel->setMaximumWidth(140);
+  vbox->addWidget(ocLabel);
+  vbox->addWidget(subLabel);
+  vbox->addWidget(wgLabel);
+  vbox->addWidget(ecLabel);
+
+  vbox->addStretch();
+
+  hbox->addWidget(plot, 1);
+  hbox->addWidget(rightPanel, 0);
+
+  auto latestData = std::make_shared<ModePlotData>();
+  connect(plot, &QwtPlot::legendDataChanged, legend, &QwtLegend::updateLegend);
+
+  QMetaObject::Connection conn;
+  conn = QObject::connect(
+    worker,
+    &Worker::modeDataReady,
+    plot,
+    [plot, conn, ocLabel, subLabel, wgLabel, ecLabel, latestData](ModePlotData data) mutable {
+      QVector<double> x{0.0, 1.0};
+      QVector<double> oc{data.outcoupling[0], data.outcoupling[0]};
+      QVector<double> sub{data.outcoupling[0] + data.substrate[0], data.outcoupling[0] + data.substrate[0]};
+      QVector<double> wg{sub[0] + data.waveguide[0], sub[1] + data.waveguide[0]};
+      QVector<double> ec{wg[0] + data.evanescent[0], wg[1] + data.evanescent[0]};
+
+      QwtPlotCurve* ocCurve = new QwtPlotCurve("Outcoupling");
+      QwtPlotCurve* subCurve = new QwtPlotCurve("Substrate");
+      QwtPlotCurve* wgCurve = new QwtPlotCurve("Waveguided");
+      QwtPlotCurve* ecCurve = new QwtPlotCurve("Evanescent");
+
+      ocCurve->setPen(QPen(Qt::red));
+      ocCurve->setBrush(QBrush(Qt::red));
+      ocCurve->setSamples(x, oc);
+      ocCurve->attach(plot);
+
+      subCurve->setPen(QPen(Qt::blue));
+      subCurve->setBaseline(oc[0]);
+      subCurve->setBrush(QBrush(Qt::blue));
+      subCurve->setSamples(x, sub);
+      subCurve->attach(plot);
+
+      wgCurve->setPen(QPen(Qt::yellow));
+      wgCurve->setBaseline(sub[0]);
+      wgCurve->setBrush(QBrush(Qt::yellow));
+      wgCurve->setSamples(x, wg);
+      wgCurve->attach(plot);
+
+      ecCurve->setPen(QPen(Qt::green));
+      ecCurve->setBaseline(wg[0]);
+      ecCurve->setBrush(QBrush(Qt::green));
+      ecCurve->setSamples(x, ec);
+      ecCurve->attach(plot);
+
+      ocLabel->setText(QString("Outcoupling: %1").arg(data.outcoupling[0], 0, 'g', 6));
+      subLabel->setText(QString("Substrate: %1").arg(data.substrate[0], 0, 'g', 6));
+      wgLabel->setText(QString("Waveguided: %1").arg(data.waveguide[0], 0, 'g', 6));
+      ecLabel->setText(QString("Evanescent: %1").arg(data.evanescent[0], 0, 'g', 6));
+
+      plot->replot();
+
+      *latestData = std::move(data);
+
+      QObject::disconnect(conn);
+    },
+    Qt::QueuedConnection);
+
+  QMetaObject::invokeMethod(worker, "loadModePlotData", Qt::QueuedConnection);
 
   return container;
 }

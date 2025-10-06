@@ -87,6 +87,8 @@ protected:
   double _sweepStart;
   double _sweepStop;
   double alpha;
+  double bPerpSum;
+  double bParaSum;
 
   MatStack matstack;
   SolverCoefficients coeffs;
