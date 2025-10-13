@@ -50,7 +50,8 @@ protected:
   QWidget* _plotPolar = nullptr;
   QWidget* _plotFit = nullptr;
   QWidget* _plotMode = nullptr;
-  QWidget* _plotRT = nullptr;
+  QWidget* _plotR = nullptr;
+  QWidget* _plotT = nullptr;
 
   // Solver status bar
   QLabel* _solverStatusLabel = nullptr;

@@ -99,8 +99,6 @@ struct PolarData : QwtSeriesData<QwtPointPolar>
   QRectF boundingRect() const override { return qwtBoundingRect(*this); }
 };
 
-std::set<QString> Worker::_blacklist{};
-
 Worker::Worker(const QString& filepath) :
   _filepath{filepath}
 {}
@@ -109,12 +107,6 @@ void Worker::startSolver()
 {
   QMutexLocker lock(&_workerMutex);
   emit solverStatus(false);
-
-  if (_blacklist.find(_filepath) != _blacklist.end()) {
-    emit errorSignal("Solver already exists!");
-    return;
-  }
-  _blacklist.insert(_filepath);
 
   try {
     auto importer = Data::ImportManager(_filepath.toStdString()).makeImporter();
@@ -142,10 +134,6 @@ void Worker::restartSolver()
   emit solverStatus(false);
 
   try {
-    if (_blacklist.find(_filepath) == _blacklist.end()) {
-      emit errorSignal("Start the solver first before attempting to restart!");
-      return;
-    }
     auto importer = Data::ImportManager(_filepath.toStdString()).makeImporter();
     _solver = importer->solverFromFile(); // heavier computations
     _solver.sweepManager->runSweeps();
@@ -171,10 +159,6 @@ void Worker::restartSolver(const QString& solverPath)
   emit solverStatus(false);
 
   try {
-    if (_blacklist.find(_filepath) == _blacklist.end()) {
-      emit errorSignal("Start the solver first before attempting to restart!");
-      return;
-    }
 
     _filepath = solverPath;
     auto importer = Data::ImportManager(_filepath.toStdString()).makeImporter();
@@ -343,6 +327,8 @@ void Worker::loadRTPlotData()
   data.wvl.resize(N);
   data.Rs.reserve(M);
   data.Rp.reserve(M);
+  data.Ts.reserve(M);
+  data.Tp.reserve(M);
   QVector<double> tmp(N);
 
   Eigen::Map<Vector>(data.wvl.data(), N) = _solver.solver->resultTree.get<Vector>("wavelength");
@@ -354,6 +340,10 @@ void Worker::loadRTPlotData()
     data.Rs.push_back(tmp);
     Eigen::Map<Vector>(tmp.data(), N) = _solver.solver->resultTree.get<Matrix>("R_p").col(i);
     data.Rp.push_back(tmp);
+    Eigen::Map<Vector>(tmp.data(), N) = _solver.solver->resultTree.get<Matrix>("T_s").col(i);
+    data.Ts.push_back(tmp);
+    Eigen::Map<Vector>(tmp.data(), N) = _solver.solver->resultTree.get<Matrix>("T_p").col(i);
+    data.Tp.push_back(tmp);
   }
 
   emit RTDataReady(std::move(data));
@@ -386,7 +376,13 @@ ThreadManager::ThreadManager(const QString& configFilepath, QObject* parent) :
   emit requestStart();
 }
 
-void ThreadManager::restartSolver(const QString& configFilePath) { emit requestRestart(configFilePath); }
+void ThreadManager::restartSolver(const QString& configFilePath)
+{
+  _rtReady = false;
+  _rtLoading = false;
+  _rtData.reset();
+  emit requestRestart(configFilePath);
+}
 
 ThreadManager::~ThreadManager()
 {
@@ -785,7 +781,7 @@ QWidget* ThreadManager::makeModePlot()
   return container;
 }
 
-QWidget* ThreadManager::makeRTPlot()
+QWidget* ThreadManager::makeRPlot()
 {
   auto* container = new QWidget;
   auto* hbox = new QHBoxLayout(container);
@@ -843,60 +839,184 @@ QWidget* ThreadManager::makeRTPlot()
 
   connect(plot, &QwtPlot::legendDataChanged, legend, &QwtLegend::updateLegend);
 
-  QMetaObject::Connection conn;
-  conn = QObject::connect(
+  loadRTData(plot, [plot, latestData, slider, angleLabel](const RTPlotData& data) {
+    auto curveSpol = new QwtPlotCurve("R_s");
+    curveSpol->setLegendAttribute(QwtPlotCurve::LegendShowSymbol, false);
+    curveSpol->setLegendAttribute(QwtPlotCurve::LegendShowLine, true);
+    curveSpol->setPen(QPen(Qt::red, 2.0));
+    curveSpol->attach(plot);
+
+    auto curvePpol = new QwtPlotCurve("R_p");
+    curvePpol->setLegendAttribute(QwtPlotCurve::LegendShowSymbol, false);
+    curvePpol->setLegendAttribute(QwtPlotCurve::LegendShowLine, true);
+    curvePpol->setPen(QPen(Qt::blue, 2.0));
+    curvePpol->attach(plot);
+    plot->setAxisScale(QwtPlot::yLeft, 0.0, 1.0);
+    plot->setAxisScale(QwtPlot::xBottom, 350, 800);
+
+    *latestData = data;
+    const int numAngles = static_cast<int>(data.Rs.size());
+
+    if (numAngles <= 0 || data.wvl.isEmpty()) {
+      slider->setEnabled(false);
+      return;
+    }
+    slider->setRange(0, numAngles - 1);
+    slider->setValue(0);
+
+    curveSpol->setSamples(data.wvl, data.Rs[0]);
+    curvePpol->setSamples(data.wvl, data.Rp[0]);
+
+    QwtPlotZoomer* zoomer = new QwtPlotZoomer(plot->canvas());
+    zoomer->setRubberBandPen(QColor(Qt::red));
+    zoomer->setTrackerPen(QColor(Qt::blue));
+
+    plot->replot();
+
+    QObject::connect(slider, &QSlider::valueChanged, plot, [=](int index) {
+      if (index >= 0 && index < data.Rs.size()) {
+        curveSpol->setSamples(data.wvl, data.Rs[index]);
+        curvePpol->setSamples(data.wvl, data.Rp[index]);
+        angleLabel->setText(QString("Angle: %1").arg(data.angle[index], 0, 'g', 6));
+        plot->replot();
+      }
+    });
+  });
+
+  return container;
+}
+
+QWidget* ThreadManager::makeTPlot()
+{
+  auto* container = new QWidget;
+  auto* hbox = new QHBoxLayout(container);
+  hbox->setContentsMargins(0, 0, 0, 0);
+  hbox->setSpacing(8);
+
+  auto plot = new QwtPlot();
+  plot->setTitle("Transmittance");
+  plot->setCanvas(new QwtPlotCanvas());
+  plot->setCanvasBackground(Qt::white);
+  plot->setAxisTitle(QwtPlot::xBottom, "Wavelength (nm)");
+  plot->setAxisTitle(QwtPlot::yLeft, "Transmittance");
+
+  auto* rightPanel = new QWidget;
+  auto* vbox = new QVBoxLayout(rightPanel);
+  vbox->setContentsMargins(0, 0, 0, 0);
+  vbox->setSpacing(6);
+
+  auto* legend = new QwtLegend(rightPanel);
+  legend->setMaxColumns(1);
+  vbox->addWidget(legend);
+
+  auto* slider = new QSlider(Qt::Vertical, rightPanel);
+  slider->setMinimum(0);
+  slider->setTickPosition(QSlider::TicksBothSides);
+  slider->setSingleStep(1);
+  slider->setPageStep(1);
+  vbox->addWidget(slider);
+
+  auto* angleLabel = new QLabel("Angle: -", rightPanel);
+  angleLabel->setAlignment(Qt::AlignTop | Qt::AlignLeft);
+  angleLabel->setMaximumWidth(140);
+  vbox->addWidget(angleLabel);
+
+  auto* saveButton = new QPushButton("Save data...", rightPanel);
+  vbox->addWidget(saveButton);
+
+  vbox->addStretch();
+
+  hbox->addWidget(plot, 1);
+  hbox->addWidget(rightPanel, 0);
+
+  auto latestData = std::make_shared<RTPlotData>();
+
+  connect(saveButton, &QPushButton::clicked, container, [container, latestData]() {
+    QString fileName = QFileDialog::getSaveFileName(container, tr("Save CSV"), "", tr("CSV Files (*.csv)"));
+    if (!fileName.isEmpty()) {
+      try {
+        latestData->exportToCsv(fileName);
+      } catch (const std::exception& e) {
+        QMessageBox::critical(container, tr("Export Error"), e.what());
+      }
+    }
+  });
+
+  connect(plot, &QwtPlot::legendDataChanged, legend, &QwtLegend::updateLegend);
+
+  loadRTData(plot, [plot, latestData, slider, angleLabel](const RTPlotData& data) {
+    auto curveSpol = new QwtPlotCurve("T_s");
+    curveSpol->setLegendAttribute(QwtPlotCurve::LegendShowSymbol, false);
+    curveSpol->setLegendAttribute(QwtPlotCurve::LegendShowLine, true);
+    curveSpol->setPen(QPen(Qt::red, 2.0));
+    curveSpol->attach(plot);
+
+    auto curvePpol = new QwtPlotCurve("T_p");
+    curvePpol->setLegendAttribute(QwtPlotCurve::LegendShowSymbol, false);
+    curvePpol->setLegendAttribute(QwtPlotCurve::LegendShowLine, true);
+    curvePpol->setPen(QPen(Qt::blue, 2.0));
+    curvePpol->attach(plot);
+    plot->setAxisScale(QwtPlot::yLeft, 0.0, 1.0);
+    plot->setAxisScale(QwtPlot::xBottom, 350, 800);
+
+    *latestData = data;
+    const int numAngles = static_cast<int>(data.Ts.size());
+
+    if (numAngles <= 0 || data.wvl.isEmpty()) {
+      slider->setEnabled(false);
+      return;
+    }
+    slider->setRange(0, numAngles - 1);
+    slider->setValue(0);
+
+    curveSpol->setSamples(data.wvl, data.Ts[0]);
+    curvePpol->setSamples(data.wvl, data.Tp[0]);
+
+    QwtPlotZoomer* zoomer = new QwtPlotZoomer(plot->canvas());
+    zoomer->setRubberBandPen(QColor(Qt::red));
+    zoomer->setTrackerPen(QColor(Qt::blue));
+
+    plot->replot();
+
+    QObject::connect(slider, &QSlider::valueChanged, plot, [=](int index) {
+      if (index >= 0 && index < data.Ts.size()) {
+        curveSpol->setSamples(data.wvl, data.Ts[index]);
+        curvePpol->setSamples(data.wvl, data.Tp[index]);
+        angleLabel->setText(QString("Angle: %1").arg(data.angle[index], 0, 'g', 6));
+        plot->replot();
+      }
+    });
+  });
+
+  return container;
+}
+
+void ThreadManager::loadRTData(QObject* receiver, std::function<void(const RTPlotData&)> onReady)
+{
+
+  if (_rtReady && _rtData) {
+    QMetaObject::invokeMethod(receiver, [d = _rtData, onReady] { onReady(*d); }, Qt::QueuedConnection);
+    return;
+  }
+
+  auto conn = std::make_shared<QMetaObject::Connection>();
+  *conn = QObject::connect(
     worker,
     &Worker::RTDataReady,
-    plot,
-    [plot, conn, latestData, slider, angleLabel](RTPlotData data) mutable {
-      auto curveSpol = new QwtPlotCurve("R_s");
-      curveSpol->setLegendAttribute(QwtPlotCurve::LegendShowSymbol, false);
-      curveSpol->setLegendAttribute(QwtPlotCurve::LegendShowLine, true);
-      curveSpol->setPen(QPen(Qt::red, 2.0));
-      curveSpol->attach(plot);
+    receiver,
+    [this, onReady, conn](RTPlotData data) mutable {
+      _rtData = std::make_shared<RTPlotData>(std::move(data));
+      _rtReady = true;
+      _rtLoading = false;
 
-      auto curvePpol = new QwtPlotCurve("R_p");
-      curvePpol->setLegendAttribute(QwtPlotCurve::LegendShowSymbol, false);
-      curvePpol->setLegendAttribute(QwtPlotCurve::LegendShowLine, true);
-      curvePpol->setPen(QPen(Qt::blue, 2.0));
-      curvePpol->attach(plot);
-      plot->setAxisScale(QwtPlot::yLeft, 0.0, 1.0);
-      plot->setAxisScale(QwtPlot::xBottom, 350, 800);
+      onReady(*_rtData);
 
-      *latestData = std::move(data);
-      const int numAngles = static_cast<int>(latestData->Rs.size());
-
-      if (numAngles <= 0 || latestData->wvl.isEmpty()) {
-        slider->setEnabled(false);
-        QObject::disconnect(conn);
-        return;
-      }
-      slider->setRange(0, numAngles - 1);
-      slider->setValue(0);
-
-      curveSpol->setSamples(latestData->wvl, latestData->Rs[0]);
-      curvePpol->setSamples(latestData->wvl, latestData->Rp[0]);
-
-      QwtPlotZoomer* zoomer = new QwtPlotZoomer(plot->canvas());
-      zoomer->setRubberBandPen(QColor(Qt::red));
-      zoomer->setTrackerPen(QColor(Qt::blue));
-
-      plot->replot();
-
-      QObject::connect(slider, &QSlider::valueChanged, plot, [=](int index) {
-        if (index >= 0 && index < latestData->Rs.size()) {
-          curveSpol->setSamples(latestData->wvl, latestData->Rs[index]);
-          curvePpol->setSamples(latestData->wvl, latestData->Rp[index]);
-          angleLabel->setText(QString("Angle: %1").arg(latestData->angle[index], 0, 'g', 6));
-          plot->replot();
-        }
-      });
-
-      QObject::disconnect(conn);
+      QObject::disconnect(*conn);
     },
     Qt::QueuedConnection);
 
-  QMetaObject::invokeMethod(worker, "loadRTPlotData", Qt::QueuedConnection);
-
-  return container;
+  if (!_rtLoading) {
+    _rtLoading = true;
+    QMetaObject::invokeMethod(worker, "loadRTPlotData", Qt::QueuedConnection);
+  }
 }

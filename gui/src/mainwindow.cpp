@@ -240,7 +240,8 @@ void MainWindow::onLoad()
     _plotPolar = nullptr;
     _plotFit = nullptr;
     _plotMode = nullptr;
-    _plotRT = nullptr;
+    _plotR = nullptr;
+    _plotT = nullptr;
   }
 }
 
@@ -270,7 +271,8 @@ void MainWindow::displayResultWindow()
     _resultsList->addItem(tr("Substrate emission (polar)"));
     _resultsList->addItem(tr("Mode contributions"));
     _resultsList->addItem(tr("Reflectance"));
-    placeholderNum = 5;
+    _resultsList->addItem(tr("Transmittance"));
+    placeholderNum = 6;
   }
 
   // Plot area
@@ -335,10 +337,18 @@ void MainWindow::ensurePlotCreated(int row)
       break;
 
     case 3:
-      if (!_plotRT) {
-        _plotRT = _thread->makeRTPlot();
+      if (!_plotR) {
+        _plotR = _thread->makeRPlot();
         _resultsPlots->removeWidget(_resultsPlots->widget(3));
-        _resultsPlots->insertWidget(3, _plotRT);
+        _resultsPlots->insertWidget(3, _plotR);
+      }
+      break;
+
+    case 4:
+      if (!_plotT) {
+        _plotT = _thread->makeTPlot();
+        _resultsPlots->removeWidget(_resultsPlots->widget(4));
+        _resultsPlots->insertWidget(4, _plotT);
       }
       break;
     }

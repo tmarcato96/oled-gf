@@ -136,15 +136,19 @@ void BaseSolver::calculateRT()
   CMatrix T_perp(matstack.numInterfaces, matstack.numKVectors);
   CMatrix T_para(matstack.numInterfaces, matstack.numKVectors);
 
-  Vector theta;
+  Vector theta, theta_sub;
   theta = Eigen::real(
     Eigen::acos(Eigen::sqrt(1 - matstack.epsilon(dipoleLayer) / matstack.epsilon(0) * Eigen::pow(matstack.u, 2))));
+  theta_sub = Eigen::real(Eigen::acos(Eigen::sqrt(
+    1 - matstack.epsilon(dipoleLayer) / matstack.epsilon(matstack.numLayers - 1) * Eigen::pow(matstack.u, 2))));
   Eigen::Index stride = 200;
   Vector thetaDownSampled = 180 * theta(Eigen::seq(0, Eigen::last, stride)) / M_PI;
   resultTree["angle_top"] = thetaDownSampled;
 
   Matrix Rs(wavelength.size(), thetaDownSampled.size());
   Matrix Rp(wavelength.size(), thetaDownSampled.size());
+  Matrix Ts(wavelength.size(), thetaDownSampled.size());
+  Matrix Tp(wavelength.size(), thetaDownSampled.size());
 
   for (Eigen::Index i = 0; i < wavelength.size(); ++i) {
     this->setWavelength(wavelength(i));
@@ -196,10 +200,18 @@ void BaseSolver::calculateRT()
       CMPLX tp = 1.0 / M_total_p(0, 0);
       Rs(i, j) = std::pow(std::abs(rs), 2);
       Rp(i, j) = std::pow(std::abs(rp), 2);
+
+      const double T_factor = std::sqrt(matstack.epsilon(matstack.numLayers - 1)).real() *
+                              std::cos(theta_sub(stride * j)) /
+                              (std::sqrt(matstack.epsilon(0)).real() * std::cos(theta(stride * j)));
+      Ts(i, j) = std::pow(std::abs(ts), 2) * T_factor;
+      Tp(i, j) = std::pow(std::abs(tp), 2) * T_factor;
     }
   }
   resultTree["R_s"] = std::move(Rs);
   resultTree["R_p"] = std::move(Rp);
+  resultTree["T_s"] = std::move(Ts);
+  resultTree["T_p"] = std::move(Tp);
 }
 
 void BaseSolver::calculateGFCoeffRatios()

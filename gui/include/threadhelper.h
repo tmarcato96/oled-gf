@@ -62,7 +62,7 @@ namespace UIthreading {
   struct RTPlotData : public Exportable
   {
     QVector<double> wvl, angle;
-    QVector<QVector<double>> Rs, Rp;
+    QVector<QVector<double>> Rs, Rp, Ts, Tp;
 
     void exportToCsv(const QString& filePath) const override;
   };
@@ -72,7 +72,6 @@ namespace UIthreading {
   {
     Q_OBJECT
     friend class ThreadManager;
-    static std::set<QString> _blacklist;
     SolverManager _solver;
     QString _filepath;
     Data::SolverMode _mode;
@@ -122,9 +121,17 @@ namespace UIthreading {
     QWidget* makePolarPlot();
     QWidget* makeFitPlot();
     QWidget* makeModePlot();
-    QWidget* makeRTPlot();
+    QWidget* makeRPlot();
+    QWidget* makeTPlot();
+
+    void loadRTData(QObject* receiver, std::function<void(const RTPlotData&)> onReady);
 
     void restartSolver(const QString& configFilePath);
+
+  private:
+    std::shared_ptr<RTPlotData> _rtData;
+    bool _rtReady = false;
+    bool _rtLoading = false;
 
   signals:
     void solverStatus(bool status);
