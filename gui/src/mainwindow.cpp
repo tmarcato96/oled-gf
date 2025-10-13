@@ -236,6 +236,11 @@ void MainWindow::onLoad()
     settings.setValue("lastOpenDir", QFileInfo(filePath).absolutePath());
     // open the file
     resetJob(filePath);
+    _plotDiss = nullptr;
+    _plotPolar = nullptr;
+    _plotFit = nullptr;
+    _plotMode = nullptr;
+    _plotRT = nullptr;
   }
 }
 
@@ -264,7 +269,8 @@ void MainWindow::displayResultWindow()
     _resultsList->addItem(tr("Dissipation plot"));
     _resultsList->addItem(tr("Substrate emission (polar)"));
     _resultsList->addItem(tr("Mode contributions"));
-    placeholderNum = 4;
+    _resultsList->addItem(tr("Reflectance"));
+    placeholderNum = 5;
   }
 
   // Plot area
@@ -325,6 +331,14 @@ void MainWindow::ensurePlotCreated(int row)
         _plotMode = _thread->makeModePlot();
         _resultsPlots->removeWidget(_resultsPlots->widget(2));
         _resultsPlots->insertWidget(2, _plotMode);
+      }
+      break;
+
+    case 3:
+      if (!_plotRT) {
+        _plotRT = _thread->makeRTPlot();
+        _resultsPlots->removeWidget(_resultsPlots->widget(3));
+        _resultsPlots->insertWidget(3, _plotRT);
       }
       break;
     }

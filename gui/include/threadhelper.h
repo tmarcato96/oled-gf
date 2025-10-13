@@ -59,6 +59,14 @@ namespace UIthreading {
     void exportToCsv(const QString& filePath) const override;
   };
 
+  struct RTPlotData : public Exportable
+  {
+    QVector<double> wvl, angle;
+    QVector<QVector<double>> Rs, Rp;
+
+    void exportToCsv(const QString& filePath) const override;
+  };
+
   // workers
   class Worker : public QObject
   {
@@ -77,6 +85,7 @@ namespace UIthreading {
     void dissDataReady(DissPlotData);
     void polarDataReady(PolarPlotData);
     void modeDataReady(ModePlotData);
+    void RTDataReady(RTPlotData);
 
   public:
     Worker(const QString& filepath);
@@ -93,6 +102,7 @@ namespace UIthreading {
     void loadSimPlotData();
     void loadPolarPlotData();
     void loadModePlotData();
+    void loadRTPlotData();
   };
 
   class ThreadManager : public QObject
@@ -112,6 +122,7 @@ namespace UIthreading {
     QWidget* makePolarPlot();
     QWidget* makeFitPlot();
     QWidget* makeModePlot();
+    QWidget* makeRTPlot();
 
     void restartSolver(const QString& configFilePath);
 

@@ -102,6 +102,8 @@ protected:
   // Main calculation functions
   void calculateFresnelCoeffs();
   /*!< Function to calculate the fresnel coefficients as a function of the materials inputted. */
+  void calculateFresnelr(CMatrix& R_perp, CMatrix& R_para);
+  void calculateFresnelt(CMatrix& T_perp, CMatrix& T_para);
   void calculateGFCoeffRatios();
   /*!< Function to calculate the ratios between the coefficients of the dyadic Green functions for both left and right
    * travelling eigenfunctions.*/
@@ -135,6 +137,8 @@ public:
   size_t getDipoleIndex() const;
   Vector const& getInPlaneWavevector() const;
   double getAlpha() const;
+
+  void calculateRT();
 
   void run();
   virtual void update() = 0;

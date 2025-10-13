@@ -64,7 +64,6 @@ void BaseSolver::calculateFresnelCoeffs()
              matstack.h.block(0, 0, matstack.h.rows() - 1, matstack.h.cols())) /
            (matstack.h.block(1, 0, matstack.h.rows() - 1, matstack.h.cols()) +
              matstack.h.block(0, 0, matstack.h.rows() - 1, matstack.h.cols()));
-  (R_perp.bottomRows(R_perp.rows() - dipoleLayer)) *= -1.0;
 
   R_para = ((matstack.h.block(0, 0, matstack.h.rows() - 1, matstack.h.cols())).colwise() *
               matstack.epsilon.segment(1, matstack.epsilon.size() - 1) -
@@ -74,10 +73,133 @@ void BaseSolver::calculateFresnelCoeffs()
                matstack.epsilon.segment(1, matstack.epsilon.size() - 1) +
              (matstack.h.block(1, 0, matstack.h.rows() - 1, matstack.h.cols())).colwise() *
                matstack.epsilon.segment(0, matstack.epsilon.size() - 1));
+
+  (R_perp.bottomRows(R_perp.rows() - dipoleLayer)) *= -1.0;
   (R_para.bottomRows(R_para.rows() - dipoleLayer)) *= -1.0;
+
   // Move into SolverCoefficients
   coeffs._Rperp = std::move(R_perp);
   coeffs._Rpara = std::move(R_para);
+}
+
+void BaseSolver::calculateFresnelr(CMatrix& R_perp, CMatrix& R_para)
+{
+  const Eigen::Index M = matstack.h.rows() - 1;
+  const Eigen::Index N = matstack.h.cols();
+  const Eigen::Index K = matstack.epsilon.size() - 1;
+  R_perp = (matstack.h.block(0, 0, M, N) - matstack.h.block(1, 0, M, N)) /
+           (matstack.h.block(0, 0, M, N) + matstack.h.block(1, 0, M, N));
+  // R_perp = (matstack.h.block(1, 0, matstack.h.rows() - 1, matstack.h.cols()) -
+  //            matstack.h.block(0, 0, matstack.h.rows() - 1, matstack.h.cols())) /
+  //          (matstack.h.block(1, 0, matstack.h.rows() - 1, matstack.h.cols()) +
+  //            matstack.h.block(0, 0, matstack.h.rows() - 1, matstack.h.cols()));
+
+  const CMatrix eps_i = matstack.epsilon.segment(0, K).replicate(1, N);
+  const CMatrix eps_j = matstack.epsilon.segment(1, K).replicate(1, N);
+  R_para = (eps_j * matstack.h.block(0, 0, M, N) - eps_i * matstack.h.block(1, 0, M, N)) /
+           (eps_j * matstack.h.block(0, 0, M, N) + eps_i * matstack.h.block(1, 0, M, N));
+  // R_para = ((matstack.h.block(0, 0, matstack.h.rows() - 1, matstack.h.cols())).colwise() *
+  //             matstack.epsilon.segment(1, matstack.epsilon.size() - 1) -
+  //           (matstack.h.block(1, 0, matstack.h.rows() - 1, matstack.h.cols())).colwise() *
+  //             matstack.epsilon.segment(0, matstack.epsilon.size() - 1));
+  // R_para /= ((matstack.h.block(0, 0, matstack.h.rows() - 1, matstack.h.cols())).colwise() *
+  //              matstack.epsilon.segment(1, matstack.epsilon.size() - 1) +
+  //            (matstack.h.block(1, 0, matstack.h.rows() - 1, matstack.h.cols())).colwise() *
+  //              matstack.epsilon.segment(0, matstack.epsilon.size() - 1));
+}
+
+void BaseSolver::calculateFresnelt(CMatrix& T_perp, CMatrix& T_para)
+{
+  T_perp = 2.0 * matstack.h.block(0, 0, matstack.h.rows() - 1, matstack.h.cols()) /
+           (matstack.h.block(1, 0, matstack.h.rows() - 1, matstack.h.cols()) +
+             matstack.h.block(0, 0, matstack.h.rows() - 1, matstack.h.cols()));
+
+  const Eigen::Index M = matstack.h.rows() - 1;
+  const Eigen::Index N = matstack.h.cols();
+  const Eigen::Index K = matstack.epsilon.size() - 1;
+
+  const CMatrix eps_i = matstack.epsilon.segment(0, K).replicate(1, N);
+  const CMatrix eps_j = matstack.epsilon.segment(1, K).replicate(1, N);
+  const CMatrix rootRatio = (matstack.epsilon.segment(0, K) / matstack.epsilon.segment(1, K)).sqrt().replicate(1, N);
+
+  T_para = (2.0 * matstack.h.block(0, 0, M, N) * eps_j * rootRatio) /
+           (eps_j * matstack.h.block(0, 0, M, N) + eps_i * matstack.h.block(1, 0, M, N));
+}
+
+void BaseSolver::calculateRT()
+{
+  Vector wavelength = Vector::LinSpaced(100, 350, 800);
+  resultTree["wavelength"] = wavelength;
+
+  CMatrix R_perp(matstack.numInterfaces, matstack.numKVectors);
+  CMatrix R_para(matstack.numInterfaces, matstack.numKVectors);
+  CMatrix T_perp(matstack.numInterfaces, matstack.numKVectors);
+  CMatrix T_para(matstack.numInterfaces, matstack.numKVectors);
+
+  Vector theta;
+  theta = Eigen::real(
+    Eigen::acos(Eigen::sqrt(1 - matstack.epsilon(dipoleLayer) / matstack.epsilon(0) * Eigen::pow(matstack.u, 2))));
+  Eigen::Index stride = 200;
+  Vector thetaDownSampled = 180 * theta(Eigen::seq(0, Eigen::last, stride)) / M_PI;
+  resultTree["angle_top"] = thetaDownSampled;
+
+  Matrix Rs(wavelength.size(), thetaDownSampled.size());
+  Matrix Rp(wavelength.size(), thetaDownSampled.size());
+
+  for (Eigen::Index i = 0; i < wavelength.size(); ++i) {
+    this->setWavelength(wavelength(i));
+    this->update();
+    calculateFresnelr(R_perp, R_para);
+    calculateFresnelt(T_perp, T_para);
+
+    Eigen::Matrix2cd M_i, M_r_i, M_delta_i, M_total_s, M_total_p;
+    M_delta_i = Eigen::Matrix2cd::Zero();
+    M_r_i = Eigen::Matrix2cd::Ones();
+    CMPLX I(0.0, 1.0);
+    for (Eigen::Index j = 0; j < thetaDownSampled.size(); ++j) {
+      M_total_s = Eigen::Matrix2cd::Identity();
+      M_total_p = Eigen::Matrix2cd::Identity();
+      for (Eigen::Index k = 1; k < matstack.numInterfaces; ++k) {
+        M_r_i(0, 1) = R_perp(k, stride * j);
+        M_r_i(1, 0) = R_perp(k, stride * j);
+
+        CMPLX delta = matstack.h(k, stride * j) * layers[k].getThickness();
+        M_delta_i(0, 0) = std::exp(-1.0 * I * delta);
+        M_delta_i(1, 1) = std::exp(I * delta);
+
+        M_i = (1.0 / T_perp(k, stride * j)) * (M_delta_i * M_r_i);
+
+        M_total_s *= M_i;
+
+        M_r_i(0, 1) = R_para(k, stride * j);
+        M_r_i(1, 0) = R_para(k, stride * j);
+        M_i = (1.0 / T_para(k, stride * j)) * (M_delta_i * M_r_i);
+        M_total_p *= M_i;
+      }
+      Eigen::Matrix2cd M_r_1 = Eigen::Matrix2cd::Ones();
+      M_r_1(0, 1) = R_perp(0, stride * j);
+      M_r_1(1, 0) = R_perp(0, stride * j);
+      M_r_1 /= T_perp(0, stride * j);
+
+      M_total_s = M_r_1 * M_total_s;
+
+      M_r_1(0, 0) = 1.0;
+      M_r_1(1, 1) = 1.0;
+      M_r_1(0, 1) = R_para(0, stride * j);
+      M_r_1(1, 0) = R_para(0, stride * j);
+      M_r_1 /= T_para(0, stride * j);
+      M_total_p = M_r_1 * M_total_p;
+
+      CMPLX rs = M_total_s(1, 0) / M_total_s(0, 0);
+      CMPLX ts = 1.0 / M_total_s(0, 0);
+      CMPLX rp = M_total_p(1, 0) / M_total_p(0, 0);
+      CMPLX tp = 1.0 / M_total_p(0, 0);
+      Rs(i, j) = std::pow(std::abs(rs), 2);
+      Rp(i, j) = std::pow(std::abs(rp), 2);
+    }
+  }
+  resultTree["R_s"] = std::move(Rs);
+  resultTree["R_p"] = std::move(Rp);
 }
 
 void BaseSolver::calculateGFCoeffRatios()
